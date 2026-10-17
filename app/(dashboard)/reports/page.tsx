@@ -1,163 +1,118 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Loader2, Download, FolderKanban, HeartHandshake, Receipt } from "lucide-react";
-import Card from "@/components/ui/Card";
-import Button from "@/components/ui/Button";
-import StatCard from "@/components/ui/StatCard";
-import { TrendChart } from "@/components/charts/TrendChart";
-import { MagnitudeBarChart, MagnitudeDatum } from "@/components/charts/MagnitudeBarChart";
-import { DonutChart, DonutDatum } from "@/components/charts/DonutChart";
-import { CAUSE_LABELS, CAUSE_COLORS, CAUSE_COLOR_FALLBACK, KPI_COLORS } from "@/lib/chartColors";
-import { reportsApi, ReportsOverview, ReportSnapshot } from "@/lib/reportsApi";
-import { formatCurrency, CASE_STATUS_META } from "@/lib/statusMeta";
-import { CaseStatus } from "@/lib/types";
+import React from "react";
+import { FileText, Handshake, IndianRupee, MessageSquareText, RefreshCcw, ShoppingBag, Star, Users, Wallet } from "lucide-react";
+import { useApiGet } from "@/lib/useApiGet";
+import { capitalize, formatINR } from "@/lib/sales";
+import { LEAD_STATUSES } from "@/lib/leads";
+import {
+  HeaderButton,
+  OrganicPage,
+  PageHeader,
+  QuickActions,
+  SideCard,
+  SidebarBar,
+  StatCard,
+  StatGrid,
+  SummaryDonut,
+} from "@/components/organic/OrganicUI";
 
-const ALL_STATUSES: CaseStatus[] = [
-  "NEW",
-  "UNDER_VERIFICATION",
-  "APPROVED",
-  "VOLUNTEER_ASSIGNED",
-  "TRANSPORT_ARRANGED",
-  "CREMATION_IN_PROGRESS",
-  "CREMATION_COMPLETED",
-  "DOCS_UPLOADED",
-  "CLOSED",
-  "REJECTED",
-  "CANCELLED",
-];
+type OrdersSummary = { summary: { total: number; byStatus: Record<string, number>; byPayment?: Record<string, number>; paidRevenue: number; paidOrders: number } };
+type InvoicesSummary = { summary: { count: number; byStatus: Record<string, number>; billed: number; received: number; outstanding: number } };
+type LeadsSummary = { summary: { total: number; byStatus: Record<string, number>; byCategory: Record<string, number>; followUpsToday: number; followUpsOverdue: number } };
+type ReviewsSummary = { summary: { total: number; byStatus: Record<string, number>; averageApprovedRating: number } };
 
-function shortDate(dateKey: string): string {
-  const [, m, d] = dateKey.split("-");
-  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${d} ${MONTHS[Number(m) - 1]}`;
-}
+const ORDER_COLORS: Record<string, string> = { pending: "#F49B16", confirmed: "#3379DE", shipped: "#8851DA", delivered: "#2CA25F", cancelled: "#E4463E" };
+const LEAD_COLORS: Record<string, string> = { New: "#3379DE", Contacted: "#38BDF8", Qualified: "#8851DA", Negotiation: "#F49B16", Converted: "#2CA25F", Lost: "#94A3B8" };
 
+/** Business overview built from the live Orders, Invoices, Leads and Reviews modules */
 export default function ReportsPage() {
-  const [overview, setOverview] = useState<ReportsOverview | null>(null);
-  const [snapshots, setSnapshots] = useState<ReportSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [exporting, setExporting] = useState<"cases" | "donations" | null>(null);
+  const orders = useApiGet<OrdersSummary>("/orders/admin/all?limit=1");
+  const invoices = useApiGet<InvoicesSummary>("/invoices?limit=1");
+  const leads = useApiGet<LeadsSummary>("/leads?limit=1");
+  const reviews = useApiGet<ReviewsSummary>("/reviews?limit=1");
 
-  useEffect(() => {
-    Promise.all([reportsApi.overview(), reportsApi.snapshots(30)])
-      .then(([o, s]) => {
-        setOverview(o);
-        setSnapshots(s);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const o = orders.data?.summary;
+  const i = invoices.data?.summary;
+  const l = leads.data?.summary;
+  const r = reviews.data?.summary;
+  const loading = orders.loading || invoices.loading || leads.loading || reviews.loading;
+  const failed = [orders, invoices, leads, reviews].filter((x) => x.error).length;
 
-  const handleExport = async (kind: "cases" | "donations") => {
-    setExporting(kind);
-    try {
-      if (kind === "cases") await reportsApi.exportCases();
-      else await reportsApi.exportDonations();
-    } finally {
-      setExporting(null);
-    }
-  };
-
-  if (loading || !overview) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center text-text-muted">
-        <Loader2 className="h-5 w-5 animate-spin" />
-      </div>
-    );
-  }
-
-  const raisedTrend = snapshots.map((s) => ({ label: shortDate(s.date), value: s.donations.totalRaised }));
-  const openCasesTrend = snapshots.map((s) => ({ label: shortDate(s.date), value: s.cases.open }));
-
-  const statusData: MagnitudeDatum[] = ALL_STATUSES.filter((s) => overview.cases.byStatus[s] > 0).map((status) => ({
-    label: CASE_STATUS_META[status].label,
-    value: overview.cases.byStatus[status],
-  }));
-
-  const causeEntries = Object.entries(overview.donations.byCause).filter(([, v]) => v > 0);
-  const causeData: DonutDatum[] = causeEntries.map(([cause, amount]) => ({
-    key: cause,
-    label: CAUSE_LABELS[cause] ?? cause,
-    value: amount,
-  }));
+  const converted = l?.byStatus?.Converted || 0;
+  const conversion = l?.total ? `${((converted / l.total) * 100).toFixed(1)}% converted` : "No leads yet";
+  const avgOrder = o?.paidOrders ? formatINR(Math.round((o.paidRevenue || 0) / o.paidOrders)) : "—";
+  const reload = () => { orders.reload(); invoices.reload(); leads.reload(); reviews.reload(); };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-lg font-semibold text-text-primary">Reports</h1>
-        <p className="text-xs text-text-muted">Full breakdowns and exportable registers.</p>
+    <OrganicPage>
+      <PageHeader
+        title="Business Reports"
+        subtitle="A live overview of sales, collections, leads and customer reviews across Ensis."
+        actions={<HeaderButton icon={RefreshCcw} onClick={reload} primary>{loading ? "Refreshing…" : "Refresh"}</HeaderButton>}
+      />
+
+      {failed > 0 && (
+        <div className="mt-[10px] rounded-[6px] border border-red-200 bg-red-50 px-[11px] py-[8px] text-[10px] font-semibold text-red-700">
+          {failed} section{failed === 1 ? "" : "s"} could not be loaded. Check that the backend is running, then Refresh.
+        </div>
+      )}
+
+      <div className="mt-[22px]">
+        <StatGrid columns={5}>
+          <StatCard label="Paid Revenue" value={formatINR(o?.paidRevenue)} note={`${o?.paidOrders || 0} paid orders`} icon={IndianRupee} tone="emerald" />
+          <StatCard label="Average Order" value={avgOrder} note="Paid orders only" icon={ShoppingBag} tone="violet" />
+          <StatCard label="Invoiced" value={formatINR(i?.billed)} note={`${formatINR(i?.received)} received`} icon={FileText} tone="blue" />
+          <StatCard label="Outstanding" value={formatINR(i?.outstanding)} note="Still to collect" icon={Wallet} tone="rose" />
+          <StatCard label="Lead Conversion" value={converted} note={conversion} icon={Handshake} tone="amber" />
+        </StatGrid>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
-        <Card padding="sm">
-          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-text-muted">Total Raised — Last 30 Days</h2>
-          <TrendChart data={raisedTrend} valueFormatter={formatCurrency} />
-        </Card>
-        <Card padding="sm">
-          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-text-muted">Open Cases — Last 30 Days</h2>
-          <TrendChart data={openCasesTrend} valueFormatter={(v) => `${v} case${v === 1 ? "" : "s"}`} />
-        </Card>
-      </div>
+      <div className="mt-[16px] grid gap-[13px] md:grid-cols-2 xl:grid-cols-3">
+        <SideCard title="Orders by Status">
+          <SummaryDonut slices={Object.keys(ORDER_COLORS).map((s) => ({ label: capitalize(s), value: o?.byStatus?.[s] || 0, color: ORDER_COLORS[s] }))} />
+        </SideCard>
 
-      <div className="grid grid-cols-2 gap-1 lg:grid-cols-4">
-        <StatCard
-          icon={FolderKanban}
-          label="Total Cases"
-          value={overview.cases.total}
-          hint={`${overview.cases.open} open`}
-          accentColor={KPI_COLORS.cases}
-        />
-        <StatCard
-          icon={HeartHandshake}
-          label="Total Raised"
-          value={formatCurrency(overview.donations.totalRaised)}
-          accentColor={KPI_COLORS.donations}
-        />
-        <StatCard
-          icon={Receipt}
-          label="Expenses Approved"
-          value={formatCurrency(overview.expenses.approvedAmount)}
-          hint={`${overview.expenses.approvedCount} entries`}
-          accentColor={KPI_COLORS.requests}
-        />
-        <StatCard
-          icon={Receipt}
-          label="Pending Approval"
-          value={formatCurrency(overview.expenses.pendingAmount)}
-          hint={`${overview.expenses.pendingCount} entries`}
-          tone={overview.expenses.pendingCount > 0 ? "danger" : "neutral"}
+        <SideCard title="Lead Pipeline">
+          <SummaryDonut slices={LEAD_STATUSES.map((s) => ({ label: s, value: l?.byStatus?.[s] || 0, color: LEAD_COLORS[s] }))} />
+        </SideCard>
+
+        <SideCard title="Payments & Collections">
+          <div className="space-y-[11px]">
+            <SidebarBar label="Orders paid" value={o?.byPayment?.paid || 0} total={o?.total || 0} color="#29A15D" />
+            <SidebarBar label="Orders pending" value={o?.byPayment?.pending || 0} total={o?.total || 0} color="#F39B16" />
+            <SidebarBar label="Invoices paid" value={i?.byStatus?.paid || 0} total={i?.count || 0} color="#2784E1" />
+            <SidebarBar label="Part paid" value={i?.byStatus?.partial || 0} total={i?.count || 0} color="#8851DA" />
+          </div>
+        </SideCard>
+
+        <SideCard title="Follow-ups">
+          <div className="space-y-[11px]">
+            <SidebarBar label="Due today" value={l?.followUpsToday || 0} total={l?.total || 0} color="#29A15D" />
+            <SidebarBar label="Overdue" value={l?.followUpsOverdue || 0} total={l?.total || 0} color="#E4463E" />
+            <SidebarBar label="Hot leads" value={l?.byCategory?.hot || 0} total={l?.total || 0} color="#F39B16" />
+          </div>
+        </SideCard>
+
+        <SideCard title="Customer Reviews">
+          <div className="flex items-center gap-[10px]">
+            <span className="text-[23px] font-bold leading-none text-[#0f172a]">{r?.averageApprovedRating || "—"}</span>
+            <div className="text-[10px] font-semibold text-[#475A83]">
+              <p className="flex items-center gap-[4px]"><Star size={12} className="fill-amber-400 text-amber-400" /> average rating</p>
+              <p className="mt-[3px]">{r?.byStatus?.approved || 0} published · {r?.byStatus?.rejected || 0} hidden</p>
+            </div>
+          </div>
+        </SideCard>
+
+        <QuickActions
+          actions={[
+            { label: "Orders", icon: ShoppingBag, href: "/orders" },
+            { label: "Invoices", icon: FileText, href: "/invoices" },
+            { label: "Leads CRM", icon: Users, href: "/leads" },
+            { label: "Product Reviews", icon: MessageSquareText, href: "/product-reviews" },
+          ]}
         />
       </div>
-
-      <div className="grid gap-3 lg:grid-cols-2">
-        <Card padding="sm">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Cases by Status</h2>
-          <MagnitudeBarChart data={statusData} emptyLabel="No cases yet." />
-          <Button size="sm" variant="secondary" className="mt-3 w-full" onClick={() => handleExport("cases")} loading={exporting === "cases"}>
-            <Download className="h-3.5 w-3.5" /> Export Case Register (CSV)
-          </Button>
-        </Card>
-
-        <Card padding="sm">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Donations by Cause</h2>
-          <DonutChart
-            data={causeData}
-            colorFor={(key) => CAUSE_COLORS[key] ?? CAUSE_COLOR_FALLBACK}
-            valueFormatter={formatCurrency}
-            emptyLabel="No successful donations yet."
-          />
-          <Button
-            size="sm"
-            variant="secondary"
-            className="mt-3 w-full"
-            onClick={() => handleExport("donations")}
-            loading={exporting === "donations"}
-          >
-            <Download className="h-3.5 w-3.5" /> Export Donation Register (CSV)
-          </Button>
-        </Card>
-      </div>
-    </div>
+    </OrganicPage>
   );
 }
