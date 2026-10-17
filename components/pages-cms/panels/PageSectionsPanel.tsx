@@ -1,6 +1,8 @@
 import { ChevronRight } from "lucide-react";
 import { SectionFieldsEditor, SectionItemsEditor, SectionTitle } from "../section-editor";
 import { Toggle } from "../fields";
+import { LayoutSectionEditor } from "../section-editor/LayoutSectionEditor";
+import { isLayoutSection } from "../page-strategies/layout";
 import type { CmsRecord } from "@/lib/cmsJson";
 
 export function PageSectionsPanel({
@@ -127,6 +129,11 @@ export function PageSectionsPanel({
                   )}
                 </div>
 
+                {isLayoutSection(section) ? (
+                  <span className="rounded-[4px] border border-[#bfdbfe] bg-[#eff6ff] px-[6px] py-[1px] text-[8.5px] font-bold text-[#1e40af]">
+                    Site-wide · every page
+                  </span>
+                ) : (
                 <div className="flex items-center gap-[10px]" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-[6px]">
                     <span
@@ -141,10 +148,20 @@ export function PageSectionsPanel({
                     />
                   </div>
                 </div>
+                )}
               </div>
 
               {/* SECTION BODY (ONLY RENDERED WHEN OPEN) */}
-              {isOpen && (
+              {isOpen && isLayoutSection(section) && (
+                <div className="p-[14px] bg-[#fbfbfa]">
+                  <LayoutSectionEditor
+                    section={section}
+                    onDataChange={(data) => updateSectionField(sectionIndex, "data", data)}
+                  />
+                </div>
+              )}
+
+              {isOpen && !isLayoutSection(section) && (
                 <div className="flex flex-col gap-[12px] p-[14px] bg-[#fbfbfa]">
                   <SectionFieldsEditor
                     section={section}

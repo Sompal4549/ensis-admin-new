@@ -33,6 +33,8 @@ import {
   X,
 } from "lucide-react";
 
+import { ALL_INDIAN_STATES, fetchLocationByPincode, matchStateOption } from "@/lib/pincode";
+
 /* ============================================================
    TYPES
 ============================================================ */
@@ -214,6 +216,9 @@ const STATES = [
   "Rajasthan",
   "Punjab",
   "Uttarakhand",
+  ...ALL_INDIAN_STATES.filter(
+    (s) => !["Delhi", "Uttar Pradesh", "Haryana", "Rajasthan", "Punjab", "Uttarakhand"].includes(s)
+  ),
   "Other",
 ];
 
@@ -334,6 +339,33 @@ export default function AddNewRequestPage() {
 
   const [submitted, setSubmitted] =
     useState(false);
+
+  const [fetchingPincode, setFetchingPincode] =
+    useState(false);
+
+  async function handlePincodeChange(value: string) {
+    const clean = value.replace(/\D/g, "");
+    update("pincode", clean);
+
+    if (clean.length === 6) {
+      setFetchingPincode(true);
+      try {
+        const loc = await fetchLocationByPincode(clean);
+        if (loc) {
+          const matchedState = matchStateOption(STATES, loc.state);
+          const stateToSet = matchedState || loc.state;
+          setForm((prev) => ({
+            ...prev,
+            pincode: clean,
+            state: stateToSet || prev.state,
+            city: loc.city || prev.city,
+          }));
+        }
+      } finally {
+        setFetchingPincode(false);
+      }
+    }
+  }
 
   /* ==========================================================
      UPDATE
@@ -1154,6 +1186,12 @@ export default function AddNewRequestPage() {
                     Select City
                   </option>
 
+                  {form.city && !CITIES.includes(form.city) && (
+                    <option value={form.city}>
+                      {form.city}
+                    </option>
+                  )}
+
                   {CITIES.map(
                     (item) => (
                       <option
@@ -1184,6 +1222,12 @@ export default function AddNewRequestPage() {
                     Select State
                   </option>
 
+                  {form.state && !STATES.includes(form.state) && (
+                    <option value={form.state}>
+                      {form.state}
+                    </option>
+                  )}
+
                   {STATES.map(
                     (item) => (
                       <option
@@ -1198,20 +1242,14 @@ export default function AddNewRequestPage() {
               </FormField>
 
               <FormField
-                label="Pincode"
+                label={`Pincode ${fetchingPincode ? "(Fetching...)" : ""}`}
                 required
               >
                 <input
                   value={form.pincode}
                   maxLength={6}
                   onChange={(event) =>
-                    update(
-                      "pincode",
-                      event.target.value.replace(
-                        /\D/g,
-                        ""
-                      )
-                    )
+                    handlePincodeChange(event.target.value)
                   }
                   placeholder="Enter pincode"
                   className={inputClass}

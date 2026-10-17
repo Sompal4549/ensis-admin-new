@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
+import { api } from "@/lib/api";
 import {
   ArrowLeft,
   Bold,
   Bookmark,
-  Check,
   ChevronDown,
   Image as ImageIcon,
   Info,
@@ -66,7 +68,24 @@ function Toggle({
   );
 }
 
+type FaqPayload = {
+  question: string;
+  answer: string;
+  shortAnswer?: string;
+  category: string;
+  status: "Published" | "Draft";
+  visibility: VisibilityType;
+  isFeatured?: boolean;
+  orderBy?: number;
+};
+
+const CATEGORIES = ["General", "Request Process", "Services", "Support"];
+
 export default function AddNewFAQPage() {
+  const router = useRouter();
+  // Editing an existing FAQ: /faqs/new?id=<faqId>
+  const [faqId, setFaqId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [shortAnswer, setShortAnswer] = useState("");
@@ -76,21 +95,62 @@ export default function AddNewFAQPage() {
   const [displayOrder, setDisplayOrder] = useState("0");
 
   const [category, setCategory] = useState("");
-  const [subCategory, setSubCategory] = useState("");
   const [visibility, setVisibility] = useState<VisibilityType>("Public");
-
-  const [slug, setSlug] = useState("");
-  const [metaTitle, setMetaTitle] = useState("");
-  const [metaDescription, setMetaDescription] = useState("");
 
   const questionCount = useMemo(() => question.length, [question]);
   const answerCount = useMemo(() => answer.length, [answer]);
   const shortCount = useMemo(() => shortAnswer.length, [shortAnswer]);
-  const metaTitleCount = useMemo(() => metaTitle.length, [metaTitle]);
-  const metaDescriptionCount = useMemo(
-    () => metaDescription.length,
-    [metaDescription],
-  );
+
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("id");
+    if (!id) return;
+    api
+      .get<FaqPayload>(`/faqs/${id}`)
+      .then((faq) => {
+        setFaqId(id);
+        setQuestion(faq.question || "");
+        setAnswer(faq.answer || "");
+        setShortAnswer(faq.shortAnswer || "");
+        setActive(faq.status !== "Draft");
+        setFeatured(!!faq.isFeatured);
+        setDisplayOrder(String(faq.orderBy ?? 0));
+        setCategory(faq.category || "");
+        setVisibility(faq.visibility || "Public");
+      })
+      .catch((err) => {
+        Swal.fire({ title: "Could not load this FAQ", text: err instanceof Error ? err.message : "", icon: "error" });
+      });
+  }, []);
+
+  const goBack = () => router.push("/faqs");
+
+  const save = async (asDraft = false) => {
+    if (!question.trim() || !answer.trim() || !category) {
+      Swal.fire({ title: "Question, answer and category are required", icon: "warning" });
+      return;
+    }
+    const payload: FaqPayload = {
+      question: question.trim(),
+      answer: answer.trim(),
+      shortAnswer: shortAnswer.trim(),
+      category,
+      status: asDraft || !active ? "Draft" : "Published",
+      visibility,
+      isFeatured: featured,
+      orderBy: Math.max(0, Number(displayOrder) || 0),
+    };
+    setSaving(true);
+    try {
+      if (faqId) await api.put(`/faqs/${faqId}`, payload);
+      else await api.post("/faqs", payload);
+      await Swal.fire({ title: faqId ? "FAQ updated" : "FAQ saved", icon: "success", timer: 1200, showConfirmButton: false });
+      goBack();
+    } catch (err) {
+      Swal.fire({ title: "Could not save FAQ", text: err instanceof Error ? err.message : "", icon: "error" });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <main
@@ -105,7 +165,7 @@ export default function AddNewFAQPage() {
         <header className="flex items-start justify-between gap-[16px]">
           <div>
             <h1 className="text-[24px] font-semibold leading-none tracking-[-0.02em] text-[#075b33]">
-              Add New FAQ
+              {faqId ? "Edit FAQ" : "Add New FAQ"}
             </h1>
 
             <nav className="mt-[9px] flex items-center gap-[8px] text-[10.5px] font-semibold text-[#1d2b58]">
@@ -113,13 +173,14 @@ export default function AddNewFAQPage() {
               <span className="text-[#7b8597]">›</span>
               <span>FAQs</span>
               <span className="text-[#7b8597]">›</span>
-              <span>Add New FAQ</span>
+              <span>{faqId ? "Edit FAQ" : "Add New FAQ"}</span>
             </nav>
           </div>
 
           <div className="flex items-center gap-[12px]">
             <button
               type="button"
+              onClick={goBack}
               className="inline-flex h-[40px] items-center gap-[8px] rounded-[6px] border border-[#dfe3e7] bg-white px-[18px] text-[10.5px] font-semibold text-[#273655]"
             >
               <ArrowLeft className="h-[15px] w-[15px]" />
@@ -128,7 +189,9 @@ export default function AddNewFAQPage() {
 
             <button
               type="button"
-              className="inline-flex h-[40px] items-center gap-[8px] rounded-[6px] bg-[linear-gradient(180deg,#076636_0%,#03542c_100%)] px-[20px] text-[10.5px] font-semibold text-white shadow-[0_7px_16px_rgba(5,94,49,.12)]"
+              disabled={saving}
+              onClick={() => save()}
+              className="inline-flex h-[40px] items-center gap-[8px] rounded-[6px] bg-[linear-gradient(180deg,#076636_0%,#03542c_100%)] px-[20px] text-[10.5px] font-semibold text-white shadow-[0_7px_16px_rgba(5,94,49,.12)] disabled:opacity-60"
             >
               <Save className="h-[15px] w-[15px]" />
               Save FAQ
@@ -286,7 +349,7 @@ export default function AddNewFAQPage() {
                   />
 
                   <p className="mt-[6px] text-[9px] font-semibold text-[#738097]">
-                    Set display order (0 will be last)
+                    Lower numbers show first (0 will be last)
                   </p>
                 </div>
 
@@ -329,27 +392,9 @@ export default function AddNewFAQPage() {
                     className="h-[42px] w-full rounded-[6px] border border-[#dfe4e8] bg-white px-[12px] text-[10.5px] font-semibold text-[#2f3d58] outline-none"
                   >
                     <option value="">Select Category</option>
-                    <option>General</option>
-                    <option>Services</option>
-                    <option>Donation</option>
-                    <option>Volunteer</option>
-                    <option>Support</option>
-                  </select>
-                </div>
-
-                <div>
-                  <FieldLabel optional>Sub Category</FieldLabel>
-
-                  <select
-                    value={subCategory}
-                    onChange={(event) => setSubCategory(event.target.value)}
-                    className="h-[42px] w-full rounded-[6px] border border-[#dfe4e8] bg-white px-[12px] text-[10.5px] font-semibold text-[#2f3d58] outline-none"
-                  >
-                    <option value="">Select Sub Category</option>
-                    <option>Getting Started</option>
-                    <option>Process</option>
-                    <option>Eligibility</option>
-                    <option>Payments</option>
+                    {(category && !CATEGORIES.includes(category) ? [...CATEGORIES, category] : CATEGORIES).map((c) => (
+                      <option key={c}>{c}</option>
+                    ))}
                   </select>
                 </div>
 
@@ -403,69 +448,10 @@ export default function AddNewFAQPage() {
               </div>
             </section>
 
-            {/* SEO */}
-            <section className="rounded-[9px] border border-[#e7e9ec] bg-white px-[18px] py-[16px] shadow-[0_1px_3px_rgba(15,23,42,0.025)]">
-              <h2 className="text-[14px] font-semibold text-[#17234a]">
-                SEO &amp; Display Settings
-              </h2>
-              <p className="mt-[4px] text-[10.5px] font-semibold text-[#66738b]">
-                Optimize how this FAQ appears in search and listings.
-              </p>
-
-              <div className="mt-[16px] space-y-[16px]">
-                <div>
-                  <FieldLabel required>FAQ Slug / URL</FieldLabel>
-
-                  <input
-                    value={slug}
-                    onChange={(event) => setSlug(event.target.value)}
-                    placeholder="Enter URL slug (e.g., what-does-ensis-do)"
-                    className="h-[42px] w-full rounded-[6px] border border-[#dfe4e8] bg-white px-[12px] text-[10.5px] font-semibold text-[#2f3d58] outline-none placeholder:text-[#8d97aa]"
-                  />
-
-                  <p className="mt-[6px] text-[9px] font-semibold text-[#738097]">
-                    Use lowercase letters, numbers and hyphens only.
-                  </p>
-                </div>
-
-                <div>
-                  <FieldLabel optional>Meta Title</FieldLabel>
-
-                  <input
-                    value={metaTitle}
-                    onChange={(event) =>
-                      setMetaTitle(event.target.value.slice(0, 60))
-                    }
-                    placeholder="Enter meta title for this FAQ"
-                    className="h-[42px] w-full rounded-[6px] border border-[#dfe4e8] bg-white px-[12px] text-[10.5px] font-semibold text-[#2f3d58] outline-none placeholder:text-[#8d97aa]"
-                  />
-
-                  <div className="mt-[7px] flex justify-end">
-                    <span className="text-[9px] font-semibold text-[#6d7890]">
-                      {metaTitleCount}/60
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <FieldLabel optional>Meta Description</FieldLabel>
-
-                  <textarea
-                    value={metaDescription}
-                    onChange={(event) =>
-                      setMetaDescription(event.target.value.slice(0, 160))
-                    }
-                    placeholder="Enter meta description for this FAQ"
-                    className="h-[72px] w-full resize-none rounded-[6px] border border-[#dfe4e8] bg-white px-[12px] py-[10px] text-[10.5px] font-semibold text-[#2f3d58] outline-none placeholder:text-[#8d97aa]"
-                  />
-
-                  <div className="mt-[7px] flex justify-end">
-                    <span className="text-[9px] font-semibold text-[#6d7890]">
-                      {metaDescriptionCount}/160
-                    </span>
-                  </div>
-                </div>
-              </div>
+            <section className="rounded-[9px] border border-[#e7e9ec] bg-[#f7fbf8] px-[18px] py-[16px] text-[10px] font-semibold leading-[1.6] text-[#38654b]">
+              FAQs that are <span className="text-[#075b33]">Active</span> (published) and{" "}
+              <span className="text-[#075b33]">Public</span> appear in the FAQ section of the website home page.
+              Featured FAQs are shown first, then by display order.
             </section>
           </div>
         </section>
@@ -486,6 +472,7 @@ export default function AddNewFAQPage() {
           <div className="flex shrink-0 items-center gap-[10px]">
             <button
               type="button"
+              onClick={goBack}
               className="inline-flex h-[40px] items-center gap-[8px] rounded-[6px] border border-[#dfe3e7] bg-white px-[18px] text-[10px] font-semibold text-[#273655]"
             >
               <X className="h-[14px] w-[14px]" />
@@ -494,7 +481,9 @@ export default function AddNewFAQPage() {
 
             <button
               type="button"
-              className="inline-flex h-[40px] items-center gap-[8px] rounded-[6px] border border-[#dfe3e7] bg-white px-[18px] text-[10px] font-semibold text-[#273655]"
+              disabled={saving}
+              onClick={() => save(true)}
+              className="inline-flex h-[40px] items-center gap-[8px] rounded-[6px] border border-[#dfe3e7] bg-white px-[18px] text-[10px] font-semibold text-[#273655] disabled:opacity-60"
             >
               <Bookmark className="h-[14px] w-[14px]" />
               Save as Draft
@@ -502,7 +491,9 @@ export default function AddNewFAQPage() {
 
             <button
               type="button"
-              className="inline-flex h-[40px] items-center gap-[8px] rounded-[6px] bg-[linear-gradient(180deg,#076636_0%,#03542c_100%)] px-[20px] text-[10px] font-semibold text-white shadow-[0_7px_16px_rgba(5,94,49,.12)]"
+              disabled={saving}
+              onClick={() => save()}
+              className="inline-flex h-[40px] items-center gap-[8px] rounded-[6px] bg-[linear-gradient(180deg,#076636_0%,#03542c_100%)] px-[20px] text-[10px] font-semibold text-white shadow-[0_7px_16px_rgba(5,94,49,.12)] disabled:opacity-60"
             >
               <Save className="h-[14px] w-[14px]" />
               Save FAQ

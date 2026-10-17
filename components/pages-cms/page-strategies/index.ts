@@ -2,6 +2,7 @@ export { resolveDefaultSectionsForPage, resolveResetDefaultsForPage } from "./re
 export { mergeSectionWithSavedData } from "./mergeSectionDefaults";
 export { isEnsisPage, resolveEnsisSections } from "./ensisSections";
 export { syncHomeSectionsFromLiveApi, saveHomeSections } from "./home";
+export { syncLayoutSectionsFromLiveApi, saveLayoutSections, withoutLayoutSections } from "./layout";
 export { syncWhyExhibitSectionsFromLiveApi, saveWhyExhibitSections } from "./whyExhibit";
 export { syncWhyVisitSectionsFromLiveApi, saveWhyVisitSections } from "./whyVisit";
 export { syncAwardsSectionsFromLiveApi, saveAwardsSections } from "./awards";

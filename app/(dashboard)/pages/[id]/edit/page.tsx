@@ -36,6 +36,9 @@ import {
   resolveEnsisSections,
   syncHomeSectionsFromLiveApi,
   saveHomeSections,
+  syncLayoutSectionsFromLiveApi,
+  saveLayoutSections,
+  withoutLayoutSections,
   syncWhyExhibitSectionsFromLiveApi,
   saveWhyExhibitSections,
   syncWhyVisitSectionsFromLiveApi,
@@ -462,6 +465,8 @@ export default function CmsEditPage() {
 
     if (page.configKey === "landingPage" || page.type === "home") {
       syncHomeSectionsFromLiveApi(setSectionsDraft);
+      // Site-wide header & footer are edited alongside the Home page, as in the Organic admin
+      syncLayoutSectionsFromLiveApi(setSectionsDraft);
     }
 
     if (page.configKey === "whyExhibitPage" || page.slug?.includes("why-exhibit")) {
@@ -686,6 +691,7 @@ export default function CmsEditPage() {
     try {
       if (savingKey === "landingPage" || page.type === "home") {
         await saveHomeSections(sectionsDraft);
+        await saveLayoutSections(sectionsDraft);
       }
 
       if (savingKey === "whyExhibitPage" || page.slug?.includes("why-exhibit")) {
@@ -758,7 +764,8 @@ export default function CmsEditPage() {
 
       const updated = await savePageCore({
         savingKey,
-        sectionsDraft,
+        // Header/footer were saved to their own records above; keep them out of the page's sections
+        sectionsDraft: withoutLayoutSections(sectionsDraft),
         form,
         settings,
         currentAdmin,

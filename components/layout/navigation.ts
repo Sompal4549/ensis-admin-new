@@ -13,6 +13,7 @@ import {
   FileCode,
   FileSearch,
   FileText,
+  FolderTree,
   GalleryHorizontalEnd,
   Gauge,
   History,
@@ -31,6 +32,8 @@ import {
   SearchCheck,
   Settings,
   Settings2,
+  Receipt,
+  ShoppingBag,
   ShieldCheck,
   Star,
   UserCheck,
@@ -63,6 +66,16 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "General Enquiries", href: "/general-enquiries", icon: Mail },
       { label: "Contact Us Messages", href: "/contact-us", icon: MessageSquareText },
       { label: "Communication / Follow-ups", href: "/communication", icon: MessageSquare, badge: "NEW" },
+    ],
+  },
+  {
+    title: "Sales & Orders",
+    items: [
+      { label: "Orders", href: "/orders", icon: ShoppingBag, badge: "NEW" },
+      { label: "Invoices", href: "/invoices", icon: Receipt, badge: "NEW" },
+      { label: "Product Categories", href: "/categories", icon: FolderTree, badge: "NEW" },
+      { label: "Product Reviews", href: "/product-reviews", icon: Star, badge: "NEW" },
+      { label: "Leads CRM", href: "/leads", icon: Users, badge: "NEW" },
     ],
   },
   {

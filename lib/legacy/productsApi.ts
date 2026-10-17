@@ -87,7 +87,8 @@ const listAll = async (query: string): Promise<ProductList> => {
 };
 
 export const categoryApi = {
-  list: () => api.get<Category[]>(`/categories?t=${Date.now()}`),
+  // all=1: hidden categories too, so editing a product never loses its category
+  list: () => api.get<Category[]>(`/categories?all=1&t=${Date.now()}`),
 };
 
 export const productApi = {

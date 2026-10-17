@@ -558,20 +558,6 @@ function getMockDataForPath(path: string, method: string = "GET"): unknown {
     ];
   }
 
-  if (p.includes("/faqs")) {
-    return [
-      {
-        _id: "faq-1",
-        question: "What warranty do Ensis products carry?",
-        answer: "Ensis equipment comes with a 5-year structural warranty.",
-        category: "General",
-        order: 1,
-        isActive: true,
-        createdAt: "2026-01-01T10:00:00Z"
-      }
-    ];
-  }
-
   if (p.includes("/gallery")) {
     return [
       {
@@ -652,6 +638,16 @@ async function request<T>(path: string, options?: ApiRequestOptions, isRetry = f
     path.includes("/seo-settings") ||
     path.includes("/careers") ||
     path.startsWith("/solutions") ||
+    path.startsWith("/faqs") ||
+    path.startsWith("/component-content") ||
+    path.startsWith("/social-clicks") ||
+    path.startsWith("/orders") ||
+    path.startsWith("/invoices") ||
+    path.startsWith("/categories") ||
+    path.startsWith("/reviews") ||
+    path.startsWith("/seo/advanced") ||
+    path.startsWith("/leads") ||
+    path.startsWith("/admin/users") ||
     path.startsWith("/applications") ||
     path.startsWith("/products") ||
     path.includes("/msme") ||

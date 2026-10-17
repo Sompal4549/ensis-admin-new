@@ -1,17 +1,14 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
 import {
-  ChevronDown,
-  ChevronLeft,
   ChevronRight,
   CircleHelp,
   Eye,
-  Filter,
   HelpCircle,
   MessageCircleMore,
-  MoreVertical,
   Pencil,
   Plus,
   RefreshCw,
@@ -20,180 +17,51 @@ import {
   SlidersHorizontal,
   Star,
   ThumbsUp,
-  Upload,
-  Download,
-  GripVertical,
+  Trash2,
 } from "lucide-react";
+import { api } from "@/lib/api";
+import { useApiGet } from "@/lib/useApiGet";
 
 type FaqStatus = "Published" | "Draft";
 type FaqVisibility = "Public" | "Members Only" | "Internal";
-type FaqCategory =
-  | "General"
-  | "Request Process"
-  | "Services"
-  | "Volunteer"
-  | "Support";
 
 type FAQ = {
-  id: number;
+  _id: string;
   question: string;
-  summary: string;
-  category: FaqCategory;
+  answer: string;
+  shortAnswer?: string;
+  category: string;
   status: FaqStatus;
   visibility: FaqVisibility;
-  views: number;
-  votes: number;
-  updatedOn: string;
-  updatedBy: string;
+  isFeatured?: boolean;
+  orderBy?: number;
+  views?: number;
+  votes?: number;
+  updatedBy?: string;
+  updatedAt?: string;
 };
 
-const FAQS: FAQ[] = [
-  {
-    id: 1,
-    question: "What does Ensis do?",
-    summary: "Handcrafted Panchkarma, Ayurvedic & Spa equipment and turnkey wellness spaces.",
-    category: "General",
-    status: "Published",
-    visibility: "Public",
-    views: 1245,
-    votes: 342,
-    updatedOn: "30 May 2026",
-    updatedBy: "Admin User",
-  },
-  {
-    id: 2,
-    question: "How do I request a quotation?",
-    summary: "Share your requirement and get a customised quotation and 2D layout.",
-    category: "Request Process",
-    status: "Published",
-    visibility: "Public",
-    views: 987,
-    votes: 276,
-    updatedOn: "29 May 2026",
-    updatedBy: "Ensis Team",
-  },
-  {
-    id: 3,
-    question: "What is included in a turnkey clinic setup?",
-    summary: "Space planning, 2D/3D layouts, interiors, equipment and installation.",
-    category: "Request Process",
-    status: "Published",
-    visibility: "Public",
-    views: 856,
-    votes: 238,
-    updatedOn: "28 May 2026",
-    updatedBy: "Admin User",
-  },
-  {
-    id: 4,
-    question: "Which Panchkarma equipment do you manufacture?",
-    summary: "Teak Droni, Panchkarma tables, Shirodhara stands and Swedana steam chambers.",
-    category: "Services",
-    status: "Published",
-    visibility: "Public",
-    views: 1135,
-    votes: 392,
-    updatedOn: "28 May 2026",
-    updatedBy: "Ensis Team",
-  },
-  {
-    id: 5,
-    question: "How long does a turnkey project take?",
-    summary: "Most clinic and spa setups are delivered in 30–45 days.",
-    category: "Services",
-    status: "Published",
-    visibility: "Public",
-    views: 1876,
-    votes: 512,
-    updatedOn: "27 May 2026",
-    updatedBy: "Admin User",
-  },
-  {
-    id: 6,
-    question: "Do you ship outside India?",
-    summary: "Pan-India and global shipping with on-site installation by Ensis engineers.",
-    category: "Services",
-    status: "Published",
-    visibility: "Public",
-    views: 642,
-    votes: 184,
-    updatedOn: "26 May 2026",
-    updatedBy: "Ensis Team",
-  },
-  {
-    id: 7,
-    question: "Do you offer consultancy for new Ayurvedic centres?",
-    summary: "SOPs, therapist training, NABH guidance and space sizing for Vaidyas.",
-    category: "Services",
-    status: "Published",
-    visibility: "Public",
-    views: 734,
-    votes: 198,
-    updatedOn: "25 May 2026",
-    updatedBy: "Admin User",
-  },
-  {
-    id: 8,
-    question: "What warranty do Ensis products carry?",
-    summary: "A 5-year structural warranty on Ensis equipment.",
-    category: "Support",
-    status: "Published",
-    visibility: "Public",
-    views: 948,
-    votes: 265,
-    updatedOn: "24 May 2026",
-    updatedBy: "Admin User",
-  },
-  {
-    id: 9,
-    question: "Can equipment be customised to my space?",
-    summary: "Custom sizes, finishes and wood options are available on request.",
-    category: "Support",
-    status: "Published",
-    visibility: "Public",
-    views: 512,
-    votes: 146,
-    updatedOn: "23 May 2026",
-    updatedBy: "Ensis Team",
-  },
-  {
-    id: 10,
-    question: "How can I contact the Ensis team?",
-    summary: "Call or WhatsApp +91 9654900525 or email info@ensis.in.",
-    category: "General",
-    status: "Published",
-    visibility: "Public",
-    views: 345,
-    votes: 98,
-    updatedOn: "22 May 2026",
-    updatedBy: "Admin User",
-  },
-];
+const FAQ_CATEGORIES =["General", "Request Process", "Services", "Support"];
 
-const categoryTone: Record<FaqCategory, string> = {
+const categoryTone: Record<string, string> = {
   General: "bg-emerald-50 text-emerald-700",
   "Request Process": "bg-blue-50 text-blue-700",
   Services: "bg-violet-50 text-violet-700",
-  Volunteer: "bg-orange-50 text-orange-700",
   Support: "bg-amber-50 text-amber-700",
 };
 
-const categoryData = [
-  { label: "General", value: 15, color: "#0f766e" },
-  { label: "Request Process", value: 12, color: "#2563eb" },
-  { label: "Services", value: 18, color: "#7c3aed" },
-  { label: "Volunteer", value: 8, color: "#f97316" },
-  { label: "Support", value: 8, color: "#f59e0b" },
-  { label: "Others", value: 7, color: "#9ca3af" },
-];
+const categoryColors: Record<string, string> = {
+  General: "#0f766e",
+  "Request Process": "#2563eb",
+  Services: "#7c3aed",
+  Support: "#f59e0b",
+};
+const OTHER_COLOR = "#9ca3af";
 
-const topViewedFaqs = [
-  ["What does Ensis do?", "1,245"],
-  ["How long does a turnkey project take?", "1,876"],
-  ["How do I request a quotation?", "1,135"],
-  ["Which Panchkarma equipment do you manufacture?", "987"],
-  ["What warranty do Ensis products carry?", "856"],
-];
+const formatDate = (value?: string) =>
+  value
+    ? new Date(value).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+    : "—";
 
 function MetricCard({
   icon,
@@ -233,17 +101,28 @@ function MetricCard({
 
 export default function FAQsManagementPage() {
   const router = useRouter();
+  const { data, loading, error, reload: load } = useApiGet<FAQ[]>("/faqs/admin/all");
+  const faqs = useMemo(() => (Array.isArray(data) ? data : []), [data]);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All Categories");
   const [status, setStatus] = useState("All Status");
   const [visibility, setVisibility] = useState("All Visibility");
-  const [expandedId, setExpandedId] = useState<number | null>(1);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (error) Swal.fire({ title: "Could not load FAQs", text: error instanceof Error ? error.message : "", icon: "error" });
+  }, [error]);
+
+  const categories = useMemo(
+    () => Array.from(new Set([...FAQ_CATEGORIES, ...faqs.map((f) => f.category).filter(Boolean)])),
+    [faqs],
+  );
 
   const rows = useMemo(() => {
-    return FAQS.filter((item) => {
+    return faqs.filter((item) => {
       const searchMatch =
         !query ||
-        `${item.question} ${item.summary}`
+        `${item.question} ${item.shortAnswer || ""} ${item.answer}`
           .toLowerCase()
           .includes(query.toLowerCase());
 
@@ -257,7 +136,39 @@ export default function FAQsManagementPage() {
 
       return searchMatch && categoryMatch && statusMatch && visibilityMatch;
     });
-  }, [query, category, status, visibility]);
+  }, [faqs, query, category, status, visibility]);
+
+  const stats = useMemo(() => {
+    const published = faqs.filter((f) => f.status === "Published").length;
+    const onWebsite = faqs.filter((f) => f.status === "Published" && f.visibility === "Public").length;
+    const featured = faqs.filter((f) => f.isFeatured).length;
+    const usedCategories = new Set(faqs.map((f) => f.category)).size;
+    return { published, onWebsite, featured, usedCategories, drafts: faqs.length - published };
+  }, [faqs]);
+
+  const categoryData = useMemo(() => {
+    const counts = new Map<string, number>();
+    faqs.forEach((f) => counts.set(f.category || "Others", (counts.get(f.category || "Others") || 0) + 1));
+    return Array.from(counts, ([label, value]) => ({ label, value, color: categoryColors[label] || OTHER_COLOR }));
+  }, [faqs]);
+
+  const donut = useMemo(() => {
+    const total = categoryData.reduce((sum, c) => sum + c.value, 0);
+    if (!total) return "#e5e7eb";
+    let start = 0;
+    const stops = categoryData.map((c) => {
+      const end = start + (c.value / total) * 100;
+      const stop = `${c.color} ${start}% ${end}%`;
+      start = end;
+      return stop;
+    });
+    return `conic-gradient(${stops.join(", ")})`;
+  }, [categoryData]);
+
+  const topViewedFaqs = useMemo(
+    () => [...faqs].sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 5),
+    [faqs],
+  );
 
   const clearFilters = () => {
     setQuery("");
@@ -266,8 +177,29 @@ export default function FAQsManagementPage() {
     setVisibility("All Visibility");
   };
 
-  const toggleExpand = (id: number) => {
+  const toggleExpand = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
+  };
+
+  const editFaq = (id: string) => router.push(`/faqs/new?id=${id}`);
+
+  const deleteFaq = async (item: FAQ) => {
+    const { isConfirmed } = await Swal.fire({
+      title: "Delete this FAQ?",
+      text: item.question,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Delete",
+      confirmButtonColor: "#dc2626",
+    });
+    if (!isConfirmed) return;
+    try {
+      await api.delete(`/faqs/${item._id}`);
+      load();
+      Swal.fire({ title: "FAQ deleted", icon: "success", timer: 1200, showConfirmButton: false });
+    } catch (err) {
+      Swal.fire({ title: "Could not delete FAQ", text: err instanceof Error ? err.message : "", icon: "error" });
+    }
   };
 
   return (
@@ -320,43 +252,42 @@ export default function FAQsManagementPage() {
             icon={<MessageCircleMore className="h-[16px] w-[16px]" strokeWidth={1.8} />}
             iconClass="bg-emerald-50 text-emerald-700"
             label="Total FAQs"
-            value="68"
-            note="Published: 62"
+            value={String(faqs.length)}
+            note={`Published: ${stats.published}`}
           />
 
           <MetricCard
             icon={<SlidersHorizontal className="h-[16px] w-[16px]" strokeWidth={1.8} />}
             iconClass="bg-violet-50 text-violet-600"
             label="Categories"
-            value="8"
-            note="Active: 8"
+            value={String(stats.usedCategories)}
+            note="In use"
           />
 
           <MetricCard
             icon={<Eye className="h-[16px] w-[16px]" strokeWidth={1.8} />}
             iconClass="bg-orange-50 text-orange-500"
-            label="Total Views"
-            value="7,842"
-            note="↑ 21.4% this month"
+            label="On Website"
+            value={String(stats.onWebsite)}
+            note="Published & public"
             noteTone="text-emerald-700"
           />
 
           <MetricCard
-            icon={<ThumbsUp className="h-[16px] w-[16px]" strokeWidth={1.8} />}
+            icon={<Star className="h-[16px] w-[16px]" strokeWidth={1.8} />}
             iconClass="bg-blue-50 text-blue-600"
-            label="Helpful Votes"
-            value="2,156"
-            note="↑ 16.7% this month"
-            noteTone="text-emerald-700"
+            label="Featured"
+            value={String(stats.featured)}
+            note="Shown first"
           />
 
           <MetricCard
             icon={<CircleHelp className="h-[16px] w-[16px]" strokeWidth={1.8} />}
             iconClass="bg-rose-50 text-rose-500"
-            label="Unanswered"
-            value="2"
-            note="Needs Attention"
-            noteTone="text-rose-500"
+            label="Drafts"
+            value={String(stats.drafts)}
+            note={stats.drafts ? "Not on website" : "All published"}
+            noteTone={stats.drafts ? "text-rose-500" : "text-emerald-700"}
           />
         </section>
 
@@ -382,11 +313,9 @@ export default function FAQsManagementPage() {
                 className="h-[40px] min-w-[125px] rounded-[6px] border border-[#dfe4e8] bg-white px-[10px] text-[10px] font-semibold text-[#2a3855] outline-none"
               >
                 <option>All Categories</option>
-                <option>General</option>
-                <option>Request Process</option>
-                <option>Services</option>
-                <option>Volunteer</option>
-                <option>Support</option>
+                {categories.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
               </select>
 
               <select
@@ -412,14 +341,6 @@ export default function FAQsManagementPage() {
 
               <button
                 type="button"
-                className="inline-flex h-[40px] items-center justify-center gap-[6px] rounded-[6px] border border-[#cfe4d7] bg-white px-[12px] text-[10px] font-semibold text-[#146a3f] shrink-0"
-              >
-                <Filter className="h-[14px] w-[14px]" />
-                More Filters
-              </button>
-
-              <button
-                type="button"
                 onClick={clearFilters}
                 className="inline-flex h-[40px] items-center justify-center gap-[6px] rounded-[6px] border border-[#dfe4e8] bg-white px-[12px] text-[10px] font-semibold text-[#35445f] shrink-0"
               >
@@ -434,85 +355,88 @@ export default function FAQsManagementPage() {
                 <table className="w-full min-w-[930px] border-collapse text-left">
                   <thead>
                     <tr className="h-[42px] border-b border-[#e7e9ec] bg-[#fafbfc] text-[8.5px] font-semibold uppercase tracking-[0.04em] text-[#44516a]">
-                      <th className="w-[42px] px-[12px] text-center">
-                        <input type="checkbox" />
-                      </th>
+                      <th className="w-[42px] px-[12px] text-center">#</th>
                       <th className="px-[8px]">Question</th>
                       <th className="px-[8px]">Category</th>
                       <th className="px-[8px]">Status</th>
-                      <th className="px-[8px] text-center">Views</th>
-                      <th className="px-[8px] text-center whitespace-nowrap">Helpful Votes</th>
+                      <th className="px-[8px]">Visibility</th>
                       <th className="px-[8px] whitespace-nowrap">Updated On</th>
                       <th className="px-[8px] text-center">Actions</th>
                     </tr>
                   </thead>
 
                   <tbody>
+                    {loading && !faqs.length && (
+                      <tr>
+                        <td colSpan={7} className="px-[12px] py-[28px] text-center text-[10px] font-semibold text-[#68758d]">
+                          Loading FAQs…
+                        </td>
+                      </tr>
+                    )}
+
+                    {!loading && rows.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="px-[12px] py-[28px] text-center text-[10px] font-semibold text-[#68758d]">
+                          {faqs.length ? "No FAQs match these filters." : "No FAQs yet. Click “Add New FAQ” to create one."}
+                        </td>
+                      </tr>
+                    )}
+
                     {rows.map((item) => {
-                      const isExpanded = expandedId === item.id;
+                      const isExpanded = expandedId === item._id;
+                      const isPublished = item.status === "Published";
 
                       return (
-                        <React.Fragment key={item.id}>
+                        <React.Fragment key={item._id}>
                           <tr
-                            onClick={() => toggleExpand(item.id)}
+                            onClick={() => toggleExpand(item._id)}
                             className={`h-[62px] cursor-pointer border-b border-[#eef0f2] align-middle transition ${isExpanded ? "bg-[#f5fbf7]" : "hover:bg-slate-50/60"
                               }`}
                           >
-                            <td
-                              className="px-[12px] text-center"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <input type="checkbox" />
+                            <td className="px-[12px] text-center text-[9.5px] font-semibold tabular-nums text-[#2f3d58]">
+                              {item.orderBy || "—"}
                             </td>
 
                             <td className="px-[8px]">
                               <div className="min-w-[300px]">
-                                <p className="text-[10.5px] font-semibold leading-tight text-[#19274a]">
+                                <p className="flex items-center gap-[6px] text-[10.5px] font-semibold leading-tight text-[#19274a]">
                                   {item.question}
+                                  {item.isFeatured && <Star className="h-[11px] w-[11px] shrink-0 fill-amber-400 text-amber-400" />}
                                 </p>
-                                <p className="mt-[4px] max-w-[330px] text-[8.8px] font-semibold leading-[1.35] text-[#53627c]">
-                                  {item.summary}
+                                <p className="mt-[4px] max-w-[330px] truncate text-[8.8px] font-semibold leading-[1.35] text-[#53627c]">
+                                  {item.shortAnswer || item.answer}
                                 </p>
                               </div>
                             </td>
 
                             <td className="px-[8px]">
                               <span
-                                className={`inline-flex whitespace-nowrap rounded-[5px] px-[8px] py-[4px] text-[8px] font-semibold ${categoryTone[item.category]}`}
+                                className={`inline-flex whitespace-nowrap rounded-[5px] px-[8px] py-[4px] text-[8px] font-semibold ${categoryTone[item.category] || "bg-slate-100 text-slate-600"}`}
                               >
                                 {item.category}
                               </span>
                             </td>
 
                             <td className="px-[8px]">
-                              <span className="inline-flex items-center gap-[5px] rounded-[5px] bg-emerald-50 px-[8px] py-[4px] text-[8px] font-semibold text-emerald-700">
-                                <span className="h-[5px] w-[5px] rounded-full bg-emerald-500" />
+                              <span className={`inline-flex items-center gap-[5px] rounded-[5px] px-[8px] py-[4px] text-[8px] font-semibold ${isPublished ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                                <span className={`h-[5px] w-[5px] rounded-full ${isPublished ? "bg-emerald-500" : "bg-slate-400"}`} />
                                 {item.status}
                               </span>
                             </td>
 
-                            <td className="px-[8px] text-center">
-                              <span className="text-[9.5px] font-semibold tabular-nums text-[#2f3d58]">
-                                {item.views.toLocaleString()}
-                              </span>
-                            </td>
-
-                            <td className="px-[8px]">
-                              <div className="flex items-center justify-center gap-[6px] text-emerald-700">
-                                <ThumbsUp className="h-[12px] w-[12px]" />
-                                <span className="text-[9.5px] font-semibold tabular-nums">
-                                  {item.votes}
-                                </span>
-                              </div>
+                            <td className="px-[8px] text-[9px] font-semibold text-[#2c3a58]">
+                              {item.visibility}
                             </td>
 
                             <td className="px-[8px] whitespace-nowrap">
                               <span className="text-[9px] font-semibold text-[#2c3a58]">
-                                {item.updatedOn}
+                                {formatDate(item.updatedAt)}
                               </span>
-                              <span className="ml-[4px] text-[8px] font-semibold text-[#68758d]">
-                                By {item.updatedBy}
-                              </span>
+                              {item.updatedBy && (
+                                <span className="ml-[4px] text-[8px] font-semibold text-[#68758d]">
+                                  By {item.updatedBy}
+                                </span>
+                              )}
                             </td>
 
                             <td
@@ -522,23 +446,27 @@ export default function FAQsManagementPage() {
                               <div className="flex items-center justify-center gap-[8px]">
                                 <button
                                   type="button"
-                                  onClick={() => router.push("/faqs/new")}
+                                  title="View"
+                                  onClick={() => toggleExpand(item._id)}
                                   className="grid h-[30px] w-[30px] place-items-center rounded-[5px] border border-[#e1e5e9] bg-white text-[#4b5871] hover:bg-slate-50"
                                 >
                                   <Eye className="h-[12px] w-[12px]" />
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => router.push("/faqs/new")}
+                                  title="Edit"
+                                  onClick={() => editFaq(item._id)}
                                   className="grid h-[30px] w-[30px] place-items-center rounded-[5px] border border-[#e1e5e9] bg-white text-[#4b5871] hover:bg-slate-50"
                                 >
                                   <Pencil className="h-[12px] w-[12px]" />
                                 </button>
                                 <button
                                   type="button"
-                                  className="grid h-[30px] w-[30px] place-items-center rounded-[5px] border border-[#e1e5e9] bg-white text-[#4b5871] hover:bg-slate-50"
+                                  title="Delete"
+                                  onClick={() => deleteFaq(item)}
+                                  className="grid h-[30px] w-[30px] place-items-center rounded-[5px] border border-[#e1e5e9] bg-white text-rose-500 hover:bg-rose-50"
                                 >
-                                  <MoreVertical className="h-[12px] w-[12px]" />
+                                  <Trash2 className="h-[12px] w-[12px]" />
                                 </button>
                               </div>
                             </td>
@@ -547,7 +475,7 @@ export default function FAQsManagementPage() {
                           {/* EXPANDED ACCORDION PANEL */}
                           {isExpanded && (
                             <tr className="bg-[#f7fbf8] border-b border-[#e5ece7]">
-                              <td colSpan={8} className="px-[24px] py-[14px]">
+                              <td colSpan={7} className="px-[24px] py-[14px]">
                                 <div className="rounded-[7px] border border-[#d6e6dc] bg-white p-[14px] shadow-[0_2px_6px_rgba(7,91,51,0.04)]">
                                   <div className="flex items-center justify-between gap-[12px]">
                                     <div className="flex items-center gap-[8px]">
@@ -564,21 +492,25 @@ export default function FAQsManagementPage() {
                                   </div>
 
                                   <div className="mt-[10px] pl-[30px]">
-                                    <p className="text-[10px] font-semibold leading-[1.6] text-[#34435e]">
-                                      {item.summary} Ensis designs and manufactures handcrafted Panchkarma, Ayurvedic &amp; Spa equipment and delivers turnkey wellness spaces across India and abroad.
+                                    <p className="whitespace-pre-line text-[10px] font-semibold leading-[1.6] text-[#34435e]">
+                                      {item.answer}
                                     </p>
 
                                     <div className="mt-[12px] flex items-center justify-between border-t border-[#f0f4f2] pt-[10px]">
                                       <div className="flex items-center gap-[14px] text-[9px] font-semibold text-[#5c6a83]">
                                         <span>Category: <span className="text-[#075b33]">{item.category}</span></span>
-                                        <span>Total Views: <span className="text-[#19274a]">{item.views.toLocaleString()}</span></span>
-                                        <span>Helpful Votes: <span className="text-emerald-700">{item.votes} 👍</span></span>
+                                        <span>Display Order: <span className="text-[#19274a]">{item.orderBy || "Last"}</span></span>
+                                        {isPublished && item.visibility === "Public" ? (
+                                          <span className="text-emerald-700">Shown on website home page</span>
+                                        ) : (
+                                          <span className="text-rose-500">Not shown on website</span>
+                                        )}
                                       </div>
 
                                       <div className="flex items-center gap-[8px]">
                                         <button
                                           type="button"
-                                          onClick={() => router.push("/faqs/new")}
+                                          onClick={() => editFaq(item._id)}
                                           className="inline-flex h-[28px] items-center gap-[6px] rounded-[5px] border border-[#d6ded9] bg-white px-[10px] text-[8.5px] font-semibold text-[#075b33] hover:bg-emerald-50"
                                         >
                                           <Pencil className="h-[10px] w-[10px]" />
@@ -598,44 +530,18 @@ export default function FAQsManagementPage() {
                 </table>
               </div>
 
-              {/* PAGINATION */}
-              <div className="flex min-h-[58px] items-center justify-between gap-[12px] border-t border-[#e7e9ec] px-[12px]">
+              <div className="flex min-h-[48px] items-center justify-between gap-[12px] border-t border-[#e7e9ec] px-[12px]">
                 <p className="text-[9px] font-semibold text-[#47546c]">
-                  Showing 1 to {rows.length} of 68 FAQs
+                  Showing {rows.length} of {faqs.length} FAQs
                 </p>
-
-                <div className="flex items-center gap-[6px]">
-                  <button type="button" className="grid h-[32px] w-[32px] place-items-center rounded-[5px] border border-[#dfe3e7] bg-white">
-                    <ChevronLeft className="h-[13px] w-[13px]" />
-                  </button>
-
-                  {[1, 2, 3, 4, 5].map((page) => (
-                    <button
-                      type="button"
-                      key={page}
-                      className={`grid h-[32px] min-w-[32px] place-items-center rounded-[5px] px-[6px] text-[9px] font-semibold ${page === 1
-                        ? "bg-[#075b33] text-white"
-                        : "border border-[#dfe3e7] bg-white text-[#35445f]"
-                        }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
-
-                  <span className="px-[2px] text-[10px] font-semibold text-[#64748b]">…</span>
-
-                  <button type="button" className="grid h-[32px] min-w-[32px] place-items-center rounded-[5px] border border-[#dfe3e7] bg-white px-[6px] text-[9px] font-semibold text-[#35445f]">
-                    7
-                  </button>
-
-                  <button type="button" className="grid h-[32px] w-[32px] place-items-center rounded-[5px] border border-[#dfe3e7] bg-white">
-                    <ChevronRight className="h-[13px] w-[13px]" />
-                  </button>
-                </div>
-
-                <select className="h-[32px] rounded-[5px] border border-[#dfe3e7] bg-white px-[10px] text-[9px] font-semibold text-[#35445f]">
-                  <option>10 / page</option>
-                </select>
+                <button
+                  type="button"
+                  onClick={load}
+                  className="inline-flex h-[30px] items-center gap-[6px] rounded-[5px] border border-[#dfe3e7] bg-white px-[10px] text-[9px] font-semibold text-[#35445f]"
+                >
+                  <RefreshCw className="h-[12px] w-[12px]" />
+                  Refresh
+                </button>
               </div>
             </div>
           </div>
@@ -651,14 +557,11 @@ export default function FAQsManagementPage() {
               <div className="mt-[12px] flex items-center gap-[14px]">
                 <div
                   className="grid h-[120px] w-[120px] shrink-0 place-items-center rounded-full"
-                  style={{
-                    background:
-                      "conic-gradient(#0f766e 0 22%, #2563eb 22% 40%, #7c3aed 40% 66%, #f97316 66% 78%, #f59e0b 78% 90%, #9ca3af 90% 100%)",
-                  }}
+                  style={{ background: donut }}
                 >
                   <div className="grid h-[76px] w-[76px] place-items-center rounded-full bg-white text-center">
                     <div>
-                      <p className="text-[18px] font-semibold leading-none text-[#10204a]">8</p>
+                      <p className="text-[18px] font-semibold leading-none text-[#10204a]">{categoryData.length}</p>
                       <p className="mt-[4px] text-[8px] font-semibold text-[#61708c]">
                         Categories
                       </p>
@@ -706,22 +609,6 @@ export default function FAQsManagementPage() {
 
                 <button
                   type="button"
-                  className="flex h-[36px] w-full items-center gap-[9px] rounded-[5px] border border-[#e2e6ea] bg-white px-[10px] text-[9px] font-semibold text-[#293854] transition hover:bg-slate-50"
-                >
-                  <SlidersHorizontal className="h-[13px] w-[13px]" />
-                  Manage Categories
-                </button>
-
-                <button
-                  type="button"
-                  className="flex h-[36px] w-full items-center gap-[9px] rounded-[5px] border border-[#e2e6ea] bg-white px-[10px] text-[9px] font-semibold text-[#293854] transition hover:bg-slate-50"
-                >
-                  <GripVertical className="h-[13px] w-[13px]" />
-                  Reorder FAQs
-                </button>
-
-                <button
-                  type="button"
                   onClick={() => router.push("/faqs/settings")}
                   className="flex h-[36px] w-full items-center gap-[9px] rounded-[5px] border border-[#e2e6ea] bg-white px-[10px] text-[9px] font-semibold text-[#293854] transition hover:bg-slate-50"
                 >
@@ -732,50 +619,43 @@ export default function FAQsManagementPage() {
             </section>
 
             {/* TOP VIEWED */}
-            <section className="rounded-[8px] border border-[#e7e9ec] bg-white px-[14px] py-[13px] shadow-[0_1px_3px_rgba(15,23,42,0.025)]">
-              <div className="flex items-center justify-between gap-[10px]">
+            {topViewedFaqs.some((f) => f.views) && (
+              <section className="rounded-[8px] border border-[#e7e9ec] bg-white px-[14px] py-[13px] shadow-[0_1px_3px_rgba(15,23,42,0.025)]">
                 <h2 className="text-[12px] font-semibold text-[#19274a]">
                   Top Viewed FAQs
                 </h2>
 
-                <button
-                  type="button"
-                  className="rounded-[5px] border border-[#d9eadf] bg-white px-[8px] py-[4px] text-[8px] font-semibold text-[#14683d]"
-                >
-                  View All
-                </button>
-              </div>
+                <div className="mt-[10px] space-y-[8px]">
+                  {topViewedFaqs.map((faq, index) => (
+                    <div
+                      key={faq._id}
+                      className="grid grid-cols-[20px_1fr_auto] items-center gap-[8px]"
+                    >
+                      <span className="text-[13px] font-semibold text-[#17234a]">
+                        {index + 1}
+                      </span>
 
-              <div className="mt-[10px] space-y-[8px]">
-                {topViewedFaqs.map(([label, count], index) => (
-                  <div
-                    key={label}
-                    className="grid grid-cols-[20px_1fr_auto] items-center gap-[8px]"
-                  >
-                    <span className="text-[13px] font-semibold text-[#17234a]">
-                      {index + 1}
-                    </span>
+                      <span className="truncate text-[8.5px] font-semibold text-[#34425e]">
+                        {faq.question}
+                      </span>
 
-                    <span className="truncate text-[8.5px] font-semibold text-[#34425e]">
-                      {label}
-                    </span>
-
-                    <span className="flex items-center gap-[5px] whitespace-nowrap text-[8.5px] font-semibold text-[#4b5870]">
-                      <Eye className="h-[10px] w-[10px] text-[#7c8799]" />
-                      {count}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </section>
+                      <span className="flex items-center gap-[5px] whitespace-nowrap text-[8.5px] font-semibold text-[#4b5870]">
+                        <ThumbsUp className="h-[10px] w-[10px] text-[#7c8799]" />
+                        {(faq.views || 0).toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* GREEN CTA */}
             <section className="relative overflow-hidden rounded-[8px] bg-[linear-gradient(135deg,#08643a_0%,#07542f_100%)] px-[18px] py-[18px] text-white shadow-[0_7px_18px_rgba(5,94,49,.12)]">
               <div className="relative z-10 max-w-[210px]">
                 <p className="text-[12px] font-semibold leading-[1.5]">
-                  Keep your answers up-to-date
+                  Published, public FAQs appear
                   <br />
-                  and help more people.
+                  on the website home page.
                 </p>
 
                 <button
