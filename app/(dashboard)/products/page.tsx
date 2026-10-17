@@ -1,0 +1,1330 @@
+"use client";
+
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { Plus, Save, Pencil, Trash2, X, MapPinned, ExternalLink, Loader2, ImagePlus, Search, History, RotateCcw, Archive } from "lucide-react";
+import Link from "next/link";
+import { PUBLIC_SITE_URL } from "@/lib/cmsPages";
+import {
+  categoryApi, getImageUrl, productApi, uploadImage, fieldClass, labelClass,
+  type Category, type Product,
+} from "@/lib/legacy/productsApi";
+import ConfirmDialog from "@/components/legacy/ConfirmDialog";
+import BackupHistoryModal from "@/components/legacy/BackupHistoryModal";
+import RichTextEditor from "@/components/legacy/RichTextEditor";
+import SearchableSelect from "@/components/legacy/SearchableSelect";
+import Image from "next/image";
+import { toast } from "react-toastify";
+import { useWarnIfUnsavedChanges } from "@/components/legacy/UnsavedChangesContext";
+
+type ProductForm = {
+  id?: string;
+  title: string;
+  code: string;
+  hsnCode: string;
+  description: string;
+  shortDescription: string;
+  price: string;
+  discountPrice: string;
+  gstRate: string;
+  stock: string;
+  category: string;
+  subcategory: string;
+  material: string;
+  weight: string;
+  tags: string[];
+  tagsInput?: string;
+  images: string[];
+  slug: string;
+  overview: {
+    title: string;
+    description: string;
+    seeItInRealSpaces: { title: string; images: { image: string; imageAlt: string }[] };
+    productPricingFeatures: { title: string; image: string }[];
+    emiOptions: boolean;
+    customSize: boolean;
+    overviewList: string[];
+    specifications: { title: string; specificationsList: { title: string; description: string }[] };
+    keyFeatures: { title: string; keyFeaturesList: string[] };
+    idealFor: string;
+    dimensions: { title: string; dimensionsList: { title: string; description: string }[] };
+    materialAndCare: { title: string; description: string };
+    productSpecifications: { highlight: string; title: string; image: string; specifications: { title: string; description: string }[] }[];
+    whatisInclueded: string[];
+    items: { image: string; title: string; description: string }[];
+    smartDesignAppearance: {
+      highlight: string;
+      title: string;
+      woodFinish: { image: string; title: string }[];
+      sizeOptions: { title: string; description: string }[];
+    };
+    faqs: { question: string; description: string }[];
+  };
+  isFeatured: boolean;
+  isActive: boolean;
+  orderBy: number;
+};
+
+const emptyProduct: ProductForm = {
+  title: "", code: "", hsnCode: "", description: "", shortDescription: "",
+  price: "", discountPrice: "", gstRate: "5", stock: "", category: "",
+  subcategory: "", material: "", weight: "",
+  tags: [""], tagsInput: "", images: [], slug: "",
+  overview: {
+    title: "", description: "",
+    seeItInRealSpaces: { title: "", images: [] },
+    productPricingFeatures: [],
+    emiOptions: false,
+    customSize: false,
+    overviewList: [""],
+    specifications: { title: "", specificationsList: [{ title: "", description: "" }] },
+    keyFeatures: { title: "", keyFeaturesList: [""] },
+    idealFor: "",
+    dimensions: { title: "", dimensionsList: [{ title: "", description: "" }] },
+    materialAndCare: { title: "", description: "" },
+    productSpecifications: [{ highlight: "", title: "", image: "", specifications: [{ title: "", description: "" }] }],
+    whatisInclueded: [""],
+    items: [{ image: "", title: "", description: "" }],
+    smartDesignAppearance: { highlight: "", title: "", woodFinish: [], sizeOptions: [{ title: "", description: "" }] },
+    faqs: [{ question: "", description: "" }],
+  },
+  isFeatured: false, isActive: true, orderBy: 0,
+};
+
+export default function ProductsPage() {
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [deletedProducts, setDeletedProducts] = useState<Product[]>([]);
+  const [viewMode, setViewMode] = useState<"all" | "deleted">("all");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [productForm, setProductForm] = useState<ProductForm>(emptyProduct);
+  const [initialSnapshot, setInitialSnapshot] = useState<string>(() => JSON.stringify(emptyProduct));
+  const [pendingDelete, setPendingDelete] = useState<{ message: string; id: string } | null>(null);
+  const [pendingPermanentDelete, setPendingPermanentDelete] = useState<{ id: string; title: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [backupTarget, setBackupTarget] = useState<Product | null>(null);
+
+  const isDirty = useMemo(() => {
+    return JSON.stringify(productForm) !== initialSnapshot;
+  }, [productForm, initialSnapshot]);
+
+  const filteredProducts = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    let list = products;
+    if (q) {
+      list = products.filter((p) => {
+        const categoryName = typeof p.category === "string" ? p.category : p.category?.name || "";
+        return (
+          p.title?.toLowerCase().includes(q) ||
+          p.code?.toLowerCase().includes(q) ||
+          p.description?.toLowerCase().includes(q) ||
+          categoryName.toLowerCase().includes(q)
+        );
+      });
+    }
+
+    return [...list].sort((a, b) => {
+      const orderA = typeof (a as any).orderBy === "number" ? (a as any).orderBy : (Number((a as any).orderBy) || 0);
+      const orderB = typeof (b as any).orderBy === "number" ? (b as any).orderBy : (Number((b as any).orderBy) || 0);
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return new Date((b as any).createdAt || 0).getTime() - new Date((a as any).createdAt || 0).getTime();
+    });
+  }, [products, searchQuery]);
+
+  const filteredDeletedProducts = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    let list = deletedProducts;
+    if (q) {
+      list = deletedProducts.filter((p) => {
+        const categoryName = typeof p.category === "string" ? p.category : p.category?.name || "";
+        return (
+          p.title?.toLowerCase().includes(q) ||
+          p.code?.toLowerCase().includes(q) ||
+          p.description?.toLowerCase().includes(q) ||
+          categoryName.toLowerCase().includes(q)
+        );
+      });
+    }
+    return list;
+  }, [deletedProducts, searchQuery]);
+
+  const selectedCategoryName = useMemo(() => {
+    const category = categories.find((item) => item._id === productForm.category);
+    return category?.name || "Select category";
+  }, [categories, productForm.category]);
+
+  const categoryOptions = useMemo(() => {
+    return categories.map((c) => ({ value: c._id, label: c.name }));
+  }, [categories]);
+
+  const refreshData = useCallback(async () => {
+    try {
+      const [productResult, deletedResult, categoryResult] = await Promise.all([
+        productApi.list(),
+        productApi.listDeleted().catch(() => ({ products: [], total: 0 })),
+        categoryApi.list(),
+      ]);
+      setProducts(productResult.products || []);
+      setDeletedProducts(deletedResult.products || []);
+      setCategories(categoryResult || []);
+      if (!productForm.category && categoryResult[0]) {
+        const defaultCat = categoryResult[0]._id;
+        setProductForm((current) => {
+          if (!current.category) {
+            const next = { ...current, category: defaultCat };
+            setInitialSnapshot(JSON.stringify(next));
+            return next;
+          }
+          return current;
+        });
+      }
+    } catch (err: any) {
+      console.error("Failed to load products:", err);
+    }
+  }, [productForm.category]);
+
+  // Signed in through the admin layout, so the data can load straight away
+  useEffect(() => {
+    queueMicrotask(() => {
+      refreshData().catch((error) => setMessage(error.message));
+    });
+  }, [refreshData]);
+
+  const submitProduct = async (event?: FormEvent<HTMLFormElement>): Promise<boolean> => {
+    if (event) event.preventDefault();
+    if (!productForm.title || !productForm.title.replace(/<[^>]*>/g, "").trim()) {
+      toast.error("Please enter a product title.");
+      return false;
+    }
+    if (!productForm.category) {
+      toast.error("Please select a product category.");
+      return false;
+    }
+    setLoading(true);
+    const payload = {
+      title: productForm.title, code: productForm.code, hsnCode: productForm.hsnCode,
+      description: productForm.description, shortDescription: productForm.shortDescription,
+      price: Number(productForm.price || 0),
+      discountPrice: productForm.discountPrice ? Number(productForm.discountPrice) : undefined,
+      gstRate: Number(productForm.gstRate || 5),
+      stock: productForm.stock ? Number(productForm.stock) : 0,
+      category: productForm.category, subcategory: productForm.subcategory,
+      material: productForm.material, weight: productForm.weight,
+      tags: (productForm.tagsInput !== undefined
+        ? productForm.tagsInput.split(",").map(t => t.trim()).filter(Boolean)
+        : productForm.tags.filter(t => t.trim() !== "")),
+      images: productForm.images, slug: productForm.slug.trim(),
+      overview: {
+        ...productForm.overview,
+        whatisInclueded: (productForm.overview.whatisInclueded || []).filter(
+          (item) => typeof item === "string" && item.trim() !== ""
+        ),
+      },
+      isFeatured: productForm.isFeatured, isActive: productForm.isActive, orderBy: productForm.orderBy,
+    };
+    try {
+      if (productForm.id) {
+        await productApi.update(productForm.id, payload);
+        toast.success("Product updated successfully!");
+      } else {
+        await productApi.create(payload);
+        toast.success("Product added successfully!");
+      }
+      const resetState = { ...emptyProduct, category: categories[0]?._id || "" };
+      setProductForm(resetState);
+      setInitialSnapshot(JSON.stringify(resetState));
+      await refreshData();
+      return true;
+    } catch (error) {
+      toast.error((error as Error).message || "Failed to save product.");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const { confirmIfDirty } = useWarnIfUnsavedChanges({
+    isDirty,
+    onSave: async () => {
+      return await submitProduct();
+    },
+  });
+
+  const resetForm = () => {
+    const resetState = { ...emptyProduct, category: categories[0]?._id || "" };
+    setProductForm(resetState);
+    setInitialSnapshot(JSON.stringify(resetState));
+  };
+
+  const editProduct = (product: Product) => {
+    const categoryId = typeof product.category === "string" ? product.category : product.category?._id || "";
+    const toArray = <T,>(val: T | T[] | undefined, fallback: T[]): T[] =>
+      val ? (Array.isArray(val) ? val : [val]) : fallback;
+
+    const newFormState: ProductForm = {
+      id: product._id,
+      title: product.title || "",
+      code: product.code || "",
+      hsnCode: (product as any).hsnCode || "",
+      description: product.description || "",
+      shortDescription: product.shortDescription || "",
+      price: String(product.price || ""),
+      discountPrice: String(product.discountPrice || ""),
+      gstRate: String(product.gstRate ?? 5),
+      stock: String(product.stock || ""),
+      category: categoryId,
+      subcategory: product.subcategory || "",
+      material: product.material || "",
+      weight: String(product.weight || ""),
+      tags: product.tags?.length ? product.tags : [""],
+      tagsInput: product.tags?.length ? product.tags.join(", ") : "",
+      images: product.images || [],
+      slug: product.slug || "",
+      overview: {
+        title: product.overview?.title || "",
+        description: product.overview?.description || "",
+
+        seeItInRealSpaces: {
+          title: product.overview?.seeItInRealSpaces?.title || "",
+          images: (product.overview?.seeItInRealSpaces?.images || []).map((img: any) => ({
+            image: img?.image || "",
+            imageAlt: img?.imageAlt || "",
+          })),
+        },
+
+        productPricingFeatures: (product.overview?.productPricingFeatures || []).map((pf: any) => ({
+          title: pf?.title || "",
+          image: pf?.image || "",
+        })),
+
+        emiOptions: product.overview?.emiOptions || false,
+        customSize: product.overview?.customSize || false,
+
+        overviewList: product.overview?.overviewList?.length
+          ? product.overview.overviewList
+          : [""],
+
+        specifications: {
+          title: product.overview?.specifications?.title || "",
+          specificationsList: (product.overview?.specifications?.specificationsList || [{ title: "", description: "" }]).map((s: any) => ({
+            title: s?.title || "",
+            description: s?.description || "",
+          })),
+        },
+
+        keyFeatures: {
+          title: product.overview?.keyFeatures?.title || "",
+          keyFeaturesList: (product.overview?.keyFeatures?.keyFeaturesList || [""]).map((item: any) =>
+            typeof item === "string" ? item : item?.title || item?.description || ""
+          ),
+        },
+      idealFor: product.overview?.idealFor || "",
+        dimensions: {
+          title: product.overview?.dimensions?.title || "",
+          dimensionsList: (product.overview?.dimensions?.dimensionsList || [{ title: "", description: "" }]).map((item: any) => ({
+            title: item?.title || "",
+            description: item?.description || "",
+          })),
+        },
+
+        materialAndCare: {
+          title: product.overview?.materialAndCare?.title || "",
+          description: product.overview?.materialAndCare?.description || "",
+        },
+
+        productSpecifications: toArray(
+          product.overview?.productSpecifications,
+          [{ highlight: "", title: "", image: "", specifications: [{ title: "", description: "" }] }]
+        ).map((ps: any) => ({
+          highlight: ps?.highlight || "",
+          title: ps?.title || "",
+          image: ps?.image || "",
+          specifications: (ps?.specifications || [{ title: "", description: "" }]).map((s: any) => ({
+            title: s?.title || "",
+            description: s?.description || "",
+          })),
+        })),
+
+        whatisInclueded: product.overview?.whatisInclueded?.length
+          ? product.overview.whatisInclueded
+          : [""],
+
+        items: (product.overview?.items || [{ image: "", title: "", description: "" }]).map((item: any) => ({
+          image: item?.image || "",
+          title: item?.title || "",
+          description: item?.description || "",
+        })),
+
+        smartDesignAppearance: {
+          highlight: product.overview?.smartDesignAppearance?.highlight || "",
+          title: product.overview?.smartDesignAppearance?.title || "",
+          woodFinish: (product.overview?.smartDesignAppearance?.woodFinish || []).map((wf: any) => ({
+            image: wf?.image || "",
+            title: wf?.title || "",
+          })),
+          sizeOptions: (product.overview?.smartDesignAppearance?.sizeOptions || [{ title: "", description: "" }]).map((opt: any) => ({
+            title: opt?.title || "",
+            description: opt?.description || "",
+          })),
+        },
+
+        faqs: (product.overview?.faqs || [{ question: "", description: "" }]).map((faq: any) => ({
+          question: faq?.question || "",
+          description: faq?.description || "",
+        })),
+      },
+      isFeatured: !!product.isFeatured,
+      isActive: product.isActive !== false,
+      orderBy: (product as any).orderBy || 0,
+    };
+    setProductForm(newFormState);
+    setInitialSnapshot(JSON.stringify(newFormState));
+  };
+
+  const handleEditClick = (product: Product) => {
+    const hasUnsavedEdits =
+      isDirty &&
+      productForm.title &&
+      productForm.title.replace(/<[^>]*>/g, "").trim().length > 0;
+
+    if (hasUnsavedEdits) {
+      confirmIfDirty(() => editProduct(product));
+    } else {
+      editProduct(product);
+    }
+  };
+
+  const deleteProduct = async (id: string) => {
+    setLoading(true);
+    try {
+      await productApi.remove(id);
+      await refreshData();
+      toast.success("Product moved to Deleted list. You can restore it anytime.");
+    } catch (error) {
+      toast.error((error as Error).message || "Failed to delete product.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const restoreProduct = async (id: string) => {
+    setLoading(true);
+    try {
+      await productApi.restore(id);
+      await refreshData();
+      toast.success("Product restored successfully!");
+    } catch (error) {
+      toast.error((error as Error).message || "Failed to restore product.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const permanentDeleteProduct = async (id: string) => {
+    setLoading(true);
+    try {
+      await productApi.permanentDelete(id);
+      await refreshData();
+      toast.success("Product permanently deleted.");
+      setPendingPermanentDelete(null);
+    } catch (error) {
+      toast.error((error as Error).message || "Failed to permanently delete product.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmDeleteClick = (id: string, message: string) => setPendingDelete({ id, message });
+
+  // Load errors (shown at the top of the page)
+  const loadError = message;
+
+  return (
+    <div className="w-full space-y-4">
+      {loadError && (
+        <p className="rounded-lg border border-rose-100 bg-rose-50 p-2.5 text-xs font-semibold text-rose-600">{loadError}</p>
+      )}
+      <section className="grid gap-3 lg:grid-cols-[0.95fr_1.4fr]">
+        {/* Product List */}
+        <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm h-fit">
+          {/* Header Tabs: All vs Deleted */}
+          <div className="border-b border-slate-100 px-3 py-2 bg-slate-50/70 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setViewMode("all")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === "all"
+                    ? "bg-white text-blue-700 shadow-xs border border-slate-200"
+                    : "text-slate-600 hover:text-slate-800 hover:bg-slate-100"
+                }`}
+              >
+                <span>All Products</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${viewMode === "all" ? "bg-blue-100 text-blue-700" : "bg-slate-200 text-slate-600"}`}>
+                  {products.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewMode("deleted")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  viewMode === "deleted"
+                    ? "bg-white text-rose-700 shadow-xs border border-rose-200"
+                    : "text-slate-600 hover:text-rose-700 hover:bg-rose-50"
+                }`}
+              >
+                <Trash2 size={12} className={viewMode === "deleted" ? "text-rose-600" : "text-slate-400"} />
+                <span>Deleted</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${viewMode === "deleted" ? "bg-rose-100 text-rose-700" : "bg-slate-200 text-slate-600"}`}>
+                  {deletedProducts.length}
+                </span>
+              </button>
+            </div>
+
+            <Link href="/product-city-pages" className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-700">
+              <MapPinned size={12} /> City Pages
+            </Link>
+          </div>
+
+          {/* Search Bar */}
+          <div className="px-3 py-2 border-b border-slate-100">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder={viewMode === "all" ? "Search active products..." : "Search deleted products..."}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 pl-7 pr-7 text-[11px] text-slate-700 placeholder:text-slate-400 focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-200 transition-all"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Active Products List */}
+          {viewMode === "all" ? (
+            <div className="divide-y divide-slate-100 max-h-[60vh] overflow-y-auto">
+              {filteredProducts.length === 0 && (
+                <p className="py-8 text-center text-[11px] text-slate-400">
+                  {searchQuery ? `No products match "${searchQuery}"` : "No products found."}
+                </p>
+              )}
+              {filteredProducts.map((product) => (
+                <article key={product._id} className="grid gap-3 p-2.5 sm:grid-cols-[80px_1fr_auto] sm:items-center hover:bg-slate-50/20">
+                  <div className="h-14 w-20 overflow-hidden rounded-lg bg-slate-50 shrink-0">
+                    {product.images?.[0] && (
+                      <Image width={100} height={100} src={getImageUrl(product.images[0])} alt={product.title} className="h-full w-full object-cover" crossOrigin="anonymous" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 shrink-0" title="Order number">
+                        #{(product as any).orderBy ?? 0}
+                      </span>
+                      <h4 className="font-bold text-slate-800 text-xs truncate" dangerouslySetInnerHTML={{ __html: product.title }} />
+                    </div>
+                    <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">{product.description}</p>
+                    <p className="mt-1 text-[10px] font-bold text-emerald-600">
+                      Rs. {product.price?.toLocaleString("en-IN")} · {product.gstRate ?? 5}% GST · {typeof product.category === "string" ? product.category : product.category?.name}
+                    </p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <a href={`${PUBLIC_SITE_URL}/products/${product.slug}`} target="_blank" rel="noreferrer" className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer" title="View on website">
+                      <ExternalLink size={12} />
+                    </a>
+                    <button onClick={() => setBackupTarget(product)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer" title="Backup history">
+                      <History size={12} />
+                    </button>
+                    <button onClick={() => handleEditClick(product)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-200 bg-blue-50/60 text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer" title="Edit product">
+                      <Pencil size={12} />
+                    </button>
+                    <button onClick={() => confirmDeleteClick(product._id, `Move "${(product.title || '').replace(/<[^>]*>/g, '')}" to deleted list?`)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer" title="Move to Deleted">
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            /* Deleted Products List with Restore Option */
+            <div className="divide-y divide-slate-100 max-h-[60vh] overflow-y-auto">
+              {filteredDeletedProducts.length === 0 && (
+                <div className="py-12 text-center space-y-1">
+                  <Archive className="mx-auto h-7 w-7 text-slate-300" />
+                  <p className="text-xs text-slate-500 font-medium">No deleted products in trash.</p>
+                  <p className="text-[10px] text-slate-400">Products moved to trash will appear here and can be restored anytime.</p>
+                </div>
+              )}
+              {filteredDeletedProducts.map((product) => (
+                <article key={product._id} className="grid gap-3 p-2.5 sm:grid-cols-[80px_1fr_auto] sm:items-center bg-rose-50/20 hover:bg-rose-50/40">
+                  <div className="h-14 w-20 overflow-hidden rounded-lg bg-slate-100 shrink-0 opacity-80">
+                    {product.images?.[0] && (
+                      <Image width={100} height={100} src={getImageUrl(product.images[0])} alt={product.title} className="h-full w-full object-cover grayscale" crossOrigin="anonymous" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-800 border border-rose-200 shrink-0">
+                        DELETED
+                      </span>
+                      <h4 className="font-bold text-slate-700 text-xs truncate line-through" dangerouslySetInnerHTML={{ __html: product.title }} />
+                    </div>
+                    <p className="mt-0.5 line-clamp-1 text-[10px] text-slate-400">
+                      Deleted on {product.deletedAt ? new Date(product.deletedAt as any).toLocaleDateString() : "recently"}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-semibold text-slate-500">
+                      Rs. {product.price?.toLocaleString("en-IN")} · {typeof product.category === "string" ? product.category : product.category?.name}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {/* RESTORE BUTTON */}
+                    <button
+                      type="button"
+                      onClick={() => restoreProduct(product._id)}
+                      className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors text-xs font-bold cursor-pointer shadow-xs"
+                      title="Restore Product"
+                    >
+                      <RotateCcw size={12} />
+                      <span>Restore</span>
+                    </button>
+                    {/* PERMANENT DELETE BUTTON */}
+                    <button
+                      type="button"
+                      onClick={() => setPendingPermanentDelete({ id: product._id, title: (product.title || '').replace(/<[^>]*>/g, '') })}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-200 text-rose-600 hover:bg-rose-100 transition-colors cursor-pointer"
+                      title="Delete Permanently"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Form */}
+        <form onSubmit={submitProduct} className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm space-y-2 h-fit max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between">
+            <h3 className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+              <Plus size={14} />
+              {productForm.id ? "Edit Product Details" : "Add New Product"}
+            </h3>
+            {productForm.id && (
+              <button
+                type="button"
+                onClick={() => confirmIfDirty(resetForm)}
+                className="text-[10px] font-bold text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+              >
+                + New Product
+              </button>
+            )}
+          </div>
+
+          {/* Product Title (RichTextEditor) */}
+          <div className="space-y-1">
+            <label className={labelClass}>Product Title (Rich Text)</label>
+            <RichTextEditor
+              value={productForm.title}
+              onChange={(val) => setProductForm({ ...productForm, title: val })}
+              placeholder="Enter product title..."
+              minHeight="90px"
+            />
+          </div>
+
+          {/* Code & HSN Code */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>Product Code</label>
+              <input className={fieldClass} value={productForm.code} onChange={(e) => setProductForm({ ...productForm, code: e.target.value })} placeholder="e.g. ENS-001" />
+            </div>
+            <div>
+              <label className={labelClass}>HSN Code</label>
+              <input
+                className={fieldClass}
+                value={productForm.hsnCode}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, "").slice(0, 8);
+                  setProductForm({ ...productForm, hsnCode: val });
+                }}
+                placeholder="e.g. 9404"
+                maxLength={8}
+                pattern="[0-9]{4,8}"
+                title="HSN code must be 4 to 8 digits"
+              />
+              {productForm.hsnCode && productForm.hsnCode.length < 4 && (
+                <p className="text-[10px] text-amber-600 mt-0.5">Min 4 digits</p>
+              )}
+            </div>
+          </div>
+          {/* ────── Pricing Section ────── */}
+          <fieldset className="border border-slate-200 rounded-xl p-3 space-y-3">
+            <legend className="text-[10px] font-black uppercase text-blue-600 tracking-widest px-1">Pricing Section</legend>
+
+            {/* ── COMMENTED: See It In Real Spaces is not displayed on the product page
+            <div className="p-3 border border-slate-200 rounded-xl bg-slate-50 space-y-3">
+              <h5 className="text-[10px] font-bold uppercase">See It In Real Spaces</h5>
+              <div>
+                <label className={labelClass}>Section Title</label>
+                <input className={fieldClass} placeholder="e.g. See It In Real Spaces" value={productForm.overview.seeItInRealSpaces.title} onChange={e => setProductForm({ ...productForm, overview: { ...productForm.overview, seeItInRealSpaces: { ...productForm.overview.seeItInRealSpaces, title: e.target.value } } })} />
+              </div>
+              <div className="space-y-2">
+                <label className={labelClass}>Images</label>
+                {productForm.overview.seeItInRealSpaces.images.map((item, idx) => (
+                  <div key={idx} className="p-3 border border-slate-200 rounded-xl bg-white space-y-2 relative">
+                    <button type="button" onClick={() => { const list = productForm.overview.seeItInRealSpaces.images.filter((_, i) => i !== idx); setProductForm({ ...productForm, overview: { ...productForm.overview, seeItInRealSpaces: { ...productForm.overview.seeItInRealSpaces, images: list } } }); }} className="absolute top-2 right-2 text-rose-500"><Trash2 size={13} /></button>
+                    <input className={fieldClass} placeholder="Alt Text" value={item.imageAlt} onChange={e => { const list = [...productForm.overview.seeItInRealSpaces.images]; list[idx].imageAlt = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, seeItInRealSpaces: { ...productForm.overview.seeItInRealSpaces, images: list } } }); }} />
+                    <div className="flex gap-3 items-end">
+                      {item.image && <Image width={80} height={56} src={getImageUrl(item.image)} alt="Space" className="h-14 w-20 rounded object-cover border shrink-0" crossOrigin="anonymous" />}
+                      <div className="flex-1 space-y-1.5">
+                        <input className={fieldClass} placeholder="Paste image URL" value={item.image} onChange={e => { const list = [...productForm.overview.seeItInRealSpaces.images]; list[idx].image = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, seeItInRealSpaces: { ...productForm.overview.seeItInRealSpaces, images: list } } }); }} />
+                        <label className="cursor-pointer inline-flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded text-[10px] font-bold hover:bg-blue-50 transition-colors">
+                          <ImagePlus size={11} /> Upload
+                          <input type="file" className="hidden" accept="image/*" onChange={async e => { const file = e.target.files?.[0]; if (!file) return; const url = await uploadImage(file, "products"); const list = [...productForm.overview.seeItInRealSpaces.images]; list[idx].image = url; setProductForm({ ...productForm, overview: { ...productForm.overview, seeItInRealSpaces: { ...productForm.overview.seeItInRealSpaces, images: list } } }); }} />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <button type="button" onClick={() => setProductForm({ ...productForm, overview: { ...productForm.overview, seeItInRealSpaces: { ...productForm.overview.seeItInRealSpaces, images: [...productForm.overview.seeItInRealSpaces.images, { image: "", imageAlt: "" }] } } })} className="w-full py-2 border-2 border-dashed rounded-lg text-[10px] font-bold hover:bg-slate-50">+ Add Image</button>
+              </div>
+            </div>
+            ── */}
+
+            {/* Product Pricing Features — array */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h5 className="text-[10px] font-bold uppercase">Product Pricing Features</h5>
+                <button type="button" onClick={() => setProductForm({ ...productForm, overview: { ...productForm.overview, productPricingFeatures: [...productForm.overview.productPricingFeatures, { title: "", image: "" }] } })} className="text-[10px] font-bold text-blue-600 flex items-center gap-1"><Plus size={11} /> Add</button>
+              </div>
+              {productForm.overview.productPricingFeatures.map((pf, idx) => (
+                <div key={idx} className="p-3 border border-slate-200 rounded-xl bg-slate-50 space-y-2 relative">
+                  <button type="button" onClick={() => setProductForm({ ...productForm, overview: { ...productForm.overview, productPricingFeatures: productForm.overview.productPricingFeatures.filter((_, i) => i !== idx) } })} className="absolute top-2 right-2 text-rose-500"><Trash2 size={13} /></button>
+                  <input className={fieldClass} placeholder="Feature Title" value={pf.title} onChange={e => { const list = [...productForm.overview.productPricingFeatures]; list[idx].title = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, productPricingFeatures: list } }); }} />
+                  <div className="flex gap-3 items-end">
+                    {pf.image && <Image width={80} height={56} src={getImageUrl(pf.image)} alt="Feature" className="h-14 w-20 rounded object-cover border shrink-0" crossOrigin="anonymous" />}
+                    <div className="flex-1 space-y-1.5">
+                      <input className={fieldClass} placeholder="Paste image URL" value={pf.image} onChange={e => { const list = [...productForm.overview.productPricingFeatures]; list[idx].image = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, productPricingFeatures: list } }); }} />
+                      <label className="cursor-pointer inline-flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded text-[10px] font-bold hover:bg-blue-50 transition-colors">
+                        <ImagePlus size={11} /> Upload
+                        <input type="file" className="hidden" accept="image/*" onChange={async e => { const file = e.target.files?.[0]; if (!file) return; const url = await uploadImage(file, "products"); const list = [...productForm.overview.productPricingFeatures]; list[idx].image = url; setProductForm({ ...productForm, overview: { ...productForm.overview, productPricingFeatures: list } }); }} />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* EMI & Custom Size */}
+            <div className="flex gap-6 py-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={productForm.overview.emiOptions} onChange={e => setProductForm({ ...productForm, overview: { ...productForm.overview, emiOptions: e.target.checked } })} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                <span className="text-xs font-semibold text-slate-700">EMI Available</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={productForm.overview.customSize} onChange={e => setProductForm({ ...productForm, overview: { ...productForm.overview, customSize: e.target.checked } })} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                <span className="text-xs font-semibold text-slate-700">Custom Size Available</span>
+              </label>
+            </div>
+          </fieldset>
+          {/* Description */}
+          <div>
+            <label className={labelClass}>Description</label>
+            <textarea className={`${fieldClass} min-h-20`} value={productForm.description} onChange={(e) => setProductForm({ ...productForm, description: e.target.value })} required />
+          </div>
+
+          {/* Short Description */}
+          <div>
+            <label className={labelClass}>Short Description</label>
+            <textarea className={`${fieldClass} min-h-12`} value={productForm.shortDescription} onChange={(e) => setProductForm({ ...productForm, shortDescription: e.target.value })} />
+          </div>
+
+          {/* Price, Discount, Stock, GST */}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <label className={labelClass}>Price (INR)</label>
+              <input className={fieldClass} type="number" min="0" value={productForm.price} onChange={(e) => setProductForm({ ...productForm, price: e.target.value })} required />
+            </div>
+            <div>
+              <label className={labelClass}>Discount Price</label>
+              <input className={fieldClass} type="number" min="0" value={productForm.discountPrice} onChange={(e) => setProductForm({ ...productForm, discountPrice: e.target.value })} />
+            </div>
+            <div>
+              <label className={labelClass}>Stock Quantity</label>
+              <input className={fieldClass} type="number" min="0" value={productForm.stock} onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })} />
+            </div>
+            <div>
+              <label className={labelClass}>GST (%)</label>
+              <input className={fieldClass} type="number" min="0" max="100" step="0.01" value={productForm.gstRate} onChange={(e) => setProductForm({ ...productForm, gstRate: e.target.value })} placeholder="5" />
+            </div>
+          </div>
+
+          {/* Category & Slug */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>Category</label>
+              <SearchableSelect
+                options={categoryOptions}
+                value={productForm.category}
+                onChange={(val) => setProductForm({ ...productForm, category: val })}
+                placeholder="Search or select category..."
+              />
+            </div>
+            <div>
+              <label className={labelClass}>URL Slug</label>
+              <input className={fieldClass} value={productForm.slug} onChange={(e) => setProductForm({ ...productForm, slug: e.target.value })} />
+            </div>
+          </div>
+
+          {/* Subcategory, Material, Weight */}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <label className={labelClass}>Subcategory</label>
+              <input className={fieldClass} value={productForm.subcategory} onChange={(e) => setProductForm({ ...productForm, subcategory: e.target.value })} />
+            </div>
+            <div>
+              <label className={labelClass}>Material</label>
+              <input className={fieldClass} value={productForm.material} onChange={(e) => setProductForm({ ...productForm, material: e.target.value })} />
+            </div>
+            <div>
+              <label className={labelClass}>Weight (kg)</label>
+              <input className={fieldClass} type="number" value={productForm.weight} onChange={(e) => setProductForm({ ...productForm, weight: e.target.value })} />
+            </div>
+          </div>
+
+          {/* Search Tags (Comma Separated) */}
+          <div>
+            <label className={labelClass}>Search Tags (Comma Separated)</label>
+            <input
+              className={fieldClass}
+              placeholder="e.g. sauna, steam therapy, ayurveda, wooden bed, shirodhara"
+              value={productForm.tagsInput ?? ""}
+              onChange={(e) => setProductForm({ ...productForm, tagsInput: e.target.value })}
+            />
+            <p className="mt-1 text-[11px] text-slate-500">
+              Multiple tags comma (,) se separate karke dalein. Yeh tags frontend search me match honge.
+            </p>
+          </div>
+
+          {/* Checkboxes */}
+          <div className="flex gap-6 py-2 items-center">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={productForm.isActive} onChange={(e) => setProductForm({ ...productForm, isActive: e.target.checked })} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+              <span className="text-xs font-semibold text-slate-700">Active</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={productForm.isFeatured} onChange={(e) => setProductForm({ ...productForm, isFeatured: e.target.checked })} className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+              <span className="text-xs font-semibold text-slate-700">Featured Product</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <span className="text-xs font-semibold text-slate-700">Order By:</span>
+              <input type="number" value={productForm.orderBy} onChange={(e) => setProductForm({ ...productForm, orderBy: Number(e.target.value) })} className="h-8 w-20 text-xs border rounded px-2" />
+            </label>
+          </div>
+
+          {/* Product Images */}
+          <div>
+            <label className={labelClass}>Product Images</label>
+            <div className="grid grid-cols-4 gap-2 mb-2">
+              {productForm.images.map((url, idx) => (
+                <div key={idx} className="relative group aspect-square rounded-lg border border-slate-200 overflow-hidden bg-slate-50">
+                  <Image width={100} height={100} src={getImageUrl(url)} alt={`Product ${idx}`} className="h-full w-full object-cover" crossOrigin="anonymous" />
+                  <button type="button" onClick={() => { const imgs = [...productForm.images]; imgs.splice(idx, 1); setProductForm({ ...productForm, images: imgs }); }} className="absolute top-1 right-1 p-0.5 bg-white/90 rounded-full text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-rose-50 cursor-pointer"><X size={10} /></button>
+                </div>
+              ))}
+              <label className="flex flex-col items-center justify-center aspect-square rounded-lg border border-dashed border-slate-200 hover:border-blue-400 hover:bg-blue-50/30 transition-all cursor-pointer group">
+                {loading ? <Loader2 className="h-4 w-4 animate-spin text-blue-500" /> : <ImagePlus className="h-4 w-4  group-hover:text-blue-500 transition-colors" />}
+                <span className="mt-0.5 text-[9px] font-semibold  group-hover:text-blue-600">Add Image</span>
+                <input type="file" multiple className="hidden" accept="image/*" onChange={async (e) => {
+                  const files = Array.from(e.target.files || []);
+                  if (!files.length) return;
+                  setLoading(true);
+                  try {
+                    const urls: string[] = [];
+                    for (const f of files) {
+                      const url = await uploadImage(f, "products");
+                      urls.push(url);
+                    }
+                    setProductForm(prev => ({ ...prev, images: [...prev.images, ...urls] }));
+                    toast.success(`${urls.length} image(s) uploaded successfully.`);
+                  } catch (error) {
+                    toast.error((error as Error)?.message || "Failed to upload one or more images.");
+                  } finally {
+                    setLoading(false);
+                    e.target.value = "";
+                  }
+                }} />
+              </label>
+            </div>
+            <p className="text-[8px] italic ">Images are stored in /uploads/products. You can select multiple files.</p>
+          </div>
+
+          {/* Tags */}
+          <div className="space-y-2">
+            <label className={labelClass}>Search Tags</label>
+            <div className="flex flex-wrap gap-2">
+              {productForm.tags.map((tag, idx) => (
+                <div key={idx} className="flex gap-1 items-center bg-slate-50 border border-slate-200 rounded-md px-2 py-1">
+                  <input className="bg-transparent border-none p-0 text-[11px] focus:ring-0 w-20" value={tag} onChange={e => { const list = [...productForm.tags]; list[idx] = e.target.value; setProductForm({ ...productForm, tags: list }); }} />
+                  <button type="button" onClick={() => setProductForm({ ...productForm, tags: productForm.tags.filter((_, i) => i !== idx) })} className="text-rose-500 hover:bg-rose-50 p-1 rounded transition-colors"><X size={12} /></button>
+                </div>
+              ))}
+              <button type="button" onClick={() => setProductForm({ ...productForm, tags: [...productForm.tags, ""] })} className="text-[10px] font-bold text-blue-600 flex items-center gap-1"><Plus size={12} /> Add Tag</button>
+            </div>
+          </div>
+
+          {/* ────── Technical Overview ────── */}
+          <div className="pt-6 border-t border-slate-100 space-y-5">
+            <h4 className="text-[10px] font-black uppercase text-blue-600 tracking-widest">Technical Overview & Details</h4>
+
+            {/* ── COMMENTED: Basic Overview, Items, Bullets & What's Included are not displayed on the product page
+            <div className="space-y-3">
+              <div>
+                <label className={labelClass}>Overview Section Title</label>
+                <input className={fieldClass} value={productForm.overview.title} onChange={e => setProductForm({ ...productForm, overview: { ...productForm.overview, title: e.target.value } })} placeholder="e.g. Exquisite Craftsmanship" />
+              </div>
+              <div>
+                <label className={labelClass}>Overview Description</label>
+                <textarea className={`${fieldClass} min-h-16`} value={productForm.overview.description} onChange={e => setProductForm({ ...productForm, overview: { ...productForm.overview, description: e.target.value } })} placeholder="Short intro to technical details..." />
+              </div>
+            </div>
+
+            <div>
+              <label className={labelClass}>Overview Items</label>
+              <div className="space-y-3 mt-1">
+                {productForm.overview.items.map((item, idx) => (
+                  <div key={idx} className="p-3 border border-slate-200 rounded-xl bg-white space-y-2 relative">
+                    <button type="button" onClick={() => setProductForm({ ...productForm, overview: { ...productForm.overview, items: productForm.overview.items.filter((_, i) => i !== idx) } })} className="absolute top-2 right-2 text-rose-500"><Trash2 size={13} /></button>
+                    <input className={fieldClass} placeholder="Title" value={item.title} onChange={e => { const list = [...productForm.overview.items]; list[idx].title = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, items: list } }); }} />
+                    <textarea className={`${fieldClass} min-h-12`} placeholder="Description" value={item.description} onChange={e => { const list = [...productForm.overview.items]; list[idx].description = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, items: list } }); }} />
+                    <div className="flex gap-3 items-end">
+                      {item.image && <Image width={80} height={56} src={getImageUrl(item.image)} alt="Item" className="h-14 w-20 rounded object-cover border shrink-0" crossOrigin="anonymous" />}
+                      <div className="flex-1 space-y-1.5">
+                        <input className={fieldClass} placeholder="Paste image URL" value={item.image} onChange={e => { const list = [...productForm.overview.items]; list[idx].image = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, items: list } }); }} />
+                        <label className="cursor-pointer inline-flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded text-[10px] font-bold hover:bg-blue-50 transition-colors">
+                          <ImagePlus size={11} /> Upload
+                          <input type="file" className="hidden" accept="image/*" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; const url = await uploadImage(file, "products"); const list = [...productForm.overview.items]; list[idx].image = url; setProductForm({ ...productForm, overview: { ...productForm.overview, items: list } }); }} />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <button type="button" onClick={() => setProductForm({ ...productForm, overview: { ...productForm.overview, items: [...productForm.overview.items, { image: "", title: "", description: "" }] } })} className="w-full py-2 border-2 border-dashed rounded-lg  text-[10px] font-bold hover:bg-slate-50">+ Add Item</button>
+              </div>
+            </div>
+
+            <div>
+              <label className={labelClass}>Overview Bullet Points</label>
+              <div className="space-y-2 mt-1">
+                {productForm.overview.overviewList.map((item, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <input className={fieldClass} value={item} onChange={e => { const list = [...productForm.overview.overviewList]; list[idx] = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, overviewList: list } }); }} />
+                    <button type="button" onClick={() => setProductForm({ ...productForm, overview: { ...productForm.overview, overviewList: productForm.overview.overviewList.filter((_, i) => i !== idx) } })} className="shrink-0 text-rose-500 hover:bg-rose-50 p-1.5 rounded"><Trash2 size={13} /></button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => setProductForm({ ...productForm, overview: { ...productForm.overview, overviewList: [...productForm.overview.overviewList, ""] } })} className="text-[10px] font-bold text-blue-600 flex items-center gap-1"><Plus size={12} /> Add Point</button>
+              </div>
+            </div>
+
+            ── */}
+
+            {/* Key Specifications */}
+            {/* ── COMMENTED: Key Specifications & Key Features tabs are not displayed on the product page
+            <div className="p-3 border border-slate-200 rounded-xl bg-slate-50 space-y-2">
+              <label className="text-[10px] font-bold uppercase block">Key Specifications</label>
+              <input className={fieldClass} placeholder="Section Title"
+                value={productForm.overview.specifications.title}
+                onChange={e => setProductForm({ ...productForm, overview: { ...productForm.overview, specifications: { ...productForm.overview.specifications, title: e.target.value } } })} />
+              <div className="space-y-2">
+                {productForm.overview.specifications.specificationsList.map((row, rIdx) => (
+                  <div key={rIdx} className="flex gap-2">
+                    <input className={fieldClass} placeholder="Label" value={row.title}
+                      onChange={e => { const list = [...productForm.overview.specifications.specificationsList]; list[rIdx].title = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, specifications: { ...productForm.overview.specifications, specificationsList: list } } }); }} />
+                    <input className={fieldClass} placeholder="Value" value={row.description}
+                      onChange={e => { const list = [...productForm.overview.specifications.specificationsList]; list[rIdx].description = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, specifications: { ...productForm.overview.specifications, specificationsList: list } } }); }} />
+                    <button type="button" onClick={() => { const list = productForm.overview.specifications.specificationsList.filter((_, i) => i !== rIdx); setProductForm({ ...productForm, overview: { ...productForm.overview, specifications: { ...productForm.overview.specifications, specificationsList: list } } }); }} className="shrink-0 text-rose-500 p-1 rounded"><Trash2 size={12} /></button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => { const list = [...productForm.overview.specifications.specificationsList, { title: "", description: "" }]; setProductForm({ ...productForm, overview: { ...productForm.overview, specifications: { ...productForm.overview.specifications, specificationsList: list } } }); }} className="text-[10px] font-bold text-blue-600 flex items-center gap-1"><Plus size={11} /> Add Row</button>
+              </div>
+            </div>
+
+            <div className="p-3 border border-slate-200 rounded-xl bg-slate-50 space-y-2">
+              <label className="text-[10px] font-bold  uppercase block">Key Features</label>
+              <input className={fieldClass} placeholder="Section Title" value={productForm.overview.keyFeatures.title} onChange={e => setProductForm({ ...productForm, overview: { ...productForm.overview, keyFeatures: { ...productForm.overview.keyFeatures, title: e.target.value } } })} />
+              <div className="space-y-2">
+                {productForm.overview.keyFeatures.keyFeaturesList.map((item, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <input className={fieldClass} placeholder="Feature detail..." value={item} onChange={e => { const list = [...productForm.overview.keyFeatures.keyFeaturesList]; list[idx] = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, keyFeatures: { ...productForm.overview.keyFeatures, keyFeaturesList: list } } }); }} />
+                    <button type="button" onClick={() => { const list = productForm.overview.keyFeatures.keyFeaturesList.filter((_, i) => i !== idx); setProductForm({ ...productForm, overview: { ...productForm.overview, keyFeatures: { ...productForm.overview.keyFeatures, keyFeaturesList: list } } }); }} className="shrink-0 text-rose-500 hover:bg-rose-50 p-1 rounded"><Trash2 size={12} /></button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => { const list = [...productForm.overview.keyFeatures.keyFeaturesList, ""]; setProductForm({ ...productForm, overview: { ...productForm.overview, keyFeatures: { ...productForm.overview.keyFeatures, keyFeaturesList: list } } }); }} className="text-[10px] font-bold text-blue-600 flex items-center gap-1"><Plus size={11} /> Add Feature</button>
+              </div>
+            </div>
+            ── */}
+{/* Ideal For */}
+            <div>
+              <label className={labelClass}>Ideal For</label>
+              <input
+                className={fieldClass}
+                placeholder="e.g. Clinics, Spas, Hotels"
+                value={productForm.overview.idealFor}
+                onChange={(e) =>
+                  setProductForm({
+                    ...productForm,
+                    overview: { ...productForm.overview, idealFor: e.target.value },
+                  })
+                }
+              />
+            </div>
+            {/* ── COMMENTED: Product Dimensions tab is not displayed on the product page
+            <div className="p-3 border border-slate-200 rounded-xl bg-slate-50 space-y-2">
+              <label className="text-[10px] font-bold uppercase block">
+                Product Dimensions
+              </label>
+
+              <input
+                className={fieldClass}
+                placeholder="Section Title"
+                value={productForm.overview.dimensions.title}
+                onChange={(e) =>
+                  setProductForm({
+                    ...productForm,
+                    overview: {
+                      ...productForm.overview,
+                      dimensions: {
+                        ...productForm.overview.dimensions,
+                        title: e.target.value,
+                      },
+                    },
+                  })
+                }
+              />
+
+              <div className="space-y-2">
+                {productForm.overview.dimensions.dimensionsList.map((item, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <input
+                      className={fieldClass}
+                      placeholder="Label"
+                      value={item.title}
+                      onChange={(e) => {
+                        const list = [...productForm.overview.dimensions.dimensionsList];
+                        list[idx].title = e.target.value;
+
+                        setProductForm({
+                          ...productForm,
+                          overview: {
+                            ...productForm.overview,
+                            dimensions: {
+                              ...productForm.overview.dimensions,
+                              dimensionsList: list,
+                            },
+                          },
+                        });
+                      }}
+                    />
+
+                    <input
+                      className={fieldClass}
+                      placeholder="Value"
+                      value={item.description}
+                      onChange={(e) => {
+                        const list = [...productForm.overview.dimensions.dimensionsList];
+                        list[idx].description = e.target.value;
+
+                        setProductForm({
+                          ...productForm,
+                          overview: {
+                            ...productForm.overview,
+                            dimensions: {
+                              ...productForm.overview.dimensions,
+                              dimensionsList: list,
+                            },
+                          },
+                        });
+                      }}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const list =
+                          productForm.overview.dimensions.dimensionsList.filter(
+                            (_, i) => i !== idx
+                          );
+
+                        setProductForm({
+                          ...productForm,
+                          overview: {
+                            ...productForm.overview,
+                            dimensions: {
+                              ...productForm.overview.dimensions,
+                              dimensionsList: list,
+                            },
+                          },
+                        });
+                      }}
+                      className="shrink-0 text-rose-500 hover:bg-rose-50 p-1 rounded"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const list = [
+                      ...productForm.overview.dimensions.dimensionsList,
+                      {
+                        title: "",
+                        description: "",
+                      },
+                    ];
+
+                    setProductForm({
+                      ...productForm,
+                      overview: {
+                        ...productForm.overview,
+                        dimensions: {
+                          ...productForm.overview.dimensions,
+                          dimensionsList: list,
+                        },
+                      },
+                    });
+                  }}
+                  className="text-[10px] font-bold text-blue-600 flex items-center gap-1"
+                >
+                  <Plus size={11} /> Add Dimension
+                </button>
+              </div>
+            </div>
+            ── */}
+
+            {/* Technical Diagram & Specs */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h5 className="text-[10px] font-bold text-blue-600 uppercase">Technical Diagram & Specs</h5>
+                <button type="button" onClick={() => setProductForm({ ...productForm, overview: { ...productForm.overview, productSpecifications: [...productForm.overview.productSpecifications, { highlight: "", title: "", image: "", specifications: [{ title: "", description: "" }] }] } })} className="text-[10px] font-bold text-blue-600 flex items-center gap-1"><Plus size={11} /> Add</button>
+              </div>
+              {productForm.overview.productSpecifications.map((ps, psIdx) => (
+                <div key={psIdx} className="p-3 border border-blue-100 rounded-xl bg-blue-50/20 space-y-2.5 relative">
+                  {productForm.overview.productSpecifications.length > 1 && (
+                    <button type="button" onClick={() => setProductForm({ ...productForm, overview: { ...productForm.overview, productSpecifications: productForm.overview.productSpecifications.filter((_, i) => i !== psIdx) } })} className="absolute top-2 right-2 text-rose-500"><Trash2 size={12} /></button>
+                  )}
+                  <input className={fieldClass} placeholder="Highlight Text" value={ps.highlight} onChange={e => { const list = [...productForm.overview.productSpecifications]; list[psIdx].highlight = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, productSpecifications: list } }); }} />
+                  <input className={fieldClass} placeholder="Main Specification Title" value={ps.title} onChange={e => { const list = [...productForm.overview.productSpecifications]; list[psIdx].title = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, productSpecifications: list } }); }} />
+                  <div>
+                    <label className={labelClass}>Diagram Image</label>
+                    <div className="flex gap-3 items-end mt-1">
+                      <div className="h-16 w-24 rounded border bg-white overflow-hidden shrink-0">
+                        {ps.image && <Image width={100} height={64} src={getImageUrl(ps.image)} alt="Diagram" className="h-full w-full object-contain" />}
+                      </div>
+                      <div className="flex-1 space-y-1.5">
+                        <input className={fieldClass} placeholder="Paste image URL" value={ps.image} onChange={e => { const list = [...productForm.overview.productSpecifications]; list[psIdx].image = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, productSpecifications: list } }); }} />
+                        <label className="cursor-pointer inline-flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded text-[10px] font-bold hover:bg-blue-50 transition-colors">
+                          <ImagePlus size={11} /> Upload
+                          <input type="file" className="hidden" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; const url = await uploadImage(file, "products"); const list = [...productForm.overview.productSpecifications]; list[psIdx].image = url; setProductForm({ ...productForm, overview: { ...productForm.overview, productSpecifications: list } }); }} />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Specifications</label>
+                    <div className="space-y-2 mt-1">
+                      {ps.specifications.map((s, sIdx) => (
+                        <div key={sIdx} className="flex gap-2">
+                          <input className={fieldClass} placeholder="Label" value={s.title} onChange={e => { const list = [...productForm.overview.productSpecifications]; list[psIdx].specifications[sIdx].title = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, productSpecifications: list } }); }} />
+                          <input className={fieldClass} placeholder="Value" value={s.description} onChange={e => { const list = [...productForm.overview.productSpecifications]; list[psIdx].specifications[sIdx].description = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, productSpecifications: list } }); }} />
+                          <button type="button" onClick={() => { const list = [...productForm.overview.productSpecifications]; list[psIdx].specifications = list[psIdx].specifications.filter((_, i) => i !== sIdx); setProductForm({ ...productForm, overview: { ...productForm.overview, productSpecifications: list } }); }} className="shrink-0 text-rose-500 hover:bg-rose-50 p-1 rounded"><Trash2 size={13} /></button>
+                        </div>
+                      ))}
+                      <button type="button" onClick={() => { const list = [...productForm.overview.productSpecifications]; list[psIdx].specifications.push({ title: "", description: "" }); setProductForm({ ...productForm, overview: { ...productForm.overview, productSpecifications: list } }); }} className="text-[10px] font-bold text-blue-600 flex items-center gap-1"><Plus size={12} /> Add Row</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* What's Included */}
+            <div className="p-3 border border-emerald-100 rounded-xl bg-emerald-50/20 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <h5 className="text-[10px] font-bold text-emerald-700 uppercase">What's Included</h5>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setProductForm({
+                      ...productForm,
+                      overview: {
+                        ...productForm.overview,
+                        whatisInclueded: [...(productForm.overview.whatisInclueded || []), ""],
+                      },
+                    })
+                  }
+                  className="text-[10px] font-bold text-emerald-600 flex items-center gap-1"
+                >
+                  <Plus size={11} /> Add Item
+                </button>
+              </div>
+              <div className="space-y-2 mt-1">
+                {(productForm.overview.whatisInclueded || []).map((item, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <input
+                      className={fieldClass}
+                      placeholder="e.g. 1x Therapy Table, 1x Power Cord"
+                      value={item}
+                      onChange={(e) => {
+                        const list = [...(productForm.overview.whatisInclueded || [])];
+                        list[idx] = e.target.value;
+                        setProductForm({
+                          ...productForm,
+                          overview: { ...productForm.overview, whatisInclueded: list },
+                        });
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setProductForm({
+                          ...productForm,
+                          overview: {
+                            ...productForm.overview,
+                            whatisInclueded: (productForm.overview.whatisInclueded || []).filter(
+                              (_, i) => i !== idx
+                            ),
+                          },
+                        })
+                      }
+                      className="shrink-0 text-rose-500 hover:bg-rose-50 p-1.5 rounded"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Smart Design & Appearance */}
+            <div className="p-3 border border-slate-200 rounded-xl bg-slate-50 space-y-2.5">
+              <h5 className="text-[10px] font-bold  uppercase">Smart Design & Appearance</h5>
+              <input className={fieldClass} placeholder="Highlight" value={productForm.overview.smartDesignAppearance.highlight} onChange={e => setProductForm({ ...productForm, overview: { ...productForm.overview, smartDesignAppearance: { ...productForm.overview.smartDesignAppearance, highlight: e.target.value } } })} />
+              <input className={fieldClass} placeholder="Appearance Title" value={productForm.overview.smartDesignAppearance.title} onChange={e => setProductForm({ ...productForm, overview: { ...productForm.overview, smartDesignAppearance: { ...productForm.overview.smartDesignAppearance, title: e.target.value } } })} />
+              <div>
+                <label className={labelClass}>Wood Finishes</label>
+                <div className="space-y-2 mt-1">
+                  {productForm.overview.smartDesignAppearance.woodFinish.map((item, idx) => (
+                    <div key={idx} className="p-3 border border-slate-200 rounded-xl bg-white space-y-2 relative">
+                      <button type="button" onClick={() => setProductForm({ ...productForm, overview: { ...productForm.overview, smartDesignAppearance: { ...productForm.overview.smartDesignAppearance, woodFinish: productForm.overview.smartDesignAppearance.woodFinish.filter((_, i) => i !== idx) } } })} className="absolute top-2 right-2 text-rose-500"><Trash2 size={13} /></button>
+                      <input className={fieldClass} placeholder="Finish Name e.g. Walnut" value={item.title} onChange={e => { const list = [...productForm.overview.smartDesignAppearance.woodFinish]; list[idx] = { ...list[idx], title: e.target.value }; setProductForm({ ...productForm, overview: { ...productForm.overview, smartDesignAppearance: { ...productForm.overview.smartDesignAppearance, woodFinish: list } } }); }} />
+                      <div className="flex gap-3 items-end">
+                        {item.image && <Image width={80} height={56} src={getImageUrl(item.image)} alt={item.title} className="h-14 w-20 rounded object-cover border shrink-0" crossOrigin="anonymous" />}
+                        <div className="flex-1 space-y-1.5">
+                          <input className={fieldClass} placeholder="Paste image URL" value={item.image} onChange={e => { const list = [...productForm.overview.smartDesignAppearance.woodFinish]; list[idx] = { ...list[idx], image: e.target.value }; setProductForm({ ...productForm, overview: { ...productForm.overview, smartDesignAppearance: { ...productForm.overview.smartDesignAppearance, woodFinish: list } } }); }} />
+                          <label className="cursor-pointer inline-flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded text-[10px] font-bold hover:bg-blue-50 transition-colors">
+                            <ImagePlus size={11} /> Upload
+                            <input type="file" className="hidden" accept="image/*" onChange={async e => { const file = e.target.files?.[0]; if (!file) return; const url = await uploadImage(file, "products"); const list = [...productForm.overview.smartDesignAppearance.woodFinish]; list[idx] = { ...list[idx], image: url }; setProductForm({ ...productForm, overview: { ...productForm.overview, smartDesignAppearance: { ...productForm.overview.smartDesignAppearance, woodFinish: list } } }); }} />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setProductForm({ ...productForm, overview: { ...productForm.overview, smartDesignAppearance: { ...productForm.overview.smartDesignAppearance, woodFinish: [...productForm.overview.smartDesignAppearance.woodFinish, { title: "", image: "" }] } } })} className="text-[10px] font-bold text-blue-600 flex items-center gap-1"><Plus size={12} /> Add Finish</button>
+                </div>
+              </div>
+              <div>
+                <label className={labelClass}>Size Options</label>
+                <div className="space-y-2 mt-1">
+                  {productForm.overview.smartDesignAppearance.sizeOptions.map((opt, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <input className={fieldClass} placeholder="Size" value={opt.title} onChange={e => { const list = [...productForm.overview.smartDesignAppearance.sizeOptions]; list[idx].title = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, smartDesignAppearance: { ...productForm.overview.smartDesignAppearance, sizeOptions: list } } }); }} />
+                      <input className={fieldClass} placeholder="Info" value={opt.description} onChange={e => { const list = [...productForm.overview.smartDesignAppearance.sizeOptions]; list[idx].description = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, smartDesignAppearance: { ...productForm.overview.smartDesignAppearance, sizeOptions: list } } }); }} />
+                      <button type="button" onClick={() => setProductForm({ ...productForm, overview: { ...productForm.overview, smartDesignAppearance: { ...productForm.overview.smartDesignAppearance, sizeOptions: productForm.overview.smartDesignAppearance.sizeOptions.filter((_, i) => i !== idx) } } })} className="shrink-0 text-rose-500"><Trash2 size={13} /></button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setProductForm({ ...productForm, overview: { ...productForm.overview, smartDesignAppearance: { ...productForm.overview.smartDesignAppearance, sizeOptions: [...productForm.overview.smartDesignAppearance.sizeOptions, { title: "", description: "" }] } } })} className="text-[10px] font-bold text-blue-600 flex items-center gap-1"><Plus size={12} /> Add Size</button>
+                </div>
+              </div>
+            </div>
+
+            {/* ── COMMENTED: Material & Care and Product FAQs are not displayed on the product page
+            <div className="p-3 border border-amber-100 rounded-xl bg-amber-50/20 space-y-2">
+              <h5 className="text-[10px] font-bold text-amber-600 uppercase">Material & Care</h5>
+              <input className={fieldClass} placeholder="Title" value={productForm.overview.materialAndCare.title} onChange={e => setProductForm({ ...productForm, overview: { ...productForm.overview, materialAndCare: { ...productForm.overview.materialAndCare, title: e.target.value } } })} />
+              <RichTextEditor value={productForm.overview.materialAndCare.description || ""} onChange={val => setProductForm({ ...productForm, overview: { ...productForm.overview, materialAndCare: { ...productForm.overview.materialAndCare, description: val } } })} placeholder="Care instructions..." minHeight="120px" />
+            </div>
+
+            <div className="space-y-3">
+              <label className={labelClass}>Product FAQs</label>
+              {productForm.overview.faqs.map((faq, idx) => (
+                <div key={idx} className="p-3 border border-slate-200 rounded-xl bg-white relative space-y-2">
+                  <button type="button" onClick={() => setProductForm({ ...productForm, overview: { ...productForm.overview, faqs: productForm.overview.faqs.filter((_, i) => i !== idx) } })} className="absolute top-2 right-2 text-rose-500"><Trash2 size={14} /></button>
+                  <input className={fieldClass} placeholder="Question" value={faq.question} onChange={e => { const list = [...productForm.overview.faqs]; list[idx].question = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, faqs: list } }); }} />
+                  <textarea className={`${fieldClass} min-h-12`} placeholder="Answer" value={faq.description} onChange={e => { const list = [...productForm.overview.faqs]; list[idx].description = e.target.value; setProductForm({ ...productForm, overview: { ...productForm.overview, faqs: list } }); }} />
+                </div>
+              ))}
+              <button type="button" onClick={() => setProductForm({ ...productForm, overview: { ...productForm.overview, faqs: [...productForm.overview.faqs, { question: "", description: "" }] } })} className="w-full py-2 border-2 border-dashed rounded-lg  text-[10px] font-bold hover:bg-slate-50">+ Add FAQ</button>
+            </div>
+            ── */}
+          </div>
+
+          {/* Submit */}
+          <div className="flex gap-2 pt-1">
+            <button className="inline-flex items-center gap-1 rounded-lg bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-[11px] font-semibold text-white transition-colors cursor-pointer" disabled={loading}>
+              <Save size={11} /> Save Product
+            </button>
+            {productForm.id && (
+              <button type="button" onClick={() => confirmIfDirty(resetForm)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer">
+                Cancel
+              </button>
+            )}
+          </div>
+        </form>
+      </section>
+
+      <BackupHistoryModal
+        isOpen={!!backupTarget}
+        productId={backupTarget?._id}
+        productTitle={(backupTarget?.title || "").replace(/<[^>]*>/g, "")}
+        onClose={() => setBackupTarget(null)}
+        onRestored={refreshData}
+      />
+
+      <ConfirmDialog
+        isOpen={!!pendingDelete}
+        title="Move to Deleted List"
+        message={pendingDelete?.message}
+        confirmText="Move to Deleted"
+        onConfirm={async () => {
+          if (!pendingDelete) return;
+          await deleteProduct(pendingDelete.id);
+        }}
+        onClose={() => setPendingDelete(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={!!pendingPermanentDelete}
+        title="Permanently Delete Product?"
+        message={`Are you sure you want to permanently delete "${pendingPermanentDelete?.title}"? This action cannot be reversed.`}
+        confirmText="Delete Forever"
+        onConfirm={async () => {
+          if (!pendingPermanentDelete) return;
+          await permanentDeleteProduct(pendingPermanentDelete.id);
+        }}
+        onClose={() => setPendingPermanentDelete(null)}
+      />
+    </div>
+  );
+}
