@@ -49,6 +49,7 @@ export function resolveEnsisSections(
   if (configKey === "careersPage") {
     const activeKeys = new Set([
       "career.banner",
+      "career.features",
       "career.section",
       "career.emptyState",
       "career.whyWork",
