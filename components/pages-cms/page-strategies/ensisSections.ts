@@ -45,6 +45,39 @@ export function resolveEnsisSections(
 ): SectionsDraft {
   const prefix = ENSIS_PAGE_PREFIX[configKey];
 
+  // For careersPage: only expose the 6 redesign sections defined in Contract §2
+  if (configKey === "careersPage") {
+    const activeKeys = new Set([
+      "career.banner",
+      "career.section",
+      "career.emptyState",
+      "career.whyWork",
+      "career.lifeAtEnsis",
+      "career.talentCommunity",
+    ]);
+
+    const storedMap = new Map<string, CmsRecord>();
+    if (Array.isArray(stored)) {
+      stored.forEach((s) => {
+        const compKey = componentKeyOf(prefix, s);
+        storedMap.set(compKey, s);
+        if (s.key) storedMap.set(String(s.key), s);
+      });
+    }
+
+    return fallback
+      .filter((item) => activeKeys.has(String(item.key)))
+      .map((item) => {
+        const compKey = String(item.key);
+        const saved = storedMap.get(compKey);
+        return {
+          ...item,
+          ...(saved || {}),
+          componentKey: compKey,
+        };
+      });
+  }
+
   if (Array.isArray(stored) && stored.length > 0) {
     return stored.map((section) => {
       const componentKey = componentKeyOf(prefix, section);
