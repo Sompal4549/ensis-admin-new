@@ -1,454 +1,559 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Briefcase, Download, ExternalLink, FileText, Mail, Phone, RefreshCw, Search, Trash2, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  Briefcase,
+  CheckCircle2,
+  Clock,
+  Download,
+  Eye,
+  FileText,
+  Filter,
+  Sparkles,
+  TrendingUp,
+  UserCheck,
+  Users,
+  XCircle,
+} from "lucide-react";
 import Swal from "sweetalert2";
-import { api } from "@/lib/api";
+import {
+  OrganicPage,
+  PageHeader,
+  HeaderButton,
+  StatCard,
+  StatGrid,
+  FilterBar,
+  SearchBox,
+  FilterSelect,
+  ResetButton,
+  MainWithSidebar,
+  TableCard,
+  theadRowClass,
+  thClass,
+  rowClass,
+  LoadingRows,
+  EmptyRow,
+  Pagination,
+  SideCard,
+  SummaryDonut,
+  SidebarBar,
+  QuickActions,
+  Pill,
+} from "@/components/organic/OrganicUI";
+import { useApiGet } from "@/lib/useApiGet";
+import { api, authHeader, getBackendUrl } from "@/lib/api";
 
-/** An application from the website's career form (backend models/applicationModel.ts) */
-type Application = {
+type ApplicationStatus =
+  | "received"
+  | "shortlisted"
+  | "interview_scheduled"
+  | "rejected"
+  | "hired";
+
+type MatchLevel = "eligible" | "partial" | "not_eligible";
+
+interface ApplicationItem {
   _id: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  currentLocation: string;
-  department: string;
-  experience: string;
-  coverLetter?: string;
-  resume: string;
-  status: Status;
-  notes?: string;
-  /** "career-form" = general form, "ai-cv" = job Apply flow with CV screening */
-  source?: "career-form" | "ai-cv";
+  applicationId?: string;
+  jobId: string;
   jobTitle?: string;
-  aiScore?: number;
-  aiSummary?: string;
-  linkedin?: string;
-  currentCompany?: string;
-  currentDesignation?: string;
-  noticePeriod?: string;
-  expectedCTC?: string;
-  willingToRelocate?: string;
-  employmentStatus?: string;
+  department?: string;
+  profile?: {
+    fullName: string;
+    email: string;
+    phone: string;
+    photoUrl?: string;
+    currentLocation?: string;
+  };
+  screeningResult?: {
+    score: number;
+    level: MatchLevel;
+    breakdown?: Record<string, number>;
+    strengths?: string[];
+  };
+  status: ApplicationStatus;
   createdAt: string;
+  // Legacy compatibility fallbacks
+  fullName?: string;
+  email?: string;
+  phone?: string;
+  aiScore?: number;
+}
+
+interface ApplicationsApiResponse {
+  items: ApplicationItem[];
+  total: number;
+  page: number;
+  pages: number;
+  stats: {
+    total: number;
+    received: number;
+    shortlisted: number;
+    interview: number;
+    rejected: number;
+    hired: number;
+    averageMatch: number;
+  };
+}
+
+const STATUS_META: Record<ApplicationStatus, { label: string; pill: string }> = {
+  received: { label: "Received", pill: "bg-[#e0f2fe] text-[#0369a1] border-[#bae6fd]" },
+  shortlisted: { label: "Shortlisted", pill: "bg-[#e6f6ea] text-[#15803d] border-[#bbf7d0]" },
+  interview_scheduled: { label: "Interview", pill: "bg-[#f3e8ff] text-[#7e22ce] border-[#e9d5ff]" },
+  rejected: { label: "Rejected", pill: "bg-[#fee2e2] text-[#b91c1c] border-[#fecaca]" },
+  hired: { label: "Hired", pill: "bg-[#ecfdf5] text-[#047857] border-[#a7f3d0]" },
 };
 
-const SOURCE_LABEL = { "career-form": "General form", "ai-cv": "Job apply (AI CV)" } as const;
-const sourceOf = (a: Application) => a.source || "career-form";
-
-const STATUSES = ["pending", "reviewed", "shortlisted", "rejected"] as const;
-type Status = (typeof STATUSES)[number];
-
-const STATUS_META: Record<Status, { label: string; pill: string }> = {
-  pending: { label: "New", pill: "bg-[#fdf3e1] text-[#b45309]" },
-  reviewed: { label: "Reviewed", pill: "bg-[#e0f2fe] text-[#0369a1]" },
-  shortlisted: { label: "Shortlisted", pill: "bg-[#e6f6ea] text-[#15803d]" },
-  rejected: { label: "Rejected", pill: "bg-[#fee2e2] text-[#b91c1c]" },
+const LEVEL_META: Record<MatchLevel, { label: string; pill: string }> = {
+  eligible: { label: "Eligible", pill: "bg-[#e8f5e9] text-[#23714a] border-[#a5d6a7]" },
+  partial: { label: "Partial Match", pill: "bg-[#fff8e1] text-[#b78103] border-[#ffe082]" },
+  not_eligible: { label: "Not Eligible", pill: "bg-[#ffebee] text-[#c62828] border-[#ef9a9a]" },
 };
-
-const formatDate = (iso: string) =>
-  iso ? new Date(iso).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
-
-const csvCell = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
 
 export default function CareerApplicationsPage() {
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
-  const [department, setDepartment] = useState("all");
-  const [source, setSource] = useState<"all" | "career-form" | "ai-cv">("all");
-  const [openId, setOpenId] = useState<string | null>(null);
-  const [notesDraft, setNotesDraft] = useState("");
-  const [savingNotes, setSavingNotes] = useState(false);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [levelFilter, setLevelFilter] = useState<string>("all");
+  const [jobFilter, setJobFilter] = useState<string>("all");
+  const [exporting, setExporting] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const list = await api.get<Application[]>(`/applications?t=${Date.now()}`);
-      setApplications(Array.isArray(list) ? list : []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load applications.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const queryParams = new URLSearchParams({
+    page: String(page),
+    limit: "10",
+  });
+  if (search.trim()) queryParams.set("search", search.trim());
+  if (statusFilter !== "all") queryParams.set("status", statusFilter);
+  if (levelFilter !== "all") queryParams.set("level", levelFilter);
+  if (jobFilter !== "all") queryParams.set("jobId", jobFilter);
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const departments = useMemo(
-    () => [...new Set(applications.map((a) => a.department).filter(Boolean))].sort(),
-    [applications]
+  const { data, loading, reload } = useApiGet<ApplicationsApiResponse>(
+    `/careers/admin/applications?${queryParams.toString()}`
   );
 
-  const counts = useMemo(() => {
-    const c: Record<Status, number> = { pending: 0, reviewed: 0, shortlisted: 0, rejected: 0 };
-    applications.forEach((a) => (c[a.status] = (c[a.status] || 0) + 1));
-    return c;
+  const applications = data?.items || [];
+  const stats = data?.stats || {
+    total: 0,
+    received: 0,
+    shortlisted: 0,
+    interview: 0,
+    rejected: 0,
+    hired: 0,
+    averageMatch: 0,
+  };
+
+  // Distinct job titles
+  const jobOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    applications.forEach((a) => {
+      if (a.jobId && a.jobTitle) {
+        map.set(a.jobId, a.jobTitle);
+      }
+    });
+    return Array.from(map.entries());
   }, [applications]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return applications.filter(
-      (a) =>
-        (statusFilter === "all" || a.status === statusFilter) &&
-        (department === "all" || a.department === department) &&
-        (source === "all" || sourceOf(a) === source) &&
-        (!q || [a.fullName, a.email, a.phone, a.currentLocation, a.department].some((v) => (v || "").toLowerCase().includes(q)))
-    );
-  }, [applications, query, statusFilter, department, source]);
-
-  const open = applications.find((a) => a._id === openId) || null;
-
-  const replace = (updated: Application) => setApplications((list) => list.map((a) => (a._id === updated._id ? updated : a)));
-
-  const setStatus = async (app: Application, status: Status) => {
-    const previous = app.status;
-    replace({ ...app, status });
+  const handleStatusChange = async (appId: string, nextStatus: ApplicationStatus) => {
     try {
-      replace(await api.put<Application>(`/applications/${app._id}`, { status }));
+      await api.patch(`/careers/admin/applications/${appId}/status`, {
+        status: nextStatus,
+        note: `Status updated to ${STATUS_META[nextStatus].label} from applications board`,
+      });
+      reload();
     } catch (err) {
-      replace({ ...app, status: previous });
-      Swal.fire({ title: "Could not update status", text: err instanceof Error ? err.message : "", icon: "error" });
+      Swal.fire({
+        icon: "error",
+        title: "Status Update Failed",
+        text: err instanceof Error ? err.message : "Could not update status.",
+        confirmButtonColor: "#293681",
+      });
     }
   };
 
-  const openDetails = (app: Application) => {
-    setOpenId(app._id);
-    setNotesDraft(app.notes || "");
-    // Opening a new application marks it as seen
-    if (app.status === "pending") setStatus(app, "reviewed");
-  };
-
-  const saveNotes = async () => {
-    if (!open) return;
-    setSavingNotes(true);
+  const handleExportCsv = async () => {
+    setExporting(true);
     try {
-      replace(await api.put<Application>(`/applications/${open._id}`, { notes: notesDraft }));
-      Swal.fire({ title: "Notes saved", icon: "success", timer: 1200, showConfirmButton: false });
+      const res = await fetch(`${getBackendUrl()}/api/v1/careers/admin/applications/export.csv`, {
+        headers: authHeader(),
+      });
+      if (!res.ok) throw new Error("Failed to export applications.");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ensis-career-applications-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
     } catch (err) {
-      Swal.fire({ title: "Could not save notes", text: err instanceof Error ? err.message : "", icon: "error" });
+      Swal.fire({
+        icon: "error",
+        title: "Export Failed",
+        text: err instanceof Error ? err.message : "Could not export CSV.",
+        confirmButtonColor: "#293681",
+      });
     } finally {
-      setSavingNotes(false);
+      setExporting(false);
     }
   };
 
-  const remove = async (app: Application) => {
-    const ok = await Swal.fire({
-      title: `Delete ${app.fullName}'s application?`,
-      text: "This cannot be undone.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Delete",
-      confirmButtonColor: "#dc2626",
-    });
-    if (!ok.isConfirmed) return;
-    try {
-      await api.delete(`/applications/${app._id}`);
-      setApplications((list) => list.filter((a) => a._id !== app._id));
-      setOpenId(null);
-    } catch (err) {
-      Swal.fire({ title: "Delete failed", text: err instanceof Error ? err.message : "", icon: "error" });
-    }
-  };
-
-  const exportCsv = () => {
-    const header = ["Name", "Email", "Phone", "Location", "Department / Job", "Experience", "Source", "AI Score", "Current Company", "Notice Period", "Expected CTC", "Status", "Applied On", "Resume", "Cover Letter", "Notes"];
-    const rows = filtered.map((a) =>
-      [a.fullName, a.email, a.phone, a.currentLocation, a.department, a.experience, SOURCE_LABEL[sourceOf(a)], a.aiScore ?? "", a.currentCompany, a.noticePeriod, a.expectedCTC, STATUS_META[a.status]?.label, formatDate(a.createdAt), a.resume, a.coverLetter, a.notes]
-        .map(csvCell)
-        .join(",")
-    );
-    const blob = new Blob([[header.map(csvCell).join(","), ...rows].join("\n")], { type: "text/csv;charset=utf-8" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `career-applications-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-  };
+  const donutSlices = [
+    { label: "Received", value: stats.received, color: "#0284c7" },
+    { label: "Shortlisted", value: stats.shortlisted, color: "#16a34a" },
+    { label: "Interview", value: stats.interview, color: "#9333ea" },
+    { label: "Rejected", value: stats.rejected, color: "#dc2626" },
+    { label: "Hired", value: stats.hired, color: "#0d9488" },
+  ];
 
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-[19px] font-bold text-[#0f2a1c]">
-            <Briefcase className="h-5 w-5 text-[#15633a]" /> Career Applications
-          </h1>
-          <p className="text-[9px] text-[#64748b]">Applications sent from the website&apos;s Career page, with the uploaded resume.</p>
-        </div>
-        <div className="flex gap-2">
-          <button type="button" onClick={load} className="inline-flex items-center gap-1 rounded-[6px] border border-[#cbd5e1] bg-white px-3 py-2 text-[9px] font-semibold">
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh
-          </button>
-          <button
-            type="button"
-            onClick={exportCsv}
-            disabled={!filtered.length}
-            className="inline-flex items-center gap-1 rounded-[6px] bg-[#15633a] px-3 py-2 text-[9px] font-semibold text-white disabled:opacity-50"
-          >
-            <Download className="h-4 w-4" /> Export CSV
-          </button>
-        </div>
-      </div>
+    <OrganicPage>
+      {/* HEADER */}
+      <PageHeader
+        title="Career Applications"
+        subtitle="Review candidate submissions, AI match scores, screening profiles, and hiring stages"
+        actions={
+          <>
+            <HeaderButton icon={Download} onClick={handleExportCsv} disabled={exporting}>
+              {exporting ? "Exporting…" : "Export CSV"}
+            </HeaderButton>
+            <HeaderButton icon={Briefcase} href="/job-postings" primary>
+              Job Postings
+            </HeaderButton>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <button
-          type="button"
-          onClick={() => setStatusFilter("all")}
-          className={`rounded-[8px] border bg-white p-3 text-left ${statusFilter === "all" ? "border-[#15633a]" : "border-[#e2e8f0]"}`}
-        >
-          <p className="text-[8.5px] text-[#64748b]">All applications</p>
-          <p className="text-[16px] font-bold text-[#0f172a]">{applications.length}</p>
-        </button>
-        {STATUSES.map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => setStatusFilter(s)}
-            className={`rounded-[8px] border bg-white p-3 text-left ${statusFilter === s ? "border-[#15633a]" : "border-[#e2e8f0]"}`}
-          >
-            <p className="text-[8.5px] text-[#64748b]">{STATUS_META[s].label}</p>
-            <p className="text-[16px] font-bold text-[#0f172a]">{counts[s]}</p>
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <label className="flex min-w-[240px] flex-1 items-center gap-2 rounded-[6px] border border-[#dfe3e8] bg-white px-2">
-          <Search className="h-4 w-4 text-[#94a3b8]" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search name, email, phone, city"
-            className="h-[34px] flex-1 bg-transparent text-[9.5px] outline-none"
+      {/* STAT CARDS */}
+      <div className="mt-4">
+        <StatGrid columns={6}>
+          <StatCard
+            label="Total Applications"
+            value={stats.total}
+            tone="slate"
+            icon={Users}
+            active={statusFilter === "all"}
+            onClick={() => {
+              setStatusFilter("all");
+              setPage(1);
+            }}
           />
-        </label>
-        <select
-          value={department}
-          onChange={(e) => setDepartment(e.target.value)}
-          className="h-[36px] rounded-[6px] border border-[#dfe3e8] bg-white px-2 text-[9.5px]"
-        >
-          <option value="all">All departments</option>
-          {departments.map((d) => (
-            <option key={d} value={d}>
-              {d}
-            </option>
-          ))}
-        </select>
-        <select
-          value={source}
-          onChange={(e) => setSource(e.target.value as typeof source)}
-          className="h-[36px] rounded-[6px] border border-[#dfe3e8] bg-white px-2 text-[9.5px]"
-        >
-          <option value="all">All sources</option>
-          <option value="career-form">{SOURCE_LABEL["career-form"]}</option>
-          <option value="ai-cv">{SOURCE_LABEL["ai-cv"]}</option>
-        </select>
+          <StatCard
+            label="Received"
+            value={stats.received}
+            tone="blue"
+            icon={FileText}
+            active={statusFilter === "received"}
+            onClick={() => {
+              setStatusFilter("received");
+              setPage(1);
+            }}
+          />
+          <StatCard
+            label="Shortlisted"
+            value={stats.shortlisted}
+            tone="emerald"
+            icon={UserCheck}
+            active={statusFilter === "shortlisted"}
+            onClick={() => {
+              setStatusFilter("shortlisted");
+              setPage(1);
+            }}
+          />
+          <StatCard
+            label="Interview"
+            value={stats.interview}
+            tone="violet"
+            icon={Clock}
+            active={statusFilter === "interview_scheduled"}
+            onClick={() => {
+              setStatusFilter("interview_scheduled");
+              setPage(1);
+            }}
+          />
+          <StatCard
+            label="Rejected"
+            value={stats.rejected}
+            tone="rose"
+            icon={XCircle}
+            active={statusFilter === "rejected"}
+            onClick={() => {
+              setStatusFilter("rejected");
+              setPage(1);
+            }}
+          />
+          <StatCard
+            label="Avg Match Score"
+            value={`${stats.averageMatch}%`}
+            tone="amber"
+            icon={Sparkles}
+            note="AI CV screening avg"
+          />
+        </StatGrid>
       </div>
 
-      <div className="overflow-x-auto rounded-[8px] border border-[#e2e8f0] bg-white">
-        <table className="w-full min-w-[820px] text-left text-[9px]">
-          <thead className="bg-[#f8fafc] text-[8.5px] uppercase tracking-wide text-[#64748b]">
-            <tr>
-              <th className="px-3 py-2">Candidate</th>
-              <th className="px-3 py-2">Department / Job</th>
-              <th className="px-3 py-2">Experience</th>
-              <th className="px-3 py-2">Location</th>
-              <th className="px-3 py-2">Applied</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2 text-right">Resume</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading && !applications.length ? (
-              <tr>
-                <td colSpan={7} className="px-3 py-10 text-center text-[#64748b]">
-                  Loading applications…
-                </td>
-              </tr>
-            ) : error ? (
-              <tr>
-                <td colSpan={7} className="px-3 py-10 text-center text-[#b91c1c]">
-                  {error}
-                </td>
-              </tr>
-            ) : !filtered.length ? (
-              <tr>
-                <td colSpan={7} className="px-3 py-10 text-center text-[#64748b]">
-                  {applications.length ? "No applications match these filters." : "No applications yet. They appear here as soon as someone applies on the Career page."}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((a) => (
-                <tr key={a._id} onClick={() => openDetails(a)} className="cursor-pointer border-t border-[#eef2f6] hover:bg-[#f8fafc]">
-                  <td className="px-3 py-2">
-                    <p className="font-semibold text-[#0f172a]">{a.fullName}</p>
-                    <p className="text-[8.5px] text-[#64748b]">
-                      {a.email} · {a.phone}
-                    </p>
-                  </td>
-                  <td className="px-3 py-2">
-                    {a.department}
-                    <span className="mt-0.5 flex items-center gap-1 text-[8px] text-[#64748b]">
-                      {SOURCE_LABEL[sourceOf(a)]}
-                      {typeof a.aiScore === "number" && (
-                        <span className="rounded-full bg-[#eef2ff] px-1.5 font-semibold text-[#4338ca]">AI {a.aiScore}%</span>
-                      )}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2">{a.experience}</td>
-                  <td className="px-3 py-2">{a.currentLocation}</td>
-                  <td className="px-3 py-2 text-[#64748b]">{formatDate(a.createdAt)}</td>
-                  <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                    <select
-                      value={a.status}
-                      onChange={(e) => setStatus(a, e.target.value as Status)}
-                      className={`rounded-full border-0 px-2 py-1 text-[8.5px] font-semibold ${STATUS_META[a.status]?.pill}`}
-                    >
-                      {STATUSES.map((s) => (
-                        <option key={s} value={s}>
-                          {STATUS_META[s].label}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
-                    {a.resume && (
-                      <a href={a.resume} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-[#2563eb]">
-                        <FileText className="h-4 w-4" /> Open
-                      </a>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      {/* FILTER BAR */}
+      <FilterBar>
+        <SearchBox
+          value={search}
+          onChange={(v) => {
+            setSearch(v);
+            setPage(1);
+          }}
+          placeholder="Search by candidate name, application ID, email or job…"
+        />
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/30" onClick={() => setOpenId(null)}>
-          <aside className="flex h-full w-full max-w-[460px] flex-col gap-4 overflow-y-auto bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="text-[14px] font-bold text-[#0f172a]">{open.fullName}</p>
-                <p className="text-[9px] text-[#64748b]">
-                  {open.department} · {open.experience} · applied {formatDate(open.createdAt)}
-                </p>
+        <FilterSelect
+          value={statusFilter}
+          onChange={(v) => {
+            setStatusFilter(v);
+            setPage(1);
+          }}
+        >
+          <option value="all">All Statuses</option>
+          <option value="received">Received</option>
+          <option value="shortlisted">Shortlisted</option>
+          <option value="interview_scheduled">Interview Scheduled</option>
+          <option value="rejected">Rejected</option>
+          <option value="hired">Hired</option>
+        </FilterSelect>
+
+        <FilterSelect
+          value={levelFilter}
+          onChange={(v) => {
+            setLevelFilter(v);
+            setPage(1);
+          }}
+        >
+          <option value="all">All Match Levels</option>
+          <option value="eligible">Eligible (≥ 70%)</option>
+          <option value="partial">Partial Match (50-69%)</option>
+          <option value="not_eligible">Not Eligible (&lt; 50%)</option>
+        </FilterSelect>
+
+        {jobOptions.length > 0 && (
+          <FilterSelect
+            value={jobFilter}
+            onChange={(v) => {
+              setJobFilter(v);
+              setPage(1);
+            }}
+          >
+            <option value="all">All Jobs</option>
+            {jobOptions.map(([id, title]) => (
+              <option key={id} value={id}>
+                {title}
+              </option>
+            ))}
+          </FilterSelect>
+        )}
+
+        <ResetButton
+          onClick={() => {
+            setSearch("");
+            setStatusFilter("all");
+            setLevelFilter("all");
+            setJobFilter("all");
+            setPage(1);
+          }}
+        />
+      </FilterBar>
+
+      {/* MAIN TWO-COLUMN LAYOUT */}
+      <MainWithSidebar
+        sidebar={
+          <>
+            <SideCard title="Application Status">
+              <SummaryDonut slices={donutSlices} centerLabel="TOTAL APPS" />
+            </SideCard>
+
+            <SideCard title="Status Pipeline">
+              <div className="space-y-2">
+                <SidebarBar
+                  label="Received"
+                  value={stats.received}
+                  total={stats.total}
+                  color="#0284c7"
+                />
+                <SidebarBar
+                  label="Shortlisted"
+                  value={stats.shortlisted}
+                  total={stats.total}
+                  color="#16a34a"
+                />
+                <SidebarBar
+                  label="Interview"
+                  value={stats.interview}
+                  total={stats.total}
+                  color="#9333ea"
+                />
+                <SidebarBar
+                  label="Rejected"
+                  value={stats.rejected}
+                  total={stats.total}
+                  color="#dc2626"
+                />
+                <SidebarBar
+                  label="Hired"
+                  value={stats.hired}
+                  total={stats.total}
+                  color="#0d9488"
+                />
               </div>
-              <button type="button" onClick={() => setOpenId(null)} aria-label="Close" className="text-[#64748b]">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+            </SideCard>
 
-            <div className="flex flex-col gap-2 rounded-[8px] bg-[#f8fafc] p-3 text-[9.5px]">
-              <a href={`mailto:${open.email}`} className="inline-flex items-center gap-2 text-[#0f172a] hover:underline">
-                <Mail className="h-4 w-4 text-[#15633a]" /> {open.email}
-              </a>
-              <a href={`tel:${open.phone}`} className="inline-flex items-center gap-2 text-[#0f172a] hover:underline">
-                <Phone className="h-4 w-4 text-[#15633a]" /> {open.phone}
-              </a>
-              <p className="text-[#475569]">Location: {open.currentLocation}</p>
-              {open.linkedin && (
-                <a href={open.linkedin.startsWith("http") ? open.linkedin : `https://${open.linkedin}`} target="_blank" rel="noreferrer" className="text-[#2563eb] hover:underline">
-                  LinkedIn profile
-                </a>
+            <QuickActions
+              actions={[
+                { label: "Job Postings", icon: Briefcase, href: "/job-postings" },
+                { label: "Career Settings", icon: Filter, href: "/career-settings" },
+                { label: "Export to CSV", icon: Download, onClick: handleExportCsv },
+              ]}
+            />
+          </>
+        }
+      >
+        <TableCard
+          footer={
+            <Pagination
+              page={page}
+              pages={data?.pages || 1}
+              total={data?.total || 0}
+              from={Math.min((page - 1) * 10 + 1, data?.total || 0)}
+              to={Math.min(page * 10, data?.total || 0)}
+              noun="applications"
+              onPage={setPage}
+            />
+          }
+        >
+          <table className="w-full min-w-[850px] border-collapse text-left">
+            <thead>
+              <tr className={theadRowClass}>
+                <th className={`${thClass} w-[140px]`}>Application ID</th>
+                <th className={`${thClass} min-w-[180px]`}>Candidate</th>
+                <th className={`${thClass} min-w-[160px]`}>Applied Role</th>
+                <th className={`${thClass} w-[130px]`}>AI Match</th>
+                <th className={`${thClass} w-[140px]`}>Status</th>
+                <th className={`${thClass} w-[120px]`}>Submitted</th>
+                <th className={`${thClass} w-[100px] text-right`}>Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#E9ECF0]">
+              {loading ? (
+                <LoadingRows colSpan={7} rows={6} />
+              ) : applications.length === 0 ? (
+                <EmptyRow colSpan={7}>
+                  No career applications found matching the selected filters.
+                </EmptyRow>
+              ) : (
+                applications.map((app) => {
+                  const appId = app.applicationId || app._id;
+                  const name = app.profile?.fullName || app.fullName || "Candidate";
+                  const email = app.profile?.email || app.email || "—";
+                  const phone = app.profile?.phone || app.phone || "";
+                  const jobName = app.jobTitle || "Ayurvedic Specialist";
+                  const dept = app.department || "Ensis Wellness";
+                  const score = app.screeningResult?.score ?? app.aiScore ?? 0;
+                  const level: MatchLevel =
+                    app.screeningResult?.level ||
+                    (score >= 70 ? "eligible" : score >= 50 ? "partial" : "not_eligible");
+                  const currentStatus = (app.status || "received") as ApplicationStatus;
+
+                  return (
+                    <tr key={app._id} className={rowClass}>
+                      {/* ID */}
+                      <td className="px-2 py-2">
+                        <Link
+                          href={`/career-applications/${appId}`}
+                          className="font-mono text-[9px] font-bold text-[#293681] hover:underline"
+                        >
+                          {appId}
+                        </Link>
+                      </td>
+
+                      {/* Candidate */}
+                      <td className="px-2 py-2">
+                        <div className="flex items-center gap-2">
+                          <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#f4ece1] font-bold text-[10px] text-[#163a2b]">
+                            {name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <Link
+                              href={`/career-applications/${appId}`}
+                              className="truncate block text-[10px] font-bold text-[#0f172a] hover:text-[#293681]"
+                            >
+                              {name}
+                            </Link>
+                            <p className="truncate text-[8.5px] text-[#64748b]">{email}</p>
+                            {phone && <p className="truncate text-[8px] text-[#94a3b8]">{phone}</p>}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Role */}
+                      <td className="px-2 py-2">
+                        <p className="truncate text-[10px] font-bold text-[#1e293b]">{jobName}</p>
+                        <p className="truncate text-[8.5px] text-[#64748b]">{dept}</p>
+                      </td>
+
+                      {/* AI Match */}
+                      <td className="px-2 py-2">
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className="font-bold text-[11px] text-[#0f172a]">
+                            {score}%
+                          </span>
+                          <Pill className={LEVEL_META[level]?.pill || "bg-slate-100 text-slate-700"}>
+                            {LEVEL_META[level]?.label || level}
+                          </Pill>
+                        </div>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-2 py-2">
+                        <select
+                          value={currentStatus}
+                          onChange={(e) =>
+                            handleStatusChange(appId, e.target.value as ApplicationStatus)
+                          }
+                          className={`h-[24px] cursor-pointer rounded-[4px] border px-2 text-[8px] font-bold outline-none ${
+                            STATUS_META[currentStatus]?.pill || "bg-white text-slate-700"
+                          }`}
+                        >
+                          <option value="received">Received</option>
+                          <option value="shortlisted">Shortlisted</option>
+                          <option value="interview_scheduled">Interview</option>
+                          <option value="rejected">Rejected</option>
+                          <option value="hired">Hired</option>
+                        </select>
+                      </td>
+
+                      {/* Submitted */}
+                      <td className="px-2 py-2 text-[9px] text-[#64748b] whitespace-nowrap">
+                        {app.createdAt
+                          ? new Date(app.createdAt).toLocaleDateString("en-GB", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })
+                          : "—"}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-2 py-2 text-right">
+                        <Link
+                          href={`/career-applications/${appId}`}
+                          className="inline-flex items-center gap-1 rounded-[4px] border border-[#cbd5e1] bg-white px-2 py-1 text-[8.5px] font-bold text-[#293681] hover:bg-[#eff6ff] transition"
+                        >
+                          <Eye size={11} />
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
-            </div>
-
-            {sourceOf(open) === "ai-cv" && (
-              <div className="rounded-[8px] border border-[#e0e7ff] bg-[#f5f7ff] p-3 text-[9px] text-[#334155]">
-                <p className="mb-1 font-semibold text-[#3730a3]">
-                  Applied through job Apply{open.jobTitle ? ` — ${open.jobTitle}` : ""}
-                  {typeof open.aiScore === "number" ? ` · AI match ${open.aiScore}%` : ""}
-                </p>
-                {open.aiSummary && <p className="mb-2 leading-5">{open.aiSummary}</p>}
-                <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
-                  {[
-                    ["Current company", open.currentCompany],
-                    ["Designation", open.currentDesignation],
-                    ["Employment", open.employmentStatus],
-                    ["Notice period", open.noticePeriod],
-                    ["Expected CTC", open.expectedCTC],
-                    ["Willing to relocate", open.willingToRelocate],
-                  ]
-                    .filter(([, v]) => v)
-                    .map(([k, v]) => (
-                      <div key={k}>
-                        <dt className="text-[8px] text-[#64748b]">{k}</dt>
-                        <dd className="font-medium">{v}</dd>
-                      </div>
-                    ))}
-                </dl>
-              </div>
-            )}
-
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[9px] text-[#64748b]">Status</span>
-              {STATUSES.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setStatus(open, s)}
-                  className={`rounded-full px-3 py-1 text-[9px] font-semibold ${open.status === s ? STATUS_META[s].pill : "bg-[#f1f5f9] text-[#475569]"}`}
-                >
-                  {STATUS_META[s].label}
-                </button>
-              ))}
-            </div>
-
-            {open.resume && (
-              <a
-                href={open.resume}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex w-fit items-center gap-2 rounded-[6px] bg-[#15633a] px-3 py-2 text-[9px] font-semibold text-white"
-              >
-                <ExternalLink className="h-4 w-4" /> Open resume
-              </a>
-            )}
-
-            <div>
-              <p className="mb-1 text-[9px] font-semibold text-[#334155]">Cover letter</p>
-              <p className="whitespace-pre-line rounded-[8px] border border-[#eef2f6] p-3 text-[9.5px] leading-6 text-[#334155]">
-                {open.coverLetter?.trim() || "No cover letter."}
-              </p>
-            </div>
-
-            <div>
-              <p className="mb-1 text-[9px] font-semibold text-[#334155]">HR notes (only visible in the admin)</p>
-              <textarea
-                value={notesDraft}
-                onChange={(e) => setNotesDraft(e.target.value)}
-                rows={4}
-                maxLength={5000}
-                placeholder="e.g. Called on 16 Oct — interview on Monday"
-                className="w-full rounded-[8px] border border-[#dfe3e8] p-3 text-[9.5px] outline-none focus:border-[#15633a]"
-              />
-              <button
-                type="button"
-                onClick={saveNotes}
-                disabled={savingNotes || notesDraft === (open.notes || "")}
-                className="mt-2 rounded-[6px] bg-[#15633a] px-3 py-1.5 text-[9px] font-semibold text-white disabled:opacity-50"
-              >
-                {savingNotes ? "Saving…" : "Save notes"}
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => remove(open)}
-              className="mt-auto inline-flex w-fit items-center gap-1 rounded-[6px] border border-[#fecaca] px-3 py-1.5 text-[9px] font-semibold text-[#dc2626]"
-            >
-              <Trash2 className="h-4 w-4" /> Delete application
-            </button>
-          </aside>
-        </div>
-      )}
-    </div>
+            </tbody>
+          </table>
+        </TableCard>
+      </MainWithSidebar>
+    </OrganicPage>
   );
 }
