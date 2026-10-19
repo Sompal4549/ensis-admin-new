@@ -63,6 +63,10 @@ export interface JobPosting {
   showMatchScoreToCandidate?: boolean;
   showMatchBreakdown?: boolean;
 
+  coverImage?: string;
+  shortDescription?: string;
+  aiCheckPoints?: string[];
+
   featuredJob?: boolean;
   applicationOpenDate?: string;
   applicationClosingDate?: string;
