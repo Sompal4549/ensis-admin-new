@@ -363,7 +363,7 @@ export default function CareerApplicationsPage() {
         sidebar={
           <>
             <SideCard title="Application Status">
-              <SummaryDonut slices={donutSlices} centerLabel="TOTAL APPS" />
+              <SummaryDonut slices={donutSlices} centerLabel="TOTAL" />
             </SideCard>
 
             <SideCard title="Status Pipeline">

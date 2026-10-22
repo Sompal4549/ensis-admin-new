@@ -55,8 +55,8 @@ export default function CareerSettingsPage() {
   const [eligibilityThreshold, setEligibilityThreshold] = useState(70);
   const [partialMatchMin, setPartialMatchMin] = useState(50);
   const [hrEmail, setHrEmail] = useState("careers@ensis.in");
-  const [hrPhone, setHrPhone] = useState("+91 98765 43210");
-  const [hrAddress, setHrAddress] = useState("Ensis Wellness Spaces, Industrial Area, Phase II, Ghaziabad, Delhi NCR, India");
+  const [hrPhone, setHrPhone] = useState("+91 96549 00525");
+  const [hrAddress, setHrAddress] = useState("12/29, Site-II, Loni Road, Industrial Area, Mohan Nagar, Ghaziabad 201007, Uttar Pradesh");
   const [retentionDays, setRetentionDays] = useState(30);
   const [saving, setSaving] = useState(false);
 
@@ -68,8 +68,8 @@ export default function CareerSettingsPage() {
       setPartialMatchMin(data.defaultPartialMatchMin ?? 50);
       if (data.hrContact) {
         setHrEmail(data.hrContact.email || "careers@ensis.in");
-        setHrPhone(data.hrContact.phone || "+91 98765 43210");
-        setHrAddress(data.hrContact.address || "Ensis Wellness Spaces, Industrial Area, Phase II, Ghaziabad, Delhi NCR, India");
+        setHrPhone(data.hrContact.phone || "+91 96549 00525");
+        setHrAddress(data.hrContact.address || "12/29, Site-II, Loni Road, Industrial Area, Mohan Nagar, Ghaziabad 201007, Uttar Pradesh");
       }
       setRetentionDays(data.retentionDays ?? 30);
     }
@@ -86,12 +86,47 @@ export default function CareerSettingsPage() {
       Swal.fire({ icon: "info", title: "Already Added", text: "This email address is already in the recipient list." });
       return;
     }
-    setHrEmails([...hrEmails, trimmed]);
-    setNewEmail("");
+    void saveRecipients([...hrEmails, trimmed], `${trimmed} will now receive HR notifications.`).then((ok) => {
+      if (ok) setNewEmail("");
+    });
   };
 
-  const handleRemoveEmail = (index: number) => {
-    setHrEmails(hrEmails.filter((_, i) => i !== index));
+  // Recipient changes are saved immediately (previously they only changed the form until "Save" was
+  // clicked, so a refresh brought the old list back)
+  const saveRecipients = async (next: string[], successText: string): Promise<boolean> => {
+    const previous = hrEmails;
+    setHrEmails(next);
+    try {
+      await api.put("/careers/admin/settings", { hrEmails: next });
+      Swal.fire({ icon: "success", title: "Recipients Updated", text: successText, timer: 1800, showConfirmButton: false });
+      return true;
+    } catch (err) {
+      setHrEmails(previous);
+      Swal.fire({
+        icon: "error",
+        title: "Could Not Update Recipients",
+        text: err instanceof Error ? err.message : "Failed to save the recipient list.",
+      });
+      return false;
+    }
+  };
+
+  const handleRemoveEmail = async (index: number) => {
+    const email = hrEmails[index];
+    const next = hrEmails.filter((_, i) => i !== index);
+    const confirm = await Swal.fire({
+      icon: "warning",
+      title: "Remove Recipient?",
+      text:
+        next.length === 0
+          ? `${email} is the last recipient. With no recipients, HR notifications go to careers@ensis.in by default.`
+          : `${email} will no longer receive HR notification emails.`,
+      showCancelButton: true,
+      confirmButtonText: "Remove",
+      confirmButtonColor: "#b91c1c",
+    });
+    if (!confirm.isConfirmed) return;
+    await saveRecipients(next, `${email} has been removed.`);
   };
 
   const handleSave = async () => {

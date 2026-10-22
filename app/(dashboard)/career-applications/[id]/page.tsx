@@ -155,6 +155,70 @@ export default function ApplicationDetailPage() {
   const [interviewNotes, setInterviewNotes] = useState("");
   const [notifyCandidate, setNotifyCandidate] = useState(true);
   const [scheduling, setScheduling] = useState(false);
+  const [resending, setResending] = useState(false);
+
+  const handleResendEmails = async () => {
+    if (!id) return;
+    const choice = await Swal.fire({
+      icon: "question",
+      title: "Resend Application Emails",
+      text: "Choose which email should be re-sent for this application.",
+      showDenyButton: true,
+      showCancelButton: true,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      confirmButtonText: "Both (HR + Candidate)",
+      denyButtonText: "Candidate Only",
+      cancelButtonText: "HR Only",
+      confirmButtonColor: "#0f3d2e",
+      denyButtonColor: "#2563eb",
+      cancelButtonColor: "#c9922e",
+    });
+
+    let to: "both" | "candidate" | "hr" | null = null;
+    if (choice.isConfirmed) to = "both";
+    else if (choice.isDenied) to = "candidate";
+    else if (choice.dismiss === Swal.DismissReason.cancel) to = "hr";
+    if (!to) return;
+
+    setResending(true);
+    try {
+      const result = await api.post<{ resent?: Record<string, { sent: boolean; error?: string }> }>(
+        `/careers/admin/applications/${id}/resend-email`,
+        { to },
+        // Each email carries ~0.8 MB of inline images; slow SMTP uploads need more than a minute
+        { timeoutMs: 180_000 }
+      );
+
+      const failed = Object.entries(result?.resent || {}).filter(([, r]) => !r.sent);
+      if (failed.length > 0) {
+        Swal.fire({
+          icon: "warning",
+          title: "Resend Completed with Errors",
+          text: failed.map(([k, r]) => `${k}: ${r.error || "failed"}`).join(" • "),
+          confirmButtonColor: "#293681",
+        });
+      } else {
+        Swal.fire({
+          icon: "success",
+          title: "Emails Resent",
+          text: `The ${to === "both" ? "HR notification and candidate confirmation" : to === "hr" ? "HR notification" : "candidate confirmation"} email(s) have been re-sent.`,
+          timer: 2200,
+          showConfirmButton: false,
+        });
+      }
+      reload();
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Resend Failed",
+        text: err instanceof Error ? err.message : "Could not resend emails.",
+        confirmButtonColor: "#293681",
+      });
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleUpdateStatus = async (
     nextStatus: ApplicationStatus,
@@ -275,6 +339,10 @@ export default function ApplicationDetailPage() {
     (score >= 70 ? "eligible" : score >= 50 ? "partial" : "not_eligible");
   const breakdown = app.screeningResult?.breakdown || {};
   const currentStatus = app.status || "received";
+  const statusMeta = STATUS_META[currentStatus as ApplicationStatus] || {
+    label: currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1).replace(/_/g, " "),
+    pill: "bg-[#e0f2fe] text-[#0369a1] border-[#bae6fd]",
+  };
 
   return (
     <OrganicPage>
@@ -282,16 +350,16 @@ export default function ApplicationDetailPage() {
       <PageHeader
         title={
           <div className="flex items-center gap-2">
-            <span>{app.profile?.fullName}</span>
-            <span className="font-mono text-[12px] text-[#64748b]">({app.applicationId})</span>
+            <span>{app.profile?.fullName || (app as any).fullName || "Candidate"}</span>
+            <span className="font-mono text-[12px] text-[#64748b]">({app.applicationId || app._id})</span>
           </div>
         }
-        subtitle={`Applied for ${app.jobTitle} • Submitted on ${new Date(app.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`}
+        subtitle={`Applied for ${app.jobTitle || (app as any).department || "Position"} • Submitted on ${new Date(app.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`}
         back={{ href: "/career-applications", label: "Back to Applications" }}
         actions={
           <div className="flex items-center gap-2">
-            <Pill className={`${STATUS_META[currentStatus]?.pill} text-[9px] px-2.5 py-1`}>
-              {STATUS_META[currentStatus]?.label}
+            <Pill className={`${statusMeta.pill} text-[9px] px-2.5 py-1`}>
+              {statusMeta.label}
             </Pill>
             {app.cvDownloadUrl && (
               <HeaderButton icon={Download} href={app.cvDownloadUrl} target="_blank">
@@ -311,6 +379,16 @@ export default function ApplicationDetailPage() {
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleResendEmails}
+            disabled={resending}
+            className="flex items-center gap-1.5 rounded-[5px] border border-[#c9a86a] bg-[#fffbeb] px-3 py-1.5 text-[10.5px] font-bold text-[#92400e] hover:bg-[#fef3c7] transition shadow-2xs disabled:opacity-60"
+          >
+            <Send size={13} />
+            {resending ? "Resending…" : "Resend Email"}
+          </button>
+
           <button
             type="button"
             onClick={() => handleUpdateStatus("shortlisted", "Shortlisted by HR team", true)}
