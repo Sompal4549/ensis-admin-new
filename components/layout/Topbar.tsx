@@ -153,7 +153,7 @@ function careersSectionLabel(pathname: string): string | null {
   const isCareersRoute = CAREERS_SECTION_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
-  return isCareersRoute ? "Careers & Applications" : null;
+  return isCareersRoute ? "Careers" : null;
 }
 
 export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {

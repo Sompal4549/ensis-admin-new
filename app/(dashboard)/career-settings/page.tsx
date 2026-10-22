@@ -1,101 +1,413 @@
 "use client";
 
-import React, { useState } from "react";
-import { 
-  Settings, Brain, FileText, MessageSquare, Users, Bell, Mail, Eye,
-  RefreshCcw, Save
+import { useEffect, useState } from "react";
+import {
+  Bell,
+  Check,
+  CheckCircle2,
+  Clock,
+  Mail,
+  MapPin,
+  MessageSquare,
+  Phone,
+  Plus,
+  RefreshCw,
+  Save,
+  Shield,
+  Sliders,
+  Sparkles,
+  Trash2,
+  Users,
 } from "lucide-react";
-import GeneralSettings from "./GeneralSettings";
-import AIEligibilityTab from "./AIEligibilityTab";
-import DocumentsTab from "./DocumentsTab";
-import EmailTemplatesTab from "./EmailTemplatesTab";
-import NotificationsTab from "./NotificationsTab";
-import HRWorkflowSettings from "./HRWorkflowSettings";
-import ResultMessagesTab from "./ResultMessagesTab";
+import Swal from "sweetalert2";
+import {
+  OrganicPage,
+  PageHeader,
+  HeaderButton,
+  SectionCard,
+  Pill,
+} from "@/components/organic/OrganicUI";
+import { useApiGet } from "@/lib/useApiGet";
+import { api } from "@/lib/api";
+
+interface CareerSettingsData {
+  hrEmails: string[];
+  defaultEligibilityThreshold: number;
+  defaultPartialMatchMin: number;
+  hrContact: {
+    email: string;
+    phone: string;
+    address: string;
+  };
+  retentionDays: number;
+  resultMessages?: {
+    eligible?: string;
+    partial?: string;
+    notEligible?: string;
+  };
+}
 
 export default function CareerSettingsPage() {
-  const [activeTab, setActiveTab] = useState("General Settings");
+  const { data, loading, reload } = useApiGet<CareerSettingsData>("/careers/admin/settings");
 
-  const tabs = [
-    { id: "General Settings", icon: Settings },
-    { id: "AI Eligibility & Screening", icon: Brain },
-    { id: "Documents & Application Form", icon: FileText },
-    { id: "Result Messages", icon: MessageSquare },
-    { id: "HR & Workflow", icon: Users },
-    { id: "Notifications", icon: Bell },
-    { id: "Email Templates", icon: Mail },
-  ];
+  const [hrEmails, setHrEmails] = useState<string[]>([]);
+  const [newEmail, setNewEmail] = useState("");
+  const [eligibilityThreshold, setEligibilityThreshold] = useState(70);
+  const [partialMatchMin, setPartialMatchMin] = useState(50);
+  const [hrEmail, setHrEmail] = useState("careers@ensis.in");
+  const [hrPhone, setHrPhone] = useState("+91 96549 00525");
+  const [hrAddress, setHrAddress] = useState("12/29, Site-II, Loni Road, Industrial Area, Mohan Nagar, Ghaziabad 201007, Uttar Pradesh");
+  const [retentionDays, setRetentionDays] = useState(30);
+  const [saving, setSaving] = useState(false);
+
+  // Sync loaded data into state
+  useEffect(() => {
+    if (data) {
+      setHrEmails(data.hrEmails || []);
+      setEligibilityThreshold(data.defaultEligibilityThreshold ?? 70);
+      setPartialMatchMin(data.defaultPartialMatchMin ?? 50);
+      if (data.hrContact) {
+        setHrEmail(data.hrContact.email || "careers@ensis.in");
+        setHrPhone(data.hrContact.phone || "+91 96549 00525");
+        setHrAddress(data.hrContact.address || "12/29, Site-II, Loni Road, Industrial Area, Mohan Nagar, Ghaziabad 201007, Uttar Pradesh");
+      }
+      setRetentionDays(data.retentionDays ?? 30);
+    }
+  }, [data]);
+
+  const handleAddEmail = () => {
+    const trimmed = newEmail.trim().toLowerCase();
+    if (!trimmed) return;
+    if (!trimmed.includes("@") || !trimmed.includes(".")) {
+      Swal.fire({ icon: "warning", title: "Invalid Email", text: "Please enter a valid email address." });
+      return;
+    }
+    if (hrEmails.includes(trimmed)) {
+      Swal.fire({ icon: "info", title: "Already Added", text: "This email address is already in the recipient list." });
+      return;
+    }
+    void saveRecipients([...hrEmails, trimmed], `${trimmed} will now receive HR notifications.`).then((ok) => {
+      if (ok) setNewEmail("");
+    });
+  };
+
+  // Recipient changes are saved immediately (previously they only changed the form until "Save" was
+  // clicked, so a refresh brought the old list back)
+  const saveRecipients = async (next: string[], successText: string): Promise<boolean> => {
+    const previous = hrEmails;
+    setHrEmails(next);
+    try {
+      await api.put("/careers/admin/settings", { hrEmails: next });
+      Swal.fire({ icon: "success", title: "Recipients Updated", text: successText, timer: 1800, showConfirmButton: false });
+      return true;
+    } catch (err) {
+      setHrEmails(previous);
+      Swal.fire({
+        icon: "error",
+        title: "Could Not Update Recipients",
+        text: err instanceof Error ? err.message : "Failed to save the recipient list.",
+      });
+      return false;
+    }
+  };
+
+  const handleRemoveEmail = async (index: number) => {
+    const email = hrEmails[index];
+    const next = hrEmails.filter((_, i) => i !== index);
+    const confirm = await Swal.fire({
+      icon: "warning",
+      title: "Remove Recipient?",
+      text:
+        next.length === 0
+          ? `${email} is the last recipient. With no recipients, HR notifications go to careers@ensis.in by default.`
+          : `${email} will no longer receive HR notification emails.`,
+      showCancelButton: true,
+      confirmButtonText: "Remove",
+      confirmButtonColor: "#b91c1c",
+    });
+    if (!confirm.isConfirmed) return;
+    await saveRecipients(next, `${email} has been removed.`);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api.put("/careers/admin/settings", {
+        hrEmails,
+        defaultEligibilityThreshold: Number(eligibilityThreshold),
+        defaultPartialMatchMin: Number(partialMatchMin),
+        hrContact: {
+          email: hrEmail.trim(),
+          phone: hrPhone.trim(),
+          address: hrAddress.trim(),
+        },
+        retentionDays: Number(retentionDays),
+      });
+
+      Swal.fire({
+        icon: "success",
+        title: "Settings Saved",
+        text: "Career configuration has been updated successfully.",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
+      reload();
+    } catch (err) {
+      Swal.fire({
+        icon: "error",
+        title: "Save Failed",
+        text: err instanceof Error ? err.message : "Failed to save settings.",
+        confirmButtonColor: "#293681",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <OrganicPage>
+        <div className="flex h-[350px] w-full items-center justify-center">
+          <p className="text-[11px] font-semibold text-[#64748b]">Loading career settings…</p>
+        </div>
+      </OrganicPage>
+    );
+  }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[#F4F7FB]">
-      {/* Header Section */}
-      <div className="px-[16px] pt-[12px] bg-white border-b border-[#E1E6EC]">
-        <div className="flex items-center justify-between mb-[10px]">
-          <div>
-            <h1 className="text-[16px] font-bold text-[#172762]">Career Settings</h1>
-            <p className="mt-[2px] text-[9px] font-semibold text-[#506083]">Configure application settings, AI eligibility, documents, HR workflow and notifications for career module.</p>
-          </div>
-          <button className="flex items-center gap-[6px] rounded-[6px] border border-[#D5E6FA] bg-white px-[10px] py-[4px] text-[9px] font-bold text-[#2563EB] shadow-sm">
-            <Eye size={10} />
-            Preview Career Page
-          </button>
-        </div>
+    <OrganicPage>
+      {/* HEADER */}
+      <PageHeader
+        title="Career Settings"
+        subtitle="Manage HR notification emails, AI match thresholds, public candidate contact details, and data retention rules"
+        actions={
+          <HeaderButton icon={Save} onClick={handleSave} primary disabled={saving}>
+            {saving ? "Saving…" : "Save Settings"}
+          </HeaderButton>
+        }
+      />
 
-        {/* Tabs */}
-        <div className="flex items-center gap-[20px]">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
+      <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+        {/* 1. HR NOTIFICATION EMAILS */}
+        <SectionCard title="HR Notification Recipients" icon={Mail}>
+          <div className="space-y-3 p-1">
+            <p className="text-[10px] text-[#475A83]">
+              Whenever a candidate completes an application, a comprehensive notification email
+              mirroring the HR review sheet is automatically dispatched to all recipients listed below:
+            </p>
+
+            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+              {hrEmails.length === 0 ? (
+                <div className="rounded-[6px] border border-dashed border-amber-300 bg-amber-50/60 p-3 text-center text-[10px] text-amber-800">
+                  No recipient emails configured yet. Add at least one HR address to receive candidate alerts.
+                </div>
+              ) : (
+                hrEmails.map((email, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between rounded-[6px] border border-[#e2e8f0] bg-white p-2 text-[10.5px]"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Mail size={13} className="text-[#2563eb]" />
+                      <span className="font-semibold text-[#0f172a]">{email}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveEmail(idx)}
+                      className="rounded p-1 text-slate-400 hover:text-red-600"
+                      title="Remove recipient"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+              <input
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddEmail();
+                  }
+                }}
+                placeholder="e.g. hr@ensis.in, talent@ensis.in"
+                className="h-[32px] flex-1 rounded-[6px] border border-[#cbd5e1] px-2.5 text-[10px] outline-none focus:border-[#293681]"
+              />
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-[4px] pb-[6px] text-[9.5px] font-bold transition-colors relative ${
-                  isActive 
-                    ? 'text-[#148943]' 
-                    : 'text-[#172762] hover:text-[#2563EB]'
-                }`}
+                type="button"
+                onClick={handleAddEmail}
+                className="flex h-[32px] items-center gap-1 rounded-[6px] bg-[#293681] px-3 text-[10px] font-bold text-white hover:bg-[#1f2a6b]"
               >
-                <Icon size={12} className={isActive ? 'text-[#148943]' : 'text-[#172762]'} />
-                {tab.id}
-                {isActive && (
-                  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#148943] rounded-t-full" />
-                )}
+                <Plus size={12} />
+                Add Recipient
               </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 px-[16px] pb-[6px] pt-[8px] overflow-y-auto">
-        {activeTab === "General Settings" && <GeneralSettings />}
-        {activeTab === "AI Eligibility & Screening" && <AIEligibilityTab />}
-        {activeTab === "Documents & Application Form" && <DocumentsTab />}
-        {activeTab === "Result Messages" && <ResultMessagesTab />}
-        {activeTab === "Notifications" && <NotificationsTab />}
-        {activeTab === "Email Templates" && <EmailTemplatesTab />}
-        {activeTab === "HR & Workflow" && <HRWorkflowSettings />}
-        
-        {/* Placeholder for other tabs */}
-        {activeTab !== "General Settings" && activeTab !== "AI Eligibility & Screening" && activeTab !== "Documents & Application Form" && activeTab !== "Email Templates" && activeTab !== "Notifications" && activeTab !== "HR & Workflow" && activeTab !== "Result Messages" && (
-          <div className="flex items-center justify-center h-[200px] text-[#506083] text-[12px] font-semibold bg-white border border-[#E1E6EC] rounded-[8px] mt-[10px]">
-            Content for {activeTab} will go here.
+            </div>
           </div>
-        )}
+        </SectionCard>
+
+        {/* 2. DEFAULT AI SCREENING THRESHOLDS */}
+        <SectionCard title="Default AI Eligibility Thresholds" icon={Sliders}>
+          <div className="space-y-4 p-1">
+            <p className="text-[10px] text-[#475A83]">
+              Default match score thresholds applied to new job postings. Individual jobs can override these thresholds.
+            </p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1 block text-[10px] font-bold text-[#1e293b]">
+                  Eligible Threshold (%) *
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={eligibilityThreshold}
+                  onChange={(e) => setEligibilityThreshold(Number(e.target.value))}
+                  className="h-[32px] w-full rounded-[6px] border border-[#cbd5e1] px-2.5 text-[10.5px] font-bold text-[#1e293b] outline-none"
+                />
+                <p className="mt-1 text-[8.5px] text-[#64748b]">
+                  Candidates scoring ≥ this value are classified as <strong>Eligible</strong>.
+                </p>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-[10px] font-bold text-[#1e293b]">
+                  Partial Match Minimum (%) *
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={partialMatchMin}
+                  onChange={(e) => setPartialMatchMin(Number(e.target.value))}
+                  className="h-[32px] w-full rounded-[6px] border border-[#cbd5e1] px-2.5 text-[10.5px] font-bold text-[#1e293b] outline-none"
+                />
+                <p className="mt-1 text-[8.5px] text-[#64748b]">
+                  Candidates scoring between {partialMatchMin}% and {eligibilityThreshold - 1}% are <strong>Partial Match</strong>.
+                </p>
+              </div>
+            </div>
+
+            {/* VISUAL BAND PREVIEW */}
+            <div className="rounded-[6px] border border-[#e2e8f0] bg-[#f8fafc] p-3 text-[10px]">
+              <span className="mb-2 block font-bold uppercase tracking-wider text-[#64748b]">
+                Screening Bands Visualizer
+              </span>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 font-bold text-[#23714a]">
+                    <span className="h-2 w-2 rounded-full bg-emerald-600" />
+                    Eligible:
+                  </span>
+                  <span className="font-mono font-bold text-[#23714a]">
+                    {eligibilityThreshold}% – 100%
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 font-bold text-[#b78103]">
+                    <span className="h-2 w-2 rounded-full bg-amber-500" />
+                    Partial Match:
+                  </span>
+                  <span className="font-mono font-bold text-[#b78103]">
+                    {partialMatchMin}% – {eligibilityThreshold - 1}%
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 font-bold text-[#c62828]">
+                    <span className="h-2 w-2 rounded-full bg-red-600" />
+                    Not Eligible:
+                  </span>
+                  <span className="font-mono font-bold text-[#c62828]">
+                    0% – {partialMatchMin - 1}% (Application Rejected)
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* 3. HR CONTACT DETAILS */}
+        <SectionCard title="Public HR & Candidate Contact" icon={Phone}>
+          <div className="space-y-3 p-1">
+            <p className="text-[10px] text-[#475A83]">
+              These details appear in candidate confirmation emails and the storefront careers assistance footer.
+            </p>
+
+            <div>
+              <label className="mb-1 block text-[10px] font-bold text-[#1e293b]">HR Email Address *</label>
+              <input
+                type="email"
+                value={hrEmail}
+                onChange={(e) => setHrEmail(e.target.value)}
+                className="h-[32px] w-full rounded-[6px] border border-[#cbd5e1] px-2.5 text-[10px] text-[#1e293b] outline-none focus:border-[#293681]"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-[10px] font-bold text-[#1e293b]">HR Phone / Support Line *</label>
+              <input
+                type="text"
+                value={hrPhone}
+                onChange={(e) => setHrPhone(e.target.value)}
+                className="h-[32px] w-full rounded-[6px] border border-[#cbd5e1] px-2.5 text-[10px] text-[#1e293b] outline-none focus:border-[#293681]"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-[10px] font-bold text-[#1e293b]">Campus / Office Address *</label>
+              <textarea
+                rows={2}
+                value={hrAddress}
+                onChange={(e) => setHrAddress(e.target.value)}
+                className="w-full rounded-[6px] border border-[#cbd5e1] p-2 text-[10px] text-[#1e293b] outline-none focus:border-[#293681]"
+              />
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* 4. DATA RETENTION & PRIVACY */}
+        <SectionCard title="Data Retention & Privacy Compliance" icon={Shield}>
+          <div className="space-y-3 p-1">
+            <p className="text-[10px] text-[#475A83]">
+              Controls how long unsubmitted candidate CVs and screening sessions are retained before automatic deletion.
+            </p>
+
+            <div>
+              <label className="mb-1 block text-[10px] font-bold text-[#1e293b]">
+                Screening Sessions & Private CV Retention (Days) *
+              </label>
+              <input
+                type="number"
+                min={7}
+                max={365}
+                value={retentionDays}
+                onChange={(e) => setRetentionDays(Number(e.target.value))}
+                className="h-[32px] w-full rounded-[6px] border border-[#cbd5e1] px-2.5 text-[10.5px] font-bold text-[#1e293b] outline-none focus:border-[#293681]"
+              />
+              <p className="mt-1 text-[8.5px] text-[#64748b]">
+                MongoDB TTL index automatically purges screening sessions after {retentionDays} days.
+              </p>
+            </div>
+
+            <div className="rounded-[6px] bg-[#f0fdf4] border border-[#bbf7d0] p-3 text-[10px] text-[#166534]">
+              <div className="flex items-center gap-1.5 font-bold mb-1">
+                <CheckCircle2 size={13} />
+                <span>Secure Isolated Storage</span>
+              </div>
+              <p className="text-[9px] leading-relaxed">
+                Candidate resumes and identity verification documents are kept in isolated private storage with HMAC-SHA256
+                signed short-lived URLs. They are never exposed to public search crawlers or static web roots.
+              </p>
+            </div>
+          </div>
+        </SectionCard>
       </div>
-      
-      {/* Bottom Action Bar */}
-      <div className="flex items-center justify-end gap-[10px] p-[10px] bg-white border-t border-[#E1E6EC]">
-        <button className="flex items-center gap-[4px] px-[12px] py-[6px] border border-[#E1E6EC] rounded-[6px] text-[#506083] text-[9px] font-bold hover:bg-gray-50 transition-colors">
-          <RefreshCcw size={10} />
-          Reset to Default
-        </button>
-        <button className="flex items-center gap-[4px] px-[12px] py-[6px] bg-[#148943] text-white rounded-[6px] text-[9px] font-bold hover:bg-[#117639] transition-colors shadow-sm">
-          <Save size={10} />
-          Save Settings
-        </button>
-      </div>
-    </div>
+    </OrganicPage>
   );
 }

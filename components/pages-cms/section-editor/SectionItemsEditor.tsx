@@ -531,6 +531,20 @@ export function SectionItemsEditor({
                             }
                             placeholder="comma, separated, values"
                           />
+                        ) : key === "icon" ? (
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={String(value)}
+                              onChange={(e) => onChangeItem(index, key, e.target.value)}
+                              className="h-[34px] flex-1 rounded border border-[#cbd5e1] px-2.5 text-[12px] bg-white text-[#1e293b] focus:border-[#0f766e] focus:outline-none font-medium"
+                            >
+                              <option value="leaf">🌿 Leaf (Ayurveda & Sustainable Teak)</option>
+                              <option value="users">👥 Users (Artisans, Designers & Team)</option>
+                              <option value="growth">📈 Growth (Pathways & Learning)</option>
+                              <option value="heart">❤️ Heart (Wellness Culture & Perks)</option>
+                              <option value="bulb">💡 Bulb (Precision Craft & Innovation)</option>
+                            </select>
+                          </div>
                         ) : key === "color" ? (
                           <div className="flex items-center gap-2">
                             <div className="relative flex-1">

@@ -270,10 +270,12 @@ export function SummaryDonut({ slices, centerLabel = "TOTAL" }: { slices: DonutS
   });
   return (
     <div className="mt-[6px] flex items-center gap-[10px]">
-      <div className="flex h-[94px] w-[94px] shrink-0 items-center justify-center rounded-full" style={{ background: total ? `conic-gradient(${stops.join(", ")})` : "#EDF0F3" }}>
-        <div className="flex h-[64px] w-[64px] flex-col items-center justify-center rounded-full bg-white">
-          <span className="text-[16px] font-bold leading-none text-[#0f172a]">{total}</span>
-          <span className="mt-[2px] text-[7.5px] font-semibold text-[#475A83]">{centerLabel}</span>
+      <div className="flex h-[96px] w-[96px] shrink-0 items-center justify-center rounded-full" style={{ background: total ? `conic-gradient(${stops.join(", ")})` : "#EDF0F3" }}>
+        <div className="flex h-[66px] w-[66px] flex-col items-center justify-center rounded-full bg-white px-1 text-center">
+          <span className="text-[17px] font-bold leading-none text-[#0f172a]">{total}</span>
+          <span className="mt-[2.5px] text-[7.5px] font-bold uppercase tracking-wider text-[#475A83] whitespace-nowrap">
+            {centerLabel}
+          </span>
         </div>
       </div>
       <ul className="min-w-0 flex-1 space-y-[6px]">

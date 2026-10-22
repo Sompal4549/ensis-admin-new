@@ -18,6 +18,7 @@ import { useWarnIfUnsavedChanges } from "@/components/legacy/UnsavedChangesConte
 
 type ProductForm = {
   id?: string;
+  updatedAt?: string;
   title: string;
   code: string;
   hsnCode: string;
@@ -226,7 +227,10 @@ export default function ProductsPage() {
     };
     try {
       if (productForm.id) {
-        await productApi.update(productForm.id, payload);
+        await productApi.update(productForm.id, {
+          ...payload,
+          ...(productForm.updatedAt ? { updatedAt: productForm.updatedAt } : {}),
+        });
         toast.success("Product updated successfully!");
       } else {
         await productApi.create(payload);
@@ -237,8 +241,19 @@ export default function ProductsPage() {
       setInitialSnapshot(JSON.stringify(resetState));
       await refreshData();
       return true;
-    } catch (error) {
-      toast.error((error as Error).message || "Failed to save product.");
+    } catch (error: any) {
+      if (
+        error?.status === 409 ||
+        error?.statusCode === 409 ||
+        error?.message?.includes("409") ||
+        error?.message?.toLowerCase().includes("someone else") ||
+        error?.message?.toLowerCase().includes("modified by someone else") ||
+        error?.message?.toLowerCase().includes("another session")
+      ) {
+        toast.error("Someone else changed this product — reload");
+      } else {
+        toast.error((error as Error).message || "Failed to save product.");
+      }
       return false;
     } finally {
       setLoading(false);
@@ -265,6 +280,7 @@ export default function ProductsPage() {
 
     const newFormState: ProductForm = {
       id: product._id,
+      updatedAt: product.updatedAt,
       title: product.title || "",
       code: product.code || "",
       hsnCode: (product as any).hsnCode || "",

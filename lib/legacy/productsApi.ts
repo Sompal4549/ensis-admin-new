@@ -36,6 +36,7 @@ export type Product = {
   isDeleted?: boolean;
   deletedAt?: string;
   deletedBy?: string;
+  updatedAt?: string;
   orderBy?: number;
   overview?: {
     title?: string;

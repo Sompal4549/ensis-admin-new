@@ -12,13 +12,20 @@ import {
   X,
   Calendar,
   ArrowRight,
+  ArrowUp,
+  ArrowDown,
+  Plus,
+  Trash2,
+  MapPin,
+  Briefcase,
+  CheckCircle2,
   Settings,
   Sparkles,
   Loader2,
 } from "lucide-react";
 
-
 import Image from "next/image";
+import { ImageUploadField } from "@/components/pages-cms/fields/ImageUploadField";
 import { jobsApi, type BackendJobStatus, type JobPosting } from "@/lib/careersApi";
 
 const Toast = Swal.mixin({
@@ -160,6 +167,202 @@ function AddPillButton({ label = "+ Add Skill", onClick }: { label?: string; onC
     >
       {label}
     </button>
+  );
+}
+
+function EditableReorderList({
+  title,
+  subtitle,
+  items,
+  onChange,
+  placeholder = "Add an item...",
+}: {
+  title: string;
+  subtitle?: string;
+  items: string[];
+  onChange: (items: string[]) => void;
+  placeholder?: string;
+}) {
+  const [newItemText, setNewItemText] = useState("");
+
+  const handleAdd = () => {
+    const trimmed = newItemText.trim();
+    if (!trimmed) return;
+    onChange([...items, trimmed]);
+    setNewItemText("");
+  };
+
+  const handleRemove = (index: number) => {
+    onChange(items.filter((_, i) => i !== index));
+  };
+
+  const handleMove = (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= items.length) return;
+    const updated = [...items];
+    const [moved] = updated.splice(index, 1);
+    updated.splice(targetIndex, 0, moved);
+    onChange(updated);
+  };
+
+  const handleEdit = (index: number, val: string) => {
+    const updated = [...items];
+    updated[index] = val;
+    onChange(updated);
+  };
+
+  return (
+    <div className="rounded-[6px] border border-[#cbd5e1] bg-[#f8fafc] p-2.5">
+      <div className="mb-2 flex items-center justify-between">
+        <div>
+          <span className="text-[11px] font-bold text-[#1e293b]">{title}</span>
+          {subtitle && <p className="text-[9px] text-[#64748b]">{subtitle}</p>}
+        </div>
+        <span className="text-[9.5px] font-semibold text-[#64748b]">{items.length} items</span>
+      </div>
+      <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+        {items.length === 0 ? (
+          <p className="py-2 text-center text-[10px] italic text-[#94a3b8]">No items yet. Type below and press Add.</p>
+        ) : (
+          items.map((item, idx) => (
+            <div key={idx} className="flex items-center gap-1.5 rounded-[4px] border border-[#e2e8f0] bg-white p-1 text-[10.5px]">
+              <span className="grid h-4 w-4 shrink-0 place-items-center rounded bg-slate-100 text-[9px] font-bold text-slate-500">
+                {idx + 1}
+              </span>
+              <input
+                type="text"
+                value={item}
+                onChange={(e) => handleEdit(idx, e.target.value)}
+                className="flex-1 bg-transparent px-1 text-[10.5px] text-[#1e293b] outline-none"
+              />
+              <div className="flex items-center gap-0.5 shrink-0">
+                <button
+                  type="button"
+                  disabled={idx === 0}
+                  onClick={() => handleMove(idx, "up")}
+                  title="Move up"
+                  className="rounded p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30"
+                >
+                  <ArrowUp className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  disabled={idx === items.length - 1}
+                  onClick={() => handleMove(idx, "down")}
+                  title="Move down"
+                  className="rounded p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30"
+                >
+                  <ArrowDown className="h-3 w-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRemove(idx)}
+                  title="Remove"
+                  className="rounded p-1 text-red-400 hover:text-red-600"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="mt-2 flex items-center gap-1.5">
+        <input
+          type="text"
+          value={newItemText}
+          placeholder={placeholder}
+          onChange={(e) => setNewItemText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleAdd();
+            }
+          }}
+          className="h-[28px] flex-1 rounded-[4px] border border-[#cbd5e1] bg-white px-2 text-[10px] text-[#1e293b] outline-none"
+        />
+        <button
+          type="button"
+          onClick={handleAdd}
+          className="flex h-[28px] items-center gap-1 rounded-[4px] bg-[#2563eb] px-2.5 text-[10px] font-bold text-white hover:bg-blue-700"
+        >
+          <Plus className="h-3 w-3" />
+          Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function StorefrontJobCardPreview({
+  title,
+  location,
+  type,
+  coverImage,
+  shortDescription,
+  department,
+  aiCheckPoints = [],
+}: {
+  title: string;
+  location: string;
+  type: string;
+  coverImage?: string;
+  shortDescription?: string;
+  department?: string;
+  aiCheckPoints?: string[];
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-[#eadfcd] bg-[#fffdf8] shadow-[0_4px_16px_rgba(60,45,20,0.08)]">
+      <div className="relative aspect-[16/10] w-full bg-[#efe6d6] overflow-hidden flex items-center justify-center">
+        {coverImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={coverImage} alt={title || "Job Cover"} className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex flex-col items-center justify-center text-[#8c8270] p-4 text-center">
+            <Briefcase className="h-7 w-7 mb-1 text-[#c9a86a]" />
+            <span className="text-[10.5px] font-semibold text-[#163a2b]">No cover image uploaded</span>
+            <span className="text-[9px] text-[#8c8270]">Storefront will use brand default</span>
+          </div>
+        )}
+        <div className="absolute top-2 left-2 rounded-full bg-[#163a2b]/90 px-2 py-0.5 text-[8.5px] font-semibold text-[#f8f5ee] backdrop-blur-xs">
+          {department || "Department"}
+        </div>
+      </div>
+      <div className="p-3.5">
+        <h4 className="font-serif text-[14px] font-bold leading-snug text-[#163a2b]">
+          {title || "Job Title Preview"}
+        </h4>
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-[#4b453b]">
+          <span className="inline-flex items-center gap-1 font-medium">
+            <MapPin className="h-3 w-3 text-[#c08a2e]" /> {location || "Location"}
+          </span>
+          <span className="inline-flex items-center gap-1 font-medium">
+            <Briefcase className="h-3 w-3 text-[#c08a2e]" /> {type || "Full Time"}
+          </span>
+        </div>
+        <p className="mt-2 text-[10.5px] leading-relaxed text-[#4b453b] line-clamp-3">
+          {shortDescription || "Short description will appear here on candidate cards across the storefront."}
+        </p>
+        {aiCheckPoints && aiCheckPoints.length > 0 && (
+          <div className="mt-2.5 pt-2 border-t border-[#eadfcd]/60">
+            <span className="text-[8.5px] font-bold uppercase tracking-wider text-[#a8792c]">AI will check:</span>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {aiCheckPoints.slice(0, 3).map((cp, idx) => (
+                <span key={idx} className="rounded bg-[#f4ece1] px-1.5 py-0.5 text-[8.5px] font-semibold text-[#163a2b]">
+                  {cp}
+                </span>
+              ))}
+              {aiCheckPoints.length > 3 && (
+                <span className="text-[8.5px] text-[#8c8270]">+{aiCheckPoints.length - 3} more</span>
+              )}
+            </div>
+          </div>
+        )}
+        <div className="mt-3 flex h-[28px] w-full items-center justify-center rounded-[5px] border border-[#c9a86a] bg-transparent text-[10px] font-bold text-[#163a2b]">
+          View Details & Apply →
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -361,6 +564,13 @@ function CreateJobForm() {
   // Industry Segments List
   const [segments, setSegments] = useState<string[]>([]);
 
+  // New fields for Career redesign
+  const [coverImage, setCoverImage] = useState<string>("");
+  const [shortDescription, setShortDescription] = useState<string>("");
+  const [aiCheckPoints, setAiCheckPoints] = useState<string[]>([]);
+  const [responsibilitiesList, setResponsibilitiesList] = useState<string[]>([]);
+  const [requirementsList, setRequirementsList] = useState<string[]>([]);
+
   // AI-generated role context for the exported .docx (Reporting To, KRA/KPI tables,
   // reference industries, screening questions) — not shown as editable form fields,
   // just carried through from "Generate with AI" to the saved job.
@@ -482,6 +692,12 @@ function CreateJobForm() {
         setReferenceIndustries(job.referenceIndustries || []);
         setScreeningQuestions(job.screeningQuestions || []);
 
+        setCoverImage(job.coverImage || "");
+        setShortDescription(job.shortDescription || "");
+        setAiCheckPoints(job.aiCheckPoints || []);
+        setResponsibilitiesList(job.responsibilities || []);
+        setRequirementsList(job.requirements || []);
+
         setDescriptionHtml(job.description || DESCRIPTION_DEFAULT);
         setRespHtml(linesToHtml(job.responsibilities));
         setWhoCanApplyHtml(linesToHtml(job.requirements));
@@ -535,6 +751,12 @@ function CreateJobForm() {
       opportunityEditorRef.current?.setHTML(`<div>${generated.opportunity}</div>`);
       respEditorRef.current?.setHTML(linesToHtml(generated.keyResponsibilities));
       whoEditorRef.current?.setHTML(linesToHtml(generated.whoCanApply));
+
+      setResponsibilitiesList(generated.keyResponsibilities);
+      setRequirementsList(generated.whoCanApply);
+      if (generated.requiredSkills?.length && aiCheckPoints.length === 0) {
+        setAiCheckPoints(generated.requiredSkills.slice(0, 5));
+      }
 
       setReqSkills(generated.requiredSkills);
       setPrefSkills(generated.preferredSkills);
@@ -593,13 +815,17 @@ function CreateJobForm() {
         performanceIncentiveApplicable: toggles.performanceIncentive,
         incentiveType: toggles.performanceIncentive ? fields.incentiveType : undefined,
 
+        coverImage: coverImage || undefined,
+        shortDescription: shortDescription || undefined,
+        aiCheckPoints: aiCheckPoints.filter(Boolean),
+
         description: htmlToPlainText(descriptionHtml),
         skills: reqSkills,
         preferredSkills: prefSkills,
         targetIndustrySegments: segments,
         specificExperience: fields.specificExperience,
-        responsibilities: htmlToLines(respHtml),
-        requirements: htmlToLines(whoCanApplyHtml),
+        responsibilities: responsibilitiesList.length > 0 ? responsibilitiesList : htmlToLines(respHtml),
+        requirements: requirementsList.length > 0 ? requirementsList : htmlToLines(whoCanApplyHtml),
 
         reportingTo: reportingTo || undefined,
         kras,
@@ -733,7 +959,100 @@ function CreateJobForm() {
         </button>
       </div>
 
-      {/* MAIN BODY (TWO COLUMNS LAYOUT) */}
+      {/* MAIN BODY (TWO COLUMNS LAYOUT OR PREVIEW TAB) */}
+      {activeTab === "preview" ? (
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-4">
+          <div className="mx-auto w-full max-w-4xl space-y-6">
+            <div className="flex items-center justify-between rounded-[8px] border border-[#cbd5e1] bg-white p-4 shadow-2xs">
+              <div>
+                <h2 className="text-[15px] font-bold text-[#0f172a]">Storefront Job Card & Details Preview</h2>
+                <p className="text-[11px] text-[#64748b]">
+                  Review how your job posting appears on the candidate storefront before publishing.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("info")}
+                  className="rounded-[5px] border border-[#cbd5e1] bg-white px-3 py-1.5 text-[11px] font-bold text-[#334155] hover:bg-slate-50"
+                >
+                  Edit Details
+                </button>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => handleSubmit("OPEN")}
+                  className="rounded-[5px] bg-[#059669] px-4 py-1.5 text-[11px] font-bold text-white hover:bg-[#047857]"
+                >
+                  {submitting ? "Publishing…" : editId ? "Update Job" : "Publish Job"}
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+              <div>
+                <h3 className="mb-2 text-[12px] font-bold uppercase tracking-wider text-[#1e293b]">Candidate Card Preview</h3>
+                <StorefrontJobCardPreview
+                  title={fields.title}
+                  location={fields.location}
+                  type={fields.employmentType}
+                  department={fields.department}
+                  coverImage={coverImage}
+                  shortDescription={shortDescription || (fields.title ? `Career opportunity for ${fields.title} at Ensis.` : "")}
+                  aiCheckPoints={aiCheckPoints}
+                />
+              </div>
+
+              <div className="rounded-xl border border-[#eadfcd] bg-[#fffdf8] p-5 shadow-2xs space-y-4">
+                <h3 className="text-[13px] font-bold text-[#163a2b] border-b border-[#eadfcd]/60 pb-2">
+                  Role Highlights & Summary
+                </h3>
+                <div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#a8792c]">Opportunity Overview</h4>
+                  <p className="mt-1 text-[11.5px] leading-relaxed text-[#4b453b]">
+                    {htmlToPlainText(descriptionHtml) || "No description provided."}
+                  </p>
+                </div>
+
+                {responsibilitiesList.length > 0 && (
+                  <div>
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#a8792c]">Key Responsibilities</h4>
+                    <ul className="mt-1 list-disc list-inside space-y-1 text-[11px] text-[#4b453b]">
+                      {responsibilitiesList.map((r, i) => (
+                        <li key={i}>{r}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {requirementsList.length > 0 && (
+                  <div>
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#a8792c]">Requirements</h4>
+                    <ul className="mt-1 list-disc list-inside space-y-1 text-[11px] text-[#4b453b]">
+                      {requirementsList.map((r, i) => (
+                        <li key={i}>{r}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {aiCheckPoints.length > 0 && (
+                  <div>
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#a8792c]">AI Screening Criteria</h4>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {aiCheckPoints.map((cp, i) => (
+                        <span key={i} className="rounded bg-[#f4ece1] px-2 py-1 text-[9.5px] font-semibold text-[#163a2b]">
+                          ✓ {cp}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
       <div className="flex min-h-0 flex-1 gap-4 overflow-hidden px-5 py-3">
         {/* LEFT FORM COLUMN */}
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1" style={{ scrollbarWidth: "thin" }}>
@@ -841,6 +1160,50 @@ function CreateJobForm() {
                   </div>
                 </div>
               </div>
+
+              {/* STOREFRONT PRESENTATION (COVER & SHORT DESCRIPTION) */}
+              <div className="col-span-2 mt-2 border-t border-slate-100 pt-2.5">
+                <div className="mb-2">
+                  <h3 className="text-[11.5px] font-bold text-[#0f172a]">Storefront Card & Cover</h3>
+                  <p className="text-[9px] font-medium text-[#64748b]">
+                    Add a cover image and a concise 160-character summary displayed on candidate-facing job cards.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 items-start">
+                  <div>
+                    <label className="mb-1 block text-[10.5px] font-bold text-[#1e293b]">
+                      Job Cover Image <span className="text-[9.5px] font-normal text-slate-400">(Optional)</span>
+                    </label>
+                    <ImageUploadField
+                      value={coverImage}
+                      onChange={setCoverImage}
+                    />
+                    <p className="mt-1 text-[9px] text-[#64748b]">
+                      16:10 landscape image. If empty, default brand imagery is shown on the storefront.
+                    </p>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10.5px] font-bold text-[#1e293b]">
+                        Short Description <span className="text-red-500">*</span>
+                      </label>
+                      <span className={`text-[9.5px] font-bold ${shortDescription.length > 160 ? "text-red-600" : shortDescription.length >= 140 ? "text-amber-600" : "text-[#64748b]"}`}>
+                        {shortDescription.length}/160
+                      </span>
+                    </div>
+                    <textarea
+                      rows={4}
+                      maxLength={160}
+                      value={shortDescription}
+                      onChange={(e) => setShortDescription(e.target.value)}
+                      placeholder="Short 1-2 sentence overview shown directly on the candidate job card (e.g. Lead Ensis brand marketing initiatives and drive growth across our wellness ecosystem)."
+                      className="w-full rounded-[5px] border border-[#cbd5e1] bg-white p-2 text-[10.5px] font-medium text-[#1e293b] outline-none focus:border-[#2563eb]"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -928,23 +1291,31 @@ function CreateJobForm() {
                 maxWords={25}
               />
 
-              <RichEditorBlock
-                ref={respEditorRef}
-                label="Key Responsibilities"
-                required
-                defaultValue={respHtml}
-                onChange={setRespHtml}
-                maxChars={300}
-              />
+              <div className="flex flex-col">
+                <EditableReorderList
+                  title="Key Responsibilities"
+                  subtitle="Bullet points on job page"
+                  items={responsibilitiesList.length > 0 ? responsibilitiesList : htmlToLines(respHtml)}
+                  onChange={(list) => {
+                    setResponsibilitiesList(list);
+                    setRespHtml(linesToHtml(list));
+                  }}
+                  placeholder="e.g. Coordinate with exhibition organizers"
+                />
+              </div>
 
-              <RichEditorBlock
-                ref={whoEditorRef}
-                label="Who Can Apply"
-                required
-                defaultValue={whoCanApplyHtml}
-                onChange={setWhoCanApplyHtml}
-                maxChars={200}
-              />
+              <div className="flex flex-col">
+                <EditableReorderList
+                  title="Who Can Apply / Requirements"
+                  subtitle="Candidate qualifications"
+                  items={requirementsList.length > 0 ? requirementsList : htmlToLines(whoCanApplyHtml)}
+                  onChange={(list) => {
+                    setRequirementsList(list);
+                    setWhoCanApplyHtml(linesToHtml(list));
+                  }}
+                  placeholder="e.g. 2+ years of relevant experience"
+                />
+              </div>
             </div>
           </div>
 
@@ -953,8 +1324,8 @@ function CreateJobForm() {
             <div className="mb-2 flex items-center gap-2">
               <span className="grid h-5 w-5 place-items-center rounded-[4px] bg-[#2563eb] text-[10px] font-bold text-white">4</span>
               <div className="flex items-center gap-1.5">
-                <h2 className="text-[12px] font-bold text-[#0f172a]">Candidate Requirements</h2>
-                <span className="text-[10px] font-medium text-[#64748b]">• Define the skills, experience and industry preference for AI matching.</span>
+                <h2 className="text-[12px] font-bold text-[#0f172a]">Candidate Requirements & AI Check Points</h2>
+                <span className="text-[10px] font-medium text-[#64748b]">• Define skills, segments, and AI screening verification criteria.</span>
               </div>
             </div>
 
@@ -1022,12 +1393,47 @@ function CreateJobForm() {
                 </div>
               </div>
             </div>
+
+            {/* AI WILL CHECK POINTS LIST */}
+            <div className="mt-3.5 border-t border-slate-100 pt-3">
+              <EditableReorderList
+                title='"AI Will Check" Points'
+                subtitle="The screening engine explicitly verifies these items from the candidate CV."
+                items={aiCheckPoints}
+                onChange={setAiCheckPoints}
+                placeholder="e.g. Experience with Ayurvedic or natural healthcare products"
+              />
+            </div>
           </div>
 
         </div>
 
         {/* RIGHT SIDEBAR COLUMN */}
-        <div className="flex w-[290px] shrink-0 flex-col gap-3 overflow-y-auto pr-1" style={{ scrollbarWidth: "thin" }}>
+        <div className="flex w-[310px] shrink-0 flex-col gap-3 overflow-y-auto pr-1" style={{ scrollbarWidth: "thin" }}>
+
+          {/* LIVE STOREFRONT CARD PREVIEW */}
+          <div className="rounded-[8px] border border-[#cbd5e1] bg-white p-3 shadow-2xs">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <div className="grid h-5 w-5 place-items-center rounded-[4px] bg-[#c08a2e] text-white">
+                  <Eye className="h-3 w-3" />
+                </div>
+                <div>
+                  <h3 className="text-[11.5px] font-bold text-[#0f172a]">Storefront Card Preview</h3>
+                  <p className="text-[8.5px] text-[#64748b]">Real-time appearance on careers page</p>
+                </div>
+              </div>
+            </div>
+            <StorefrontJobCardPreview
+              title={fields.title}
+              location={fields.location}
+              type={fields.employmentType}
+              department={fields.department}
+              coverImage={coverImage}
+              shortDescription={shortDescription || (fields.title ? `Career opportunity for ${fields.title} at Ensis.` : "")}
+              aiCheckPoints={aiCheckPoints}
+            />
+          </div>
 
           {/* CARD 1: APPLICATION & AI SCREENING */}
           <div className="rounded-[8px] border border-[#cbd5e1] bg-white p-3 shadow-2xs">
@@ -1185,6 +1591,7 @@ function CreateJobForm() {
 
         </div>
       </div>
+      )}
 
       {/* BOTTOM FIXED ACTION BAR */}
       <div className="flex shrink-0 items-center justify-between border-t border-[#e2e8f0] bg-white px-5 py-2 shadow-md">
@@ -1208,10 +1615,14 @@ function CreateJobForm() {
 
           <button
             type="button"
-            onClick={() => Toast.fire({ icon: "info", iconColor: "#38bdf8", title: "Preview — coming soon" })}
-            className="h-[32px] rounded-[5px] border border-[#cbd5e1] bg-white px-3.5 text-[11px] font-bold text-[#334155] hover:bg-slate-50 transition-colors"
+            onClick={() => setActiveTab(activeTab === "preview" ? "info" : "preview")}
+            className={`h-[32px] rounded-[5px] border px-3.5 text-[11px] font-bold transition-colors ${
+              activeTab === "preview"
+                ? "border-[#2563eb] bg-[#eff6ff] text-[#2563eb]"
+                : "border-[#cbd5e1] bg-white text-[#334155] hover:bg-slate-50"
+            }`}
           >
-            Preview Job
+            {activeTab === "preview" ? "Back to Edit" : "Preview Job"}
           </button>
 
           <button

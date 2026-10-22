@@ -685,6 +685,12 @@ async function request<T>(path: string, options?: ApiRequestOptions, isRetry = f
   } catch (_error) {
     clearTimeout(timeoutId);
     if (isRealBackendPath) {
+      if (timeoutController.signal.aborted && !options?.signal?.aborted) {
+        throw new ApiRequestError(
+          0,
+          "The server is taking longer than expected. The action may still complete — please refresh in a moment to check."
+        );
+      }
       throw new ApiRequestError(0, "Cannot connect to the server. Please make sure the backend is running.");
     }
     return getMockDataForPath(path, options?.method ?? "GET") as T;
