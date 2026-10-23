@@ -16,7 +16,7 @@ installAdminFetch();
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const pathname = usePathname();
-  const useCompactReadableScale = pathname !== "/" && !pathname.startsWith("/pages") && !pathname.startsWith("/staff");
+  const useCompactReadableScale = pathname !== "/" && !pathname.startsWith("/pages") && !pathname.startsWith("/staff") && !pathname.startsWith("/infrastructure");
 
   return (
     <RequireAdminAuth>

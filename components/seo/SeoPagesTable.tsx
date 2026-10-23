@@ -17,10 +17,13 @@ import Button from "@/components/ui/Button";
 import Spinner from "@/components/ui/Spinner";
 import {
   seoAuditApi,
+  type SeoOverview,
   type SeoPageFilters,
   type SeoPageRow,
   type SeoSeverity,
 } from "@/lib/seoAuditApi";
+
+const AUDIT_POLL_MS = 4000;
 import { getSavedPageSpeed, isPageSpeedRunActive, runPageSpeedBatch, type PageSpeedBatchProgress } from "@/lib/pageSpeedBatch";
 import { PAGE_INVENTORY, SITE_URL } from "@/lib/seoCheckupData";
 import {
@@ -147,49 +150,10 @@ const COLUMNS: ColumnDefinition[] = [
     render: (page) => <StatusChip value={page.schemaStatus} title={page.schemaTypes.join(", ") || "None"} />,
   },
   {
-    key: "keyword",
-    label: "Keyword",
-    defaultVisible: false,
-    render: (page) => <StatusChip value={page.keywordStatus === "not_available" ? "unknown" : page.keywordStatus} title="Measured configured/GSC keyword usage" />,
-  },
-  {
     key: "openGraph",
     label: "Open Graph",
     defaultVisible: false,
     render: (page) => <StatusChip value={page.openGraphStatus === "valid" ? "ok" : page.openGraphStatus === "incomplete" ? "warning" : "unknown"} />,
-  },
-  {
-    key: "twitter",
-    label: "Twitter",
-    defaultVisible: false,
-    render: (page) => <StatusChip value={page.twitterStatus === "valid" ? "ok" : page.twitterStatus === "incomplete" ? "warning" : "unknown"} />,
-  },
-  {
-    key: "consoleErrors",
-    label: "Console",
-    defaultVisible: false,
-    align: "right",
-    render: (page) => <span className={page.consoleErrorCount > 0 ? "font-semibold text-status-danger-text" : "tabular-nums"}>{page.consoleErrorCount}</span>,
-  },
-  {
-    key: "failedRequests",
-    label: "Failed req.",
-    defaultVisible: false,
-    align: "right",
-    render: (page) => <span className={page.failedRequestCount > 0 ? "font-semibold text-status-pending-text" : "tabular-nums"}>{page.failedRequestCount}</span>,
-  },
-  {
-    key: "renderBlocking",
-    label: "Blocking",
-    defaultVisible: false,
-    align: "right",
-    render: (page) => <span className="tabular-nums">{page.renderBlockingCount}</span>,
-  },
-  {
-    key: "cdn",
-    label: "CDN",
-    defaultVisible: false,
-    render: (page) => <span className="text-[10px] font-medium capitalize">{page.cdnStatus.replaceAll("_", " ")}</span>,
   },
   {
     key: "words",
@@ -200,113 +164,46 @@ const COLUMNS: ColumnDefinition[] = [
     render: (page) => <span className="tabular-nums">{formatNumber(page.wordCount)}</span>,
   },
   {
-    key: "inLinks",
-    label: "In",
+    key: "response",
+    label: "Response",
     defaultVisible: true,
-    sortKey: "inLinks",
+    sortKey: "responseTime",
     align: "right",
     render: (page) => (
-      <span className={`tabular-nums ${page.isOrphan ? "text-status-danger-text font-semibold" : ""}`}>
-        {page.inLinks}
+      <span className="tabular-nums" title="HTML response time measured by the site audit">
+        {formatMs(page.responseTimeMs)}
       </span>
     ),
   },
   {
-    key: "outLinks",
-    label: "Out",
-    defaultVisible: false,
-    align: "right",
-    render: (page) => <span className="tabular-nums">{page.outLinks}</span>,
-  },
-  {
-    key: "brokenLinks",
-    label: "Broken",
-    defaultVisible: false,
-    align: "right",
-    render: (page) => (
-      <span className={`tabular-nums ${page.brokenLinks > 0 ? "text-status-danger-text font-semibold" : ""}`}>
-        {page.brokenLinks}
-      </span>
-    ),
-  },
-  {
-    key: "depth",
-    label: "Depth",
-    defaultVisible: false,
-    sortKey: "depth",
-    align: "right",
-    render: (page) => <span className="tabular-nums">{page.depth ?? "—"}</span>,
-  },
-  {
-    key: "performance",
-    label: "Perf",
-    defaultVisible: false,
-    sortKey: "performance",
-    render: (page) => <ScorePill score={page.performance.score} />,
-  },
-  {
+    // LCP/CLS come from the saved Google PageSpeed run ("Run PageSpeed"), not from the crawler
     key: "lcp",
     label: "LCP",
     defaultVisible: true,
-    sortKey: "lcp",
     align: "right",
-    render: (page) => (
-      <span className="tabular-nums" title={page.performance.isFieldData ? "Field data (CrUX)" : "Lab data (Lighthouse)"}>
-        {formatMs(page.performance.lcpMs)}
-      </span>
-    ),
+    render: (page) => {
+      const audit = getSavedPageSpeed(page.url);
+      return (
+        <span className="tabular-nums" title="Lab data (Lighthouse) from the last PageSpeed run">
+          {audit?.ok ? formatMs(audit.metrics.lcpMs) : "—"}
+        </span>
+      );
+    },
   },
   {
     key: "cls",
     label: "CLS",
     defaultVisible: true,
-    sortKey: "cls",
     align: "right",
-    render: (page) => (
-      <span className="tabular-nums">{page.performance.cls == null ? "—" : page.performance.cls.toFixed(3)}</span>
-    ),
-  },
-  {
-    key: "clicks",
-    label: "Clicks",
-    defaultVisible: true,
-    sortKey: "clicks",
-    align: "right",
-    render: (page) => <span className="tabular-nums">{formatNumber(page.search?.clicks ?? 0)}</span>,
-  },
-  {
-    key: "impressions",
-    label: "Impr.",
-    defaultVisible: true,
-    sortKey: "impressions",
-    align: "right",
-    render: (page) => <span className="tabular-nums">{formatNumber(page.search?.impressions ?? 0)}</span>,
-  },
-  {
-    key: "ctr",
-    label: "CTR",
-    defaultVisible: false,
-    sortKey: "ctr",
-    align: "right",
-    render: (page) => <span className="tabular-nums">{page.search ? `${page.search.ctr.toFixed(1)}%` : "—"}</span>,
-  },
-  {
-    key: "position",
-    label: "Avg pos",
-    defaultVisible: true,
-    sortKey: "position",
-    align: "right",
-    render: (page) => (
-      <span className="tabular-nums" title="Google Search Console average position — not a live rank">
-        {page.search?.position ? page.search.position.toFixed(1) : "—"}
-      </span>
-    ),
+    render: (page) => {
+      const cls = getSavedPageSpeed(page.url)?.metrics.cls;
+      return <span className="tabular-nums">{cls == null ? "—" : cls.toFixed(3)}</span>;
+    },
   },
   {
     key: "crawledAt",
     label: "Crawled",
     defaultVisible: false,
-    sortKey: "crawledAt",
     render: (page) => <span className="whitespace-nowrap text-text-secondary">{formatDateTime(page.lastCrawledAt)}</span>,
   },
 ];
@@ -324,13 +221,10 @@ const CATEGORY_OPTIONS = [
   { value: "indexing", label: "Indexing" },
   { value: "canonical", label: "Canonical" },
   { value: "headings", label: "Headings" },
-  { value: "links", label: "Links" },
   { value: "images", label: "Images" },
   { value: "content", label: "Content" },
   { value: "structure", label: "Structure" },
-  { value: "structured_data", label: "Structured data" },
   { value: "performance", label: "Performance" },
-  { value: "security", label: "Security" },
 ];
 
 const selectClass =
@@ -349,6 +243,7 @@ export default function SeoPagesTable({ onSelectPage, onAuditStarted, selectedPa
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [auditRunning, setAuditRunning] = useState(false);
+  const [runningAudit, setRunningAudit] = useState<SeoOverview["running"]>(null);
 
   const [searchInput, setSearchInput] = useState("");
   const [filters, setFilters] = useState<SeoPageFilters>({ page: 1, limit: 25, sortBy: "score", sortDir: "asc" });
@@ -427,7 +322,8 @@ export default function SeoPagesTable({ onSelectPage, onAuditStarted, selectedPa
   const startAudit = async () => {
     setAuditRunning(true);
     try {
-      await seoAuditApi.startAudit();
+      const started = await seoAuditApi.startAudit();
+      setRunningAudit({ id: started.crawlId, status: "running", startedAt: null, progress: { done: 0, total: 0 } });
       onAuditStarted?.();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not start the audit");
@@ -436,14 +332,35 @@ export default function SeoPagesTable({ onSelectPage, onAuditStarted, selectedPa
     }
   };
 
+  // Detect an audit that is already running (e.g. started from another screen)
+  useEffect(() => {
+    seoAuditApi
+      .overview()
+      .then((overview) => setRunningAudit(overview.running))
+      .catch(() => undefined); // the table's own request reports connection errors
+  }, []);
+
+  // While an audit runs, poll its progress and reload the table when it finishes
+  useEffect(() => {
+    if (!runningAudit) return;
+    const timer = setInterval(() => {
+      seoAuditApi
+        .overview()
+        .then((overview) => {
+          setRunningAudit(overview.running);
+          if (!overview.running) void load();
+        })
+        .catch((caught) => setError(caught instanceof Error ? caught.message : "Could not check the audit progress"));
+    }, AUDIT_POLL_MS);
+    return () => clearInterval(timer);
+  }, [runningAudit, load]);
+
   const hasActiveFilters =
     Boolean(filters.search) ||
     Boolean(filters.status) ||
     filters.indexable !== undefined ||
     Boolean(filters.severity) ||
-    Boolean(filters.issueCategory) ||
-    Boolean(filters.hasBrokenLinks) ||
-    Boolean(filters.orphan);
+    Boolean(filters.issueCategory);
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -515,30 +432,6 @@ export default function SeoPagesTable({ onSelectPage, onAuditStarted, selectedPa
           ))}
         </select>
 
-        <button
-          type="button"
-          onClick={() => updateFilter({ hasBrokenLinks: filters.hasBrokenLinks ? undefined : true })}
-          className={`h-8 rounded-lg border px-2.5 text-[11px] font-semibold transition-colors ${
-            filters.hasBrokenLinks
-              ? "border-status-danger-text bg-status-danger-bg text-status-danger-text"
-              : "border-surface-border bg-surface-card text-text-secondary hover:bg-surface-sunken"
-          }`}
-        >
-          Broken links
-        </button>
-
-        <button
-          type="button"
-          onClick={() => updateFilter({ orphan: filters.orphan ? undefined : true })}
-          className={`h-8 rounded-lg border px-2.5 text-[11px] font-semibold transition-colors ${
-            filters.orphan
-              ? "border-status-pending-text bg-status-pending-bg text-status-pending-text"
-              : "border-surface-border bg-surface-card text-text-secondary hover:bg-surface-sunken"
-          }`}
-        >
-          Orphans
-        </button>
-
         {hasActiveFilters && (
           <Button
             variant="ghost"
@@ -591,11 +484,15 @@ export default function SeoPagesTable({ onSelectPage, onAuditStarted, selectedPa
         <button
           type="button"
           onClick={() => void startAudit()}
-          disabled={auditRunning}
+          disabled={auditRunning || Boolean(runningAudit)}
           className="inline-flex h-[30px] items-center gap-1.5 rounded-[6px] bg-[#16a34a] px-3.5 text-[11px] font-semibold text-white shadow-xs transition hover:bg-[#15803d] disabled:opacity-50 cursor-pointer"
         >
           <Play className="h-3.5 w-3.5" />
-          {auditRunning ? "Auditing..." : "Run audit"}
+          {runningAudit
+            ? `Auditing ${runningAudit.progress.total ? `${runningAudit.progress.done}/${runningAudit.progress.total}` : "..."}`
+            : auditRunning
+              ? "Starting..."
+              : "Run audit"}
         </button>
 
         <button
@@ -686,8 +583,8 @@ export default function SeoPagesTable({ onSelectPage, onAuditStarted, selectedPa
             {!loading && (rows ?? []).length === 0 && (
               <tr>
                 <td colSpan={activeColumns.length + 1} className="px-3 py-10 text-center text-text-secondary">
-                  {message ?? "No pages match these filters."}
-                  {message && (
+                  {runningAudit ? "The first audit is running — pages appear here when it finishes." : message ?? "No pages match these filters."}
+                  {message && !runningAudit && meta.total === 0 && !hasActiveFilters && (
                     <div className="mt-3">
                       <Button size="sm" onClick={() => void startAudit()} loading={auditRunning}>
                         <Play className="h-3.5 w-3.5" />

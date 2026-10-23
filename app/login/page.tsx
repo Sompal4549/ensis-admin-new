@@ -27,7 +27,7 @@ import {
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setCredentials, logout, loginAdmin, verifyTwoFactor } from "@/store/slices/authSlice";
 import { authApi, type LoginResult, type VerifyTwoFactorResponse } from "@/lib/authApi";
-import { ApiRequestError } from "@/lib/api";
+import { api, ApiRequestError } from "@/lib/api";
 import { Input } from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -68,6 +68,30 @@ export default function LoginPage() {
   const [totpCode, setTotpCode] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string>("/ensis-logo.webp");
+  const [logoAlt, setLogoAlt] = useState<string>("Ensis");
+
+  useEffect(() => {
+    let active = true;
+    api
+      .get<{ data?: { logo?: { imageUrl?: string; alt?: string } }; logo?: { imageUrl?: string; alt?: string } }>(
+        "/component-content/layout.header"
+      )
+      .then((res) => {
+        if (!active || !res) return;
+        const logo = res.data?.logo || res.logo;
+        if (logo?.imageUrl) {
+          setLogoUrl(logo.imageUrl);
+        }
+        if (logo?.alt) {
+          setLogoAlt(logo.alt);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
   const [error, setError] = useState("");
 
   const [secret, setSecret] = useState("");
@@ -472,8 +496,9 @@ export default function LoginPage() {
           { }
 
           <img
-            src="/ensis-logo.webp"
-            alt="Ensis"
+            src={logoUrl}
+            alt={logoAlt}
+            onError={() => setLogoUrl("/ensis-logo.webp")}
           />
         </div>
 
@@ -539,21 +564,20 @@ export default function LoginPage() {
           <div className="auth-heading">
             <div
               style={{
-                width: 72,
-                height: 72,
-                margin: "0 auto 6px",
-                overflow: "visible",
+                width: 140,
+                height: 52,
+                margin: "0 auto 8px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                mixBlendMode: "multiply",
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/ensis-logo.webp"
-                alt="Ensis"
-                style={{ width: "100%", height: "100%", objectFit: "contain", transform: "scale(2.2)" }}
+                src={logoUrl}
+                alt={logoAlt}
+                onError={() => setLogoUrl("/ensis-logo.webp")}
+                style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
               />
             </div>
 

@@ -526,6 +526,16 @@ export default function SeoCheckupFullReport({
         }
       `}</style>
 
+      {/* This checklist is built from the bundled route snapshot, not from the backend crawler */}
+      <div className="no-print flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-6 py-2.5 text-[11.5px] font-semibold text-amber-800">
+        <span aria-hidden>⚠</span>
+        <span>
+          Static checklist: scores, word counts, links and search numbers here come from a route snapshot bundled with the
+          admin (captured {ROUTE_META_CAPTURED_AT}); only the PageSpeed values are live. For measured results from the
+          latest site audit, use the <strong>Overview</strong> and <strong>Pages</strong> tabs of the SEO dashboard.
+        </span>
+      </div>
+
       {/* Report header */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-4 text-slate-900">
         <div className="flex items-center gap-3">

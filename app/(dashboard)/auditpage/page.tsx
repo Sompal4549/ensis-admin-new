@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, FileSearch, Gauge, Globe2, ShieldCheck, TriangleAlert, RefreshCw, Search } from "lucide-react";
-import { seoAuditApi, type SeoOverview, type PageSpeedAudit } from "@/lib/seoAuditApi";
+import { seoAuditApi, type PageSpeedAudit } from "@/lib/seoAuditApi";
 import SeoSiteCheckupReport from "@/components/seo/SeoSiteCheckupReport";
 import { PAGE_INVENTORY } from "@/lib/seoCheckupData";
 import Spinner from "@/components/ui/Spinner";
@@ -15,16 +15,11 @@ const ALL_SITE_PAGES = PAGE_INVENTORY.map((page) => ({
 }));
 
 export default function SeoAuditedPagesPage() {
-  const [overview, setOverview] = useState<SeoOverview | null>(null);
   const [selectedPageId, setSelectedPageId] = useState<string>("home");
   const [searchQuery, setSearchQuery] = useState<string>("");
   // The audit and the page it belongs to; loading until the selected page has one
   const [speed, setSpeed] = useState<{ pageId: string; data: PageSpeedAudit | null } | null>(null);
   const [reAuditing, setReAuditing] = useState(false);
-
-  useEffect(() => {
-    seoAuditApi.overview().then(setOverview).catch(() => undefined);
-  }, []);
 
   useEffect(() => {
     const pageObj = ALL_SITE_PAGES.find((p) => p.id === selectedPageId) || ALL_SITE_PAGES[0];

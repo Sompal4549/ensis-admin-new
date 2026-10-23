@@ -8,16 +8,6 @@ export type LoginResult = {
   tempToken?: string;
 } & AuthTokens;
 
-const defaultMockAdmin: AdminUser = {
-  id: "admin_101",
-  name: "Admin User",
-  email: "admin@ensis.in",
-  phone: "+91 9876543210",
-  userType: "INTERNAL",
-  roleSlug: "SUPER_ADMIN",
-  permissions: ["*"],
-};
-
 /** Admin as the auth endpoints return it */
 type AuthAdmin = {
   id?: string;
@@ -57,7 +47,15 @@ export const authApi = {
 
     if (res && res.requiresTwoFactor) {
       return {
-        user: defaultMockAdmin,
+        user: {
+          id: res.admin?.id || res.admin?._id || "pending_2fa",
+          name: res.admin?.name || "Ensis Admin",
+          email: res.admin?.email || identifier,
+          phone: res.admin?.phone || "",
+          userType: "INTERNAL",
+          roleSlug: "SUPER_ADMIN",
+          permissions: ["*"],
+        },
         requiresTwoFactor: true,
         tempToken: res.tempToken,
         twoFactorSetupRequired: false,

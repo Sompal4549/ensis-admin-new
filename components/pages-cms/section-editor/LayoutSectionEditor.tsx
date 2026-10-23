@@ -276,17 +276,27 @@ function FooterForm({ data, onChange }: { data: Data; onChange: (data: Data) => 
       </button>
 
       <Card title="Copyright Bar">
-        <Text data={data} path="copyright.text" label="Copyright Text" placeholder="© 2026 Ensis. All Rights Reserved." onChange={onChange} />
+        <Text data={data} path="copyright.text" label="Copyright Text" placeholder="© 2026 Design House India Pvt. Ltd. All rights reserved." onChange={onChange} />
         <ListEditor
           items={asList(getPath(data, "copyright.links"))}
           columns={[
-            { field: "label", label: "Link Label", placeholder: "Privacy Policy" },
-            { field: "href", label: "Link", placeholder: "/privacy-policy" },
+            { field: "label", label: "Link Label", placeholder: "Sitemap" },
+            { field: "href", label: "Link", placeholder: "/sitemap.xml" },
           ]}
           blank={{ label: "", href: "/" }}
           addLabel="Add Link"
           onChange={(links) => onChange(setPath(data, "copyright.links", links))}
         />
+      </Card>
+
+      <Card title="Developer Credit (Copyright Bar)">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <Text data={data} path="copyright.developer.label" label="Credit Text" placeholder="Designed & Developed by" onChange={onChange} />
+          <Text data={data} path="copyright.developer.name" label="Company Name" placeholder="enCodency" onChange={onChange} />
+          <Text data={data} path="copyright.developer.href" label="Company Website" placeholder="https://encodency.com" onChange={onChange} />
+        </div>
+        <ImageField data={data} path="copyright.developer.logoUrl" label="Company Logo (optional, shown on the red badge)" onChange={onChange} />
+        <p className="text-[10px] font-medium text-slate-500">Without a logo the badge shows the company name as text. Clear the company name to hide the credit.</p>
       </Card>
     </div>
   );

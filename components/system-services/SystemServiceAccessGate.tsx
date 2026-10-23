@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Check, Clock3, KeyRound, LockKeyhole, ShieldCheck, UserCheck } from "lucide-react";
-import { ApiRequestError } from "@/lib/api";
+import { api, ApiRequestError } from "@/lib/api";
 import { externalServiceApi, type SystemServiceAccessRequirements } from "@/lib/externalServiceApi";
 
 import { useAppSelector } from "@/store/hooks";
@@ -28,10 +28,35 @@ export default function SystemServiceAccessGate({ onGranted }: Props) {
   const [otpSending, setOtpSending] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [error, setError] = useState("");
+  const [logoUrl, setLogoUrl] = useState<string>("/ensis-logo.webp");
 
-  const targetPhone = requirements?.requester?.phone || "+91 9310219283";
+  useEffect(() => {
+    let active = true;
+    api
+      .get<{ data?: { logo?: { imageUrl?: string; alt?: string } }; logo?: { imageUrl?: string; alt?: string } }>(
+        "/component-content/layout.header"
+      )
+      .then((res) => {
+        if (!active || !res) return;
+        const logo = res.data?.logo || res.logo;
+        if (logo?.imageUrl) {
+          setLogoUrl(logo.imageUrl);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const currentAdmin = useAppSelector((state) => state.auth.admin);
+  const targetPhone = requirements?.requester?.phone || currentAdmin?.phone || "";
 
   const handleSendOtp = async () => {
+    if (!targetPhone) {
+      setError("Please configure a mobile number in Staff Management to receive WhatsApp OTP.");
+      return;
+    }
     setOtpSending(true);
     setError("");
     try {
@@ -53,11 +78,14 @@ export default function SystemServiceAccessGate({ onGranted }: Props) {
         setRequirements(next);
         setSelectedUsers({ self: next.requester?.id ?? "" });
         setCodes({ self: "" });
-        try {
-          await externalServiceApi.sendOtp(next.requester?.phone || "+91 9310219283");
-          if (active) setOtpSent(true);
-        } catch {
-          // ignore auto-send error on load
+        const phoneToSend = next.requester?.phone || currentAdmin?.phone;
+        if (phoneToSend) {
+          try {
+            await externalServiceApi.sendOtp(phoneToSend);
+            if (active) setOtpSent(true);
+          } catch {
+            // ignore auto-send error on load
+          }
         }
       } catch (reason) {
         if (active) setError(errorText(reason));
@@ -66,7 +94,7 @@ export default function SystemServiceAccessGate({ onGranted }: Props) {
       }
     })();
     return () => { active = false; };
-  }, []);
+  }, [currentAdmin?.phone]);
 
   const roles = requirements?.requiredRoles ?? [];
 
@@ -126,7 +154,12 @@ export default function SystemServiceAccessGate({ onGranted }: Props) {
         {/* LEFT ASIDE */}
         <aside className="hidden w-full max-w-[300px] justify-self-center self-center rounded-2xl border border-white/60 bg-white/75 p-6 text-center shadow-xl backdrop-blur-md lg:block">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/ensis-logo.webp" alt="Ensis" className="mx-auto h-[100px] w-[100px] object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.15)]" />
+          <img
+            src={logoUrl}
+            alt="Ensis"
+            onError={() => setLogoUrl("/ensis-logo.webp")}
+            className="mx-auto h-[100px] w-auto max-w-[200px] object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.15)]"
+          />
           <div className="mx-auto mt-4 h-0.5 w-24 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent" />
           <h2 className="mt-3 font-serif text-[22px] font-bold leading-tight tracking-tight text-[#075D3D]">Protected System Records</h2>
           <p className="mx-auto mt-2 max-w-[240px] text-[12px] font-medium leading-relaxed text-[#554331]">Only verified team members can access domain, hosting &amp; infrastructure renewal data.</p>
@@ -147,7 +180,7 @@ export default function SystemServiceAccessGate({ onGranted }: Props) {
                   Verify before opening this page
                 </h2>
                 <p className="mt-0.5 max-w-[52ch] text-[12.5px] font-medium leading-relaxed text-slate-600">
-                  Enter the 6-digit OTP sent to your WhatsApp number <span className="font-bold text-[#075D3D]">{targetPhone}</span>.
+                  Enter the 6-digit OTP sent to your WhatsApp number <span className="font-bold text-[#075D3D]">{targetPhone || "(no phone set in profile)"}</span>.
                 </p>
               </div>
               <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11.5px] font-bold text-amber-800">
@@ -222,10 +255,10 @@ export default function SystemServiceAccessGate({ onGranted }: Props) {
                                   <div className="flex min-h-10 min-w-0 items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50 px-3.5">
                                     <UserCheck size={16} className="shrink-0 text-[#075D3D]" />
                                     <span className="truncate text-[13px] font-bold text-slate-900">
-                                      {requirements.requester!.name}
+                                      {requirements.requester?.name || currentAdmin?.name || "Admin"}
                                     </span>
                                     <span className="ml-auto hidden truncate text-[11.5px] font-medium text-slate-500 md:block">
-                                      {requirements.requester!.email}
+                                      {requirements.requester?.email || currentAdmin?.email || ""}
                                     </span>
                                   </div>
                                 ) : (
