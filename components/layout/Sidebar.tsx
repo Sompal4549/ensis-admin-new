@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   usePathname,
@@ -8,6 +8,8 @@ import {
 } from "next/navigation";
 
 import { ChevronDown, Headphones } from "lucide-react";
+
+import { api } from "@/lib/api";
 
 import {
   NAV_SECTIONS,
@@ -56,6 +58,30 @@ function SidebarContent({
   const searchParams = useSearchParams();
   // Dropdown groups the admin opened/closed by hand; otherwise a group is open while one of its pages is
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [logoUrl, setLogoUrl] = useState<string>("/ensis-logo.webp");
+  const [logoAlt, setLogoAlt] = useState<string>("Ensis Admin");
+
+  useEffect(() => {
+    let active = true;
+    api
+      .get<{ data?: { logo?: { imageUrl?: string; alt?: string } }; logo?: { imageUrl?: string; alt?: string } }>(
+        "/component-content/layout.header"
+      )
+      .then((res) => {
+        if (!active || !res) return;
+        const logo = res.data?.logo || res.logo;
+        if (logo?.imageUrl) {
+          setLogoUrl(logo.imageUrl);
+        }
+        if (logo?.alt) {
+          setLogoAlt(logo.alt);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const renderItem = (item: NavItem) => {
     const Icon = item.icon;
@@ -327,8 +353,9 @@ function SidebarContent({
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/ensis-logo.webp"
-            alt="Ensis Admin"
+            src={logoUrl}
+            alt={logoAlt}
+            onError={() => setLogoUrl("/ensis-logo.webp")}
             className="
               h-full
               max-h-[70px]

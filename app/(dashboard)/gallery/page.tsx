@@ -303,8 +303,8 @@ export default function MediaLibraryPage() {
     const fetchBackendData = async () => {
       try {
         const [metaRes, itemsRes] = await Promise.all([
-          fetch(`${BACKEND_URL}/api/website/gallery/meta`).catch(() => null),
-          fetch(`${BACKEND_URL}/api/website/gallery/items`).catch(() => null),
+          fetch(`${BACKEND_URL}/api/website/gallery/meta`, { headers: authHeader() }).catch(() => null),
+          fetch(`${BACKEND_URL}/api/website/gallery/items`, { headers: authHeader() }).catch(() => null),
         ]);
 
         if (metaRes && metaRes.ok) {
@@ -371,7 +371,7 @@ export default function MediaLibraryPage() {
     saveCatsToLocal(updated);
     fetch(`${BACKEND_URL}/api/website/gallery/meta`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeader() },
       body: JSON.stringify({ categories: updated }),
     }).catch(() => null);
     setNewCategoryInput("");
@@ -385,7 +385,7 @@ export default function MediaLibraryPage() {
     saveCatsToLocal(updated);
     fetch(`${BACKEND_URL}/api/website/gallery/meta`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeader() },
       body: JSON.stringify({ categories: updated }),
     }).catch(() => null);
     showSuccess(`Category "${cat}" removed.`);
@@ -404,7 +404,7 @@ export default function MediaLibraryPage() {
     saveYearsToLocal(updated);
     fetch(`${BACKEND_URL}/api/website/gallery/meta`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeader() },
       body: JSON.stringify({ years: updated }),
     }).catch(() => null);
     setNewYearInput("");
@@ -418,7 +418,7 @@ export default function MediaLibraryPage() {
     saveYearsToLocal(updated);
     fetch(`${BACKEND_URL}/api/website/gallery/meta`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeader() },
       body: JSON.stringify({ years: updated }),
     }).catch(() => null);
     showSuccess(`Year "${yr}" removed.`);
@@ -668,7 +668,7 @@ export default function MediaLibraryPage() {
       const chunk = serverTargets.slice(i, i + CHUNK_SIZE);
       const res = await fetch(`${BACKEND_URL}/api/website/gallery/items/bulk-delete`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeader() },
         body: JSON.stringify({ ids: chunk.map((item) => item._id) }),
       }).catch(() => null);
 
@@ -774,7 +774,7 @@ export default function MediaLibraryPage() {
     if (target?._id) {
       await fetch(`${BACKEND_URL}/api/website/gallery/items/${target._id}/status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeader() },
         body: JSON.stringify({ status: newStatus }),
       }).catch(() => null);
     }
@@ -809,6 +809,7 @@ export default function MediaLibraryPage() {
       if (item._id) {
         await fetch(`${BACKEND_URL}/api/website/gallery/items/${item._id}`, {
           method: "DELETE",
+          headers: authHeader(),
         }).catch(() => null);
       }
       const updated = mediaItems.filter((x) => x.id !== item.id);
@@ -882,7 +883,7 @@ export default function MediaLibraryPage() {
 
       const res = await fetch(`${BACKEND_URL}/api/website/gallery/items`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeader() },
         body: JSON.stringify(payload),
       });
 
@@ -963,7 +964,7 @@ export default function MediaLibraryPage() {
     if (editingItem._id) {
       await fetch(`${BACKEND_URL}/api/website/gallery/items/${editingItem._id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeader() },
         body: JSON.stringify({
           title: finalTitle,
           imageAlt: formImageAlt.trim(),
@@ -1021,7 +1022,7 @@ export default function MediaLibraryPage() {
       if (selected._id) {
         await fetch(`${BACKEND_URL}/api/website/gallery/items/${selected._id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeader() },
           body: JSON.stringify({
             image: newUrl,
             uploadedBy: loggedInAdminName,
@@ -1094,7 +1095,7 @@ export default function MediaLibraryPage() {
       if (selected._id) {
         await fetch(`${BACKEND_URL}/api/website/gallery/items/${selected._id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeader() },
           body: JSON.stringify({
             image: newUrl,
             uploadedBy: loggedInAdminName,
@@ -1170,7 +1171,7 @@ export default function MediaLibraryPage() {
     if (changes.length > 0) {
       const res = await fetch(`${BACKEND_URL}/api/website/gallery/items/reorder`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeader() },
         body: JSON.stringify({ items: changes }),
       }).catch(() => null);
 
