@@ -5,8 +5,6 @@ import { ApiRequestError, api } from "./api";
 
 export type SeoSeverity = "critical" | "warning" | "notice";
 
-export type SeoSeverity = "critical" | "warning" | "notice";
-
 export interface SeoScores {
   overall: number | null;
   technical: number | null;

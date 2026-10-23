@@ -165,6 +165,7 @@ export default function ApplicationDetailPage() {
       text: "Choose which email should be re-sent for this application.",
       showDenyButton: true,
       showCancelButton: true,
+      showCloseButton: true,
       allowOutsideClick: false,
       allowEscapeKey: false,
       confirmButtonText: "Both (HR + Candidate)",
@@ -179,6 +180,7 @@ export default function ApplicationDetailPage() {
     if (choice.isConfirmed) to = "both";
     else if (choice.isDenied) to = "candidate";
     else if (choice.dismiss === Swal.DismissReason.cancel) to = "hr";
+    // X / close button → no choice made, just exit
     if (!to) return;
 
     setResending(true);

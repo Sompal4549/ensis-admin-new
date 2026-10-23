@@ -143,8 +143,10 @@ function pagesSubRouteLabel(pathname: string): string | null {
 const CAREERS_SECTION_ROUTES = [
   "/career-dashboard",
   "/job-postings",
+  "/career-applications",
   "/applications-ai-response",
   "/career-settings",
+  "/ip-block-limits",
 ];
 
 /** Mirrors pagesSubRouteLabel's role, but for the whole "Careers & Applications" nav
