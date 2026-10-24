@@ -223,14 +223,12 @@ function FooterForm({ data, onChange }: { data: Data; onChange: (data: Data) => 
       </Card>
 
       <Card title="Get In Touch (Contact Information)">
+        <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Address, phone number and email shown in the footer come from the Contact page &rarr; Get In Touch section.
+          Edit them there and the footer updates automatically.
+        </p>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Text data={data} path="contact.phone" label="Phone Number" placeholder="+919654900525" required onChange={onChange} />
-          <Text data={data} path="contact.email" label="Contact Email" placeholder="info@ensis.in" required onChange={onChange} />
           <Text data={data} path="contact.whatsappPhone" label="WhatsApp Number" placeholder="+919654900525" onChange={onChange} />
-        </div>
-        <div>
-          <FieldLabel>Address</FieldLabel>
-          <Textarea value={String(getPath(data, "contact.address") || "")} onChange={(next) => onChange(setPath(data, "contact.address", next))} rows={2} noLimit />
         </div>
       </Card>
 
