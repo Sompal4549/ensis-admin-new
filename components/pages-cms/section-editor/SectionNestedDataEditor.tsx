@@ -141,6 +141,8 @@ export function SectionNestedDataEditor({
     for (const [key, value] of Object.entries(data)) {
       if (key === "id" || key === "_id") continue;
       if (coveredLists.has(key)) continue;
+      // Social links are managed in Advanced SEO now (the Contact page row is hidden from this editor)
+      if (key === "socialLinks") continue;
 
       const imageGroup = IMAGE_KEY_GROUPS.find((group) => group.includes(key));
       if (imageGroup) {

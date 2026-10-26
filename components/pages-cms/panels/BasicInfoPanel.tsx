@@ -2,40 +2,9 @@ import { PUBLIC_SITE_URL, type CmsPage } from "@/lib/cmsPages";
 import { FieldLabel, SearchableSelectField, SelectField, TextInput } from "../fields";
 import { SectionTitle } from "../section-editor";
 import type { FormState } from "../types";
+import { getTemplateForPage } from "../utils/templateMapping";
 
-// Ensis website pages (titles as saved in the CMS, so templates resolve by exact title)
-const TEMPLATE_OPTIONS = [
-  "Homepage",
-  "About Us - Heritage & Craftsmanship",
-  "Turnkey Solutions - Clinic & Spa Setup",
-  "Custom Solutions & Engineering",
-  "NABH Healthcare & Spa Consultancy",
-  "Products Catalog - Equipment & Furniture",
-  "Projects & Clients - Installation Portfolio",
-  "Blog & Clinical Insights",
-  "Careers & Join The Team",
-  "Contact Us & Corporate Sales",
-  "Quick Equipment Enquiry",
-  "Privacy Policy",
-  "Terms & Conditions",
-];
-
-const BASE_PARENT_OPTIONS = [
-  "— No Parent (Top Level) —",
-  "Home",
-  "About Us - Heritage & Craftsmanship",
-  "Turnkey Solutions - Clinic & Spa Setup",
-  "Custom Solutions & Engineering",
-  "NABH Healthcare & Spa Consultancy",
-  "Products Catalog - Equipment & Furniture",
-  "Projects & Clients - Installation Portfolio",
-  "Blog & Clinical Insights",
-  "Careers & Join The Team",
-  "Contact Us & Corporate Sales",
-  "Quick Equipment Enquiry",
-  "Privacy Policy",
-  "Terms & Conditions",
-];
+const NO_PARENT = "— No Parent (Top Level) —";
 
 export function BasicInfoPanel({
   form,
@@ -185,7 +154,7 @@ export function BasicInfoPanel({
             placeholder="Select Template"
             searchPlaceholder="Search page or template..."
             onChange={onTemplateChange}
-            options={TEMPLATE_OPTIONS}
+            options={Array.from(new Set(pages.map((p) => getTemplateForPage(p))))}
           />
         </div>
 
@@ -203,10 +172,7 @@ export function BasicInfoPanel({
             ) => {
               updateField("parent", value);
             }}
-            options={[
-              ...BASE_PARENT_OPTIONS,
-              ...pages.map((p) => p.title).filter((t) => !BASE_PARENT_OPTIONS.includes(t)),
-            ]}
+            options={[NO_PARENT, "Home", ...pages.map((p) => p.title).filter((t) => t !== "Home")]}
           />
 
           <p className="mt-[2px] text-[9px] font-medium leading-[11px] text-red-500">

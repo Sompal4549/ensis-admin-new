@@ -18,6 +18,7 @@ import {
   Gauge,
   Layers,
   Lightbulb,
+  Monitor,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -51,6 +52,9 @@ export interface SeoCheckupFullReportProps {
   url?: string;
   meta?: ReportMetaOverride;
   pagespeed?: PageSpeedSnapshot | null;
+  /** Which Lighthouse run the PageSpeed numbers belong to; the switch below is hidden without onStrategyChange */
+  strategy?: "mobile" | "desktop";
+  onStrategyChange?: (strategy: "mobile" | "desktop") => void;
   report?: SeoCheckupReportData;
   onClose?: () => void;
   onReAudit?: () => void;
@@ -450,6 +454,8 @@ export default function SeoCheckupFullReport({
   url,
   meta,
   pagespeed: pagespeedProp,
+  strategy,
+  onStrategyChange,
   report: reportProp,
   onClose,
   onReAudit,
@@ -579,6 +585,23 @@ export default function SeoCheckupFullReport({
         </div>
 
         <div className="no-print flex flex-wrap items-center gap-2">
+          {onStrategyChange && (
+            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-100 p-0.5 text-[11px] font-bold">
+              {(["mobile", "desktop"] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => onStrategyChange(option)}
+                  className={`inline-flex cursor-pointer items-center gap-1 rounded-md px-2.5 py-1 transition ${
+                    (strategy ?? "mobile") === option ? "bg-white text-blue-700 shadow-xs" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {option === "mobile" ? <Smartphone className="h-3 w-3" /> : <Monitor className="h-3 w-3" />}
+                  {option === "mobile" ? "Mobile" : "Desktop"}
+                </button>
+              ))}
+            </div>
+          )}
           {onReAudit && (
             <button
               type="button"
