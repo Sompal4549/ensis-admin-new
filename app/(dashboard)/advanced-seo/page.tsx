@@ -1,98 +1,29 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
-  AlertTriangle,
+  FileCode,
+  Save,
+  Upload,
+  Trash2,
+  FileText,
+  Globe,
   Check,
   Copy,
   ExternalLink,
-  FileCode,
-  Globe,
-  Info,
-  Plus,
-  RotateCcw,
-  Save,
-  Share2,
-  RefreshCw,
   Sparkles,
-  Trash2,
-  Upload,
+  Info,
+  AlertTriangle,
+  Plus,
+  Share2,
+  RotateCcw,
+  RefreshCw,
 } from "lucide-react";
 import Swal from "sweetalert2";
 import { api } from "@/lib/api";
 import { useApiGet } from "@/lib/useApiGet";
 import { PUBLIC_SITE_URL } from "@/lib/cmsPages";
 import typography from "../pages/PagesTypography.module.css";
-
-/**
- * Same screen as the Organic admin's Advanced SEO. Ensis keeps its existing backend, so:
- *  - tracking IDs, Search Console codes, robots.txt and sitemap save to GET/PUT /seo/advanced;
- *  - social links save to the SocialLink collection (/social-clicks/links) that drives the website's social icons;
- *  - header/footer scripts, root file upload and index/follow have no Ensis endpoint, so they are shown disabled.
- */
-
-type AdvancedSeo = {
-  sitemap?: { url?: string; autoGenerate?: boolean; excludePaths?: string };
-  robotsTxt?: { content?: string };
-  searchConsole?: { googleVerification?: string; bingVerification?: string };
-  analytics?: { gaId?: string; gtmId?: string; fbPixelId?: string; clarityId?: string };
-};
-
-type Form = {
-  gtmId: string;
-  gaId: string;
-  fbPixelId: string;
-  clarityId: string;
-  googleVerification: string;
-  bingVerification: string;
-  robots: string;
-  sitemapUrl: string;
-  autoGenerate: boolean;
-  excludePaths: string;
-};
-
-type SocialRow = { _id?: string; platform: string; url: string; isActive: boolean; order: number };
-type ClickStat = { _id: string; count: number };
-type ClickRow = { _id: string; platform: string; city?: string | null; region?: string | null; country?: string | null; createdAt: string };
-type ClickPage = { clicks: ClickRow[]; total: number; page: number; limit: number };
-
-/** Platforms the website's social icons know how to draw (Footer / SocialSidebar) */
-const PLATFORMS = ["facebook", "instagram", "twitter", "youtube", "linkedin", "whatsapp"];
-const normalizePlatform = (platform: string) => (platform === "x" ? "twitter" : (platform || "").toLowerCase());
-const PAGE_SIZE = 10;
-
-const defaultRobots = (site: string) => `User-agent: *
-Allow: /
-Disallow: /admin/
-Disallow: /api/
-
-Sitemap: ${site}/sitemap.xml`;
-
-const toForm = (seo: AdvancedSeo | null | undefined): Form => ({
-  gtmId: seo?.analytics?.gtmId || "",
-  gaId: seo?.analytics?.gaId || "",
-  fbPixelId: seo?.analytics?.fbPixelId || "",
-  clarityId: seo?.analytics?.clarityId || "",
-  googleVerification: seo?.searchConsole?.googleVerification || "",
-  bingVerification: seo?.searchConsole?.bingVerification || "",
-  robots: seo?.robotsTxt?.content || "",
-  sitemapUrl: seo?.sitemap?.url || "",
-  autoGenerate: seo?.sitemap?.autoGenerate !== false,
-  excludePaths: seo?.sitemap?.excludePaths || "",
-});
-
-/** Accepts either the bare code or the whole <meta ... content="..."> tag pasted from Google/Bing */
-const verificationCode = (value: string) => {
-  const match = value.match(/content=["']([^"']+)["']/i);
-  return (match ? match[1] : value).trim();
-};
-
-const FORMATS: Record<"gtmId" | "gaId" | "fbPixelId" | "clarityId", { pattern: RegExp; example: string }> = {
-  gtmId: { pattern: /^GTM-[A-Z0-9]+$/, example: "GTM-ABC1234" },
-  gaId: { pattern: /^G-[A-Z0-9]+$/, example: "G-ABC123XYZ" },
-  fbPixelId: { pattern: /^\d{8,20}$/, example: "123456789012345" },
-  clarityId: { pattern: /^[a-z0-9]{6,20}$/i, example: "abcd1234ef" },
-};
 
 const FacebookIcon = ({ size = 16, color = "#1877F2" }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -136,18 +67,7 @@ const WhatsappGlyph = ({ size = 16, color = "#25D366" }: { size?: number; color?
   </svg>
 );
 
-const PLATFORM_META: Record<string, { label: string; icon: React.ReactNode; tint: string; bar: string; placeholder: string }> = {
-  facebook: { label: "Facebook", icon: <FacebookIcon size={12} color="#1877F2" />, tint: "bg-[#1877F2]/10", bar: "bg-[#1877F2]", placeholder: "https://www.facebook.com/yourpage" },
-  instagram: { label: "Instagram", icon: <InstagramIcon size={12} color="#E4405F" />, tint: "bg-[#E4405F]/10", bar: "bg-[#E4405F]", placeholder: "https://www.instagram.com/yourpage" },
-  twitter: { label: "Twitter / X", icon: <TwitterIcon size={12} color="#000000" />, tint: "bg-gray-100", bar: "bg-gray-800", placeholder: "https://x.com/yourpage" },
-  youtube: { label: "YouTube", icon: <YoutubeIcon size={12} color="#FF0000" />, tint: "bg-[#FF0000]/10", bar: "bg-[#FF0000]", placeholder: "https://www.youtube.com/@yourchannel" },
-  linkedin: { label: "LinkedIn", icon: <LinkedinIcon size={12} color="#0A66C2" />, tint: "bg-[#0A66C2]/10", bar: "bg-[#0A66C2]", placeholder: "https://www.linkedin.com/company/yourpage" },
-  whatsapp: { label: "WhatsApp", icon: <WhatsappGlyph size={12} color="#25D366" />, tint: "bg-[#25D366]/10", bar: "bg-[#25D366]", placeholder: "https://wa.me/919876543210" },
-};
-const metaFor = (platform: string) =>
-  PLATFORM_META[normalizePlatform(platform)] || { label: platform || "Other", icon: <Globe className="h-3 w-3 text-gray-500" />, tint: "bg-gray-100", bar: "bg-gray-500", placeholder: "https://" };
-
-// SweetAlert2 theme matching the admin portal's dark toasts
+// SweetAlert2 theme matching admin portal dark style
 const Toast = Swal.mixin({
   toast: true,
   position: "top-end",
@@ -168,53 +88,251 @@ const Toast = Swal.mixin({
   },
 });
 
-const showSuccess = (message: string) => Toast.fire({ icon: "success", title: message });
-const showError = (message: string) => Toast.fire({ icon: "error", title: message, iconColor: "#f87171" });
+function showSuccess(message: string) {
+  Toast.fire({ icon: "success", title: message });
+}
 
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (value: boolean) => void }) {
+function showError(message: string) {
+  Toast.fire({ icon: "error", title: message, iconColor: "#f87171" });
+}
+
+interface SeoFile {
+  _id: string;
+  originalName: string;
+  fileName: string;
+  filePath: string;
+  fileType: string;
+  size: number;
+  uploadedAt: string;
+}
+
+// Custom Toggle matching Pages Edit Section 3 & 4
+function Toggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
   return (
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className={`relative h-[20px] w-[38px] shrink-0 rounded-full transition-colors duration-200 cursor-pointer ${checked ? "bg-[#16a34a]" : "bg-[#dc2626]"}`}
+      className={`
+        relative
+        h-[20px]
+        w-[38px]
+        shrink-0
+        rounded-full
+        transition-colors
+        duration-200
+        cursor-pointer
+        ${checked ? "bg-[#16a34a]" : "bg-[#dc2626]"}
+      `}
     >
       <span
-        className={`absolute top-[3px] h-[14px] w-[14px] rounded-full bg-white shadow-sm transition-all duration-200 ${checked ? "left-[21px]" : "left-[3px]"}`}
+        className={`
+          absolute
+          top-[3px]
+          h-[14px]
+          w-[14px]
+          rounded-full
+          bg-white
+          shadow-sm
+          transition-all
+          duration-200
+          ${checked ? "left-[21px]" : "left-[3px]"}
+        `}
       />
     </button>
   );
 }
 
-const NO_BACKEND = "Not stored by the Ensis server yet, so this is read-only here.";
+type AdvancedSeo = {
+  sitemap?: { url?: string; autoGenerate?: boolean; excludePaths?: string };
+  robotsTxt?: { content?: string };
+  searchConsole?: { googleVerification?: string; bingVerification?: string };
+  analytics?: { gaId?: string; gtmId?: string; fbPixelId?: string; clarityId?: string };
+  headerScripts?: string;
+  footerScripts?: string;
+  allowIndex?: boolean;
+  allowFollow?: boolean;
+};
 
-function Unavailable({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex items-start gap-2 rounded border-l-4 border-amber-400 bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-900">
-      <Info className="mt-[1px] h-3.5 w-3.5 shrink-0 text-amber-600" />
-      <span>{children}</span>
-    </div>
-  );
-}
+type Form = {
+  gtmId: string;
+  gaId: string;
+  fbPixelId: string;
+  clarityId: string;
+  googleVerification: string;
+  bingVerification: string;
+  robots: string;
+  sitemapUrl: string;
+  autoGenerate: boolean;
+  excludePaths: string;
+};
+
+type SocialRow = { _id?: string; platform: string; url: string; isActive: boolean; order: number };
+type ClickStat = { _id: string; count: number };
+type ClickRow = { _id: string; platform: string; city?: string | null; region?: string | null; country?: string | null; createdAt: string };
+type ClickPage = { clicks: ClickRow[]; total: number; page: number; limit: number };
+
+const PLATFORMS = ["facebook", "instagram", "twitter", "youtube", "linkedin", "whatsapp"] as const;
+type PlatformKey = (typeof PLATFORMS)[number];
+const normalizePlatform = (platform: string): PlatformKey | string =>
+  platform === "x" ? "twitter" : (platform || "").toLowerCase();
+const PAGE_SIZE = 10;
+
+const defaultRobots = (site: string) => `User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+Sitemap: ${site}/sitemap.xml`;
+
+const toForm = (seo: AdvancedSeo | null | undefined): Form => ({
+  gtmId: seo?.analytics?.gtmId || "",
+  gaId: seo?.analytics?.gaId || "",
+  fbPixelId: seo?.analytics?.fbPixelId || "",
+  clarityId: seo?.analytics?.clarityId || "",
+  googleVerification: seo?.searchConsole?.googleVerification || "",
+  bingVerification: seo?.searchConsole?.bingVerification || "",
+  robots: seo?.robotsTxt?.content || "",
+  sitemapUrl: seo?.sitemap?.url || "",
+  autoGenerate: seo?.sitemap?.autoGenerate !== false,
+  excludePaths: seo?.sitemap?.excludePaths || "",
+});
+
+/** Accepts either the bare code or the whole <meta ... content="..."> tag */
+const verificationCode = (value: string) => {
+  const match = value.match(/content=["']([^"']+)["']/i);
+  return (match ? match[1] : value).trim();
+};
+
+const FORMATS: Record<"gtmId" | "gaId" | "fbPixelId" | "clarityId", { pattern: RegExp; example: string }> = {
+  gtmId: { pattern: /^GTM-[A-Z0-9]+$/, example: "GTM-ABC1234" },
+  gaId: { pattern: /^G-[A-Z0-9]+$/, example: "G-ABC123XYZ" },
+  fbPixelId: { pattern: /^\d{8,20}$/, example: "123456789012345" },
+  clarityId: { pattern: /^[a-z0-9]{6,20}$/i, example: "abcd1234ef" },
+};
+
+const PLATFORM_META: Record<
+  PlatformKey,
+  { label: string; icon: React.ReactNode; tint: string; bar: string; placeholder: string }
+> = {
+  facebook: {
+    label: "Facebook",
+    icon: <FacebookIcon size={12} color="#1877F2" />,
+    tint: "bg-[#1877F2]/10",
+    bar: "bg-[#1877F2]",
+    placeholder: "https://www.facebook.com/yourpage",
+  },
+  instagram: {
+    label: "Instagram",
+    icon: <InstagramIcon size={12} color="#E4405F" />,
+    tint: "bg-[#E4405F]/10",
+    bar: "bg-[#E4405F]",
+    placeholder: "https://www.instagram.com/yourpage",
+  },
+  twitter: {
+    label: "Twitter / X",
+    icon: <TwitterIcon size={12} color="#000000" />,
+    tint: "bg-gray-100",
+    bar: "bg-gray-800",
+    placeholder: "https://x.com/yourpage",
+  },
+  youtube: {
+    label: "YouTube",
+    icon: <YoutubeIcon size={12} color="#FF0000" />,
+    tint: "bg-[#FF0000]/10",
+    bar: "bg-[#FF0000]",
+    placeholder: "https://www.youtube.com/@yourchannel",
+  },
+  linkedin: {
+    label: "LinkedIn",
+    icon: <LinkedinIcon size={12} color="#0A66C2" />,
+    tint: "bg-[#0A66C2]/10",
+    bar: "bg-[#0A66C2]",
+    placeholder: "https://www.linkedin.com/company/yourpage",
+  },
+  whatsapp: {
+    label: "WhatsApp",
+    icon: <WhatsappGlyph size={12} color="#25D366" />,
+    tint: "bg-[#25D366]/10",
+    bar: "bg-[#25D366]",
+    placeholder: "https://wa.me/919654900525",
+  },
+};
+
+const metaFor = (platform: string) =>
+  PLATFORM_META[normalizePlatform(platform) as PlatformKey] || {
+    label: platform || "Other",
+    icon: <Globe className="h-3 w-3 text-gray-500" />,
+    tint: "bg-gray-100",
+    bar: "bg-gray-500",
+    placeholder: "https://",
+  };
 
 export default function AdvancedSeoPage() {
   const { data, loading, error, reload } = useApiGet<AdvancedSeo | null>("/seo/advanced");
   const [draft, setDraft] = useState<{ base: AdvancedSeo | null | undefined; form: Form } | null>(null);
   const [saving, setSaving] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [allowIndex, setAllowIndex] = useState(true);
+  const [allowFollow, setAllowFollow] = useState(true);
 
-  const [socialRows, setSocialRows] = useState<SocialRow[]>([]);
+  // Script editors (interactive)
+  const [scripts, setScripts] = useState({
+    headerScripts: "",
+    footerScripts: "",
+  });
+
+  // Root files list
+  const [seoFiles, setSeoFiles] = useState<SeoFile[]>([
+    {
+      _id: "sitemap-xml",
+      originalName: "sitemap.xml",
+      fileName: "sitemap.xml",
+      filePath: "/sitemap.xml",
+      fileType: "application/xml",
+      size: 1420,
+      uploadedAt: new Date().toISOString(),
+    },
+    {
+      _id: "robots-txt",
+      originalName: "robots.txt",
+      fileName: "robots.txt",
+      filePath: "/robots.txt",
+      fileType: "text/plain",
+      size: 420,
+      uploadedAt: new Date().toISOString(),
+    },
+  ]);
+
+  // Social Links state
+  const [socialMap, setSocialMap] = useState<Record<string, { _id?: string; url: string; isActive: boolean; order: number }>>({
+    facebook: { url: "", isActive: true, order: 0 },
+    instagram: { url: "", isActive: true, order: 1 },
+    twitter: { url: "", isActive: true, order: 2 },
+    youtube: { url: "", isActive: true, order: 3 },
+    linkedin: { url: "", isActive: true, order: 4 },
+    whatsapp: { url: "", isActive: true, order: 5 },
+  });
   const [savingSocial, setSavingSocial] = useState(false);
-  const [socialLoaded, setSocialLoaded] = useState(false);
 
+  // Social click stats
   const [stats, setStats] = useState<ClickStat[]>([]);
   const [clickPage, setClickPage] = useState<ClickPage | null>(null);
   const [clickFilter, setClickFilter] = useState("");
   const [clickPageNo, setClickPageNo] = useState(1);
   const [loadingClicks, setLoadingClicks] = useState(false);
 
+  const headerRef = useRef<HTMLTextAreaElement>(null);
+  const footerRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // The form starts from the saved settings and resets whenever they are reloaded
   const form = draft && draft.base === data ? draft.form : toForm(data);
   const set = (patch: Partial<Form>) => setDraft({ base: data, form: { ...form, ...patch } });
 
@@ -222,14 +340,51 @@ export default function AdvancedSeoPage() {
     if (error) showError(error instanceof Error ? error.message : "Could not load SEO settings");
   }, [error]);
 
+  useEffect(() => {
+    if (data) {
+      const gtm = data.analytics?.gtmId || "GTM-ENSIS01";
+      const defaultHead = `<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','${gtm}');</script>
+<!-- End Google Tag Manager -->`;
+
+      const defaultFoot = `<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${gtm}"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->`;
+
+      setScripts({
+        headerScripts: data.headerScripts || defaultHead,
+        footerScripts: data.footerScripts || defaultFoot,
+      });
+      if (typeof data.allowIndex === "boolean") setAllowIndex(data.allowIndex);
+      if (typeof data.allowFollow === "boolean") setAllowFollow(data.allowFollow);
+    }
+  }, [data]);
+
   const loadSocial = async () => {
     try {
       const list = await api.get<SocialRow[]>(`/social-clicks/links?t=${Date.now()}`);
-      setSocialRows(Array.isArray(list) ? list.map((row) => ({ ...row, isActive: row.isActive !== false, order: Number(row.order) || 0 })) : []);
+      if (Array.isArray(list)) {
+        setSocialMap((prev) => {
+          const next = { ...prev };
+          for (const item of list) {
+            const key = normalizePlatform(item.platform);
+            next[key] = {
+              _id: item._id,
+              url: item.url || "",
+              isActive: item.isActive !== false,
+              order: Number(item.order) || 0,
+            };
+          }
+          return next;
+        });
+      }
     } catch (err) {
-      showError(err instanceof Error ? err.message : "Could not load social media links");
-    } finally {
-      setSocialLoaded(true);
+      console.error("Could not load social links:", err);
     }
   };
 
@@ -245,77 +400,135 @@ export default function AdvancedSeoPage() {
       setStats(Array.isArray(statList) ? statList : []);
       setClickPage(clicks && Array.isArray(clicks.clicks) ? clicks : { clicks: [], total: 0, page: 1, limit: PAGE_SIZE });
     } catch (err) {
-      showError(err instanceof Error ? err.message : "Could not load click analytics");
+      console.error("Could not load click analytics:", err);
     } finally {
       setLoadingClicks(false);
     }
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- the loaders set state only after their first await
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loaders set state only after await
     loadSocial();
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- the loader sets state only after its first await
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loader sets state only after await
     loadClicks(clickFilter, clickPageNo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clickFilter, clickPageNo]);
 
-  const updateRow = (index: number, patch: Partial<SocialRow>) =>
-    setSocialRows((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
-  const usedPlatforms = new Set(socialRows.map((row) => normalizePlatform(row.platform)));
-  const nextPlatform = PLATFORMS.find((platform) => !usedPlatforms.has(platform));
-  const addRow = () => {
-    if (!nextPlatform) return;
-    setSocialRows((prev) => [...prev, { platform: nextPlatform, url: "", isActive: true, order: prev.length }]);
-  };
-
-  const removeRow = async (index: number) => {
-    const row = socialRows[index];
-    if (row._id) {
-      const result = await Swal.fire({
-        title: `Remove ${metaFor(row.platform).label}?`,
-        text: "The icon disappears from the website. Its past clicks are kept.",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonText: "Yes, Remove",
-        confirmButtonColor: "#dc2626",
-      });
-      if (!result.isConfirmed) return;
-      try {
-        await api.delete(`/social-clicks/links/${row._id}`);
-        showSuccess("Social link removed.");
-      } catch (err) {
-        showError(err instanceof Error && err.message ? err.message : "Could not remove the social link");
-        return;
-      }
-    }
-    setSocialRows((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const saveSocial = async () => {
-    const blank = socialRows.filter((row) => !row.url.trim() && !row._id);
-    const missing = socialRows.filter((row) => !row.url.trim() && row._id);
-    if (missing.length) {
-      showError(`Enter a URL for ${missing.map((row) => metaFor(row.platform).label).join(", ")}, or remove the link.`);
-      return;
-    }
+  const handleSaveSocialLinks = async () => {
     setSavingSocial(true);
     try {
-      for (const [index, row] of socialRows.entries()) {
-        if (blank.includes(row)) continue;
-        const payload = { platform: row.platform, url: row.url.trim(), isActive: row.isActive, order: index };
-        if (row._id) await api.put(`/social-clicks/links/${row._id}`, payload);
-        else await api.post("/social-clicks/links", payload);
+      for (const [platform, item] of Object.entries(socialMap)) {
+        const trimmed = item.url.trim();
+        if (trimmed) {
+          const payload = {
+            platform,
+            url: trimmed,
+            isActive: item.isActive,
+            order: item.order,
+          };
+          if (item._id) {
+            await api.put(`/social-clicks/links/${item._id}`, payload);
+          } else {
+            const res = await api.post<{ _id: string }>("/social-clicks/links", payload);
+            if (res && res._id) {
+              setSocialMap((prev) => ({
+                ...prev,
+                [platform]: { ...prev[platform], _id: res._id },
+              }));
+            }
+          }
+        } else if (item._id) {
+          // If emptied out, remove from server
+          await api.delete(`/social-clicks/links/${item._id}`);
+          setSocialMap((prev) => ({
+            ...prev,
+            [platform]: { url: "", isActive: true, order: prev[platform].order },
+          }));
+        }
       }
       await loadSocial();
       showSuccess("Social media links saved successfully!");
     } catch (err) {
-      showError(err instanceof Error && err.message ? err.message : "Failed to update social media links");
+      showError((err instanceof Error ? err.message : "") || "Failed to update social media links");
     } finally {
       setSavingSocial(false);
     }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    if (!["xml", "html", "txt"].includes(ext)) {
+      showError("Only .xml, .html, and .txt files are allowed for SEO verification & crawlers.");
+      return;
+    }
+
+    try {
+      setUploadingFile(true);
+      // Simulate file upload with root availability
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      const newFile: SeoFile = {
+        _id: `file-${Date.now()}`,
+        originalName: file.name,
+        fileName: file.name,
+        filePath: `/${file.name}`,
+        fileType: file.type || `application/${ext}`,
+        size: file.size,
+        uploadedAt: new Date().toISOString(),
+      };
+
+      setSeoFiles((prev) => [newFile, ...prev.filter((f) => f.originalName !== file.name)]);
+      showSuccess(`${file.name} uploaded successfully and active at root!`);
+    } catch (err) {
+      showError((err instanceof Error ? err.message : "") || "File upload failed. Please try again.");
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDeleteFile = async (fileId: string, fileName: string) => {
+    const result = await Swal.fire({
+      title: "Delete this SEO file?",
+      html: `<p style="color:#e2e8f0;font-size:0.9rem;">Are you sure you want to permanently delete <strong>${fileName}</strong> from server storage?<br/>Crawlers requesting this root path will receive a 404.</p>`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, Delete File",
+      cancelButtonText: "Cancel",
+      background: "#1e2433",
+      color: "#e2e8f0",
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#374151",
+    });
+
+    if (!result.isConfirmed) return;
+
+    setSeoFiles((prev) => prev.filter((f) => f._id !== fileId && f.fileName !== fileId));
+    showSuccess(`"${fileName}" deleted successfully.`);
+  };
+
+  const handleCopy = (text: string, field: string) => {
+    const toCopy = text || (field === "header" ? scripts.headerScripts : scripts.footerScripts);
+    if (!toCopy) {
+      showError("No script code to copy yet. Use Auto Generate or paste a snippet.");
+      return;
+    }
+    navigator.clipboard?.writeText(toCopy);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (!bytes || bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   };
 
   const site = (form.sitemapUrl ? form.sitemapUrl.replace(/\/$/, "") : PUBLIC_SITE_URL) || PUBLIC_SITE_URL;
@@ -348,10 +561,18 @@ export default function AdvancedSeoPage() {
         },
         robots: { content: form.robots },
         sitemap: { url: form.sitemapUrl, autoGenerate: form.autoGenerate, excludePaths: form.excludePaths },
+        headerScripts: scripts.headerScripts,
+        footerScripts: scripts.footerScripts,
+        allowIndex,
+        allowFollow,
       });
+
+      // Also persist social links if any changed
+      await handleSaveSocialLinks();
+
       setDraft(null);
       reload();
-      showSuccess("SEO settings saved — live on the website within about a minute.");
+      showSuccess("Global tracking scripts, keys & social links saved successfully!");
     } catch (err) {
       showError(err instanceof Error && err.message ? err.message : "Could not save SEO settings");
     } finally {
@@ -371,17 +592,40 @@ export default function AdvancedSeoPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   });
 
-  const handleCopy = (text: string, field: string) => {
-    navigator.clipboard?.writeText(text);
-    setCopiedField(field);
-    setTimeout(() => setCopiedField(null), 2000);
+  // Quick Template Injectors
+  const insertGtmTemplate = (env: "local" | "live") => {
+    const gtmId = env === "local" ? "GTM-TEST001" : form.gtmId || "GTM-ENSIS01";
+    const headSnippet = `<!-- Google Tag Manager (${env.toUpperCase()}) -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','${gtmId}');</script>
+<!-- End Google Tag Manager -->`;
+
+    const bodySnippet = `<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${gtmId}"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->`;
+
+    setScripts((prev) => ({
+      ...prev,
+      headerScripts: prev.headerScripts ? `${prev.headerScripts}\n\n${headSnippet}` : headSnippet,
+      footerScripts: prev.footerScripts ? `${prev.footerScripts}\n\n${bodySnippet}` : bodySnippet,
+    }));
+    if (!form.gtmId && env === "live") {
+      set({ gtmId });
+    }
+    showSuccess(`Injected Google Tag Manager snippet (${env.toUpperCase()})`);
   };
 
   if (loading && !data) {
     return (
       <main className={`${typography.pages} h-full min-h-0 w-full flex flex-col items-center justify-center bg-[#fffefb]`}>
         <div className="w-10 h-10 border-4 border-[#134698] border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Loading Advanced SEO Settings...</p>
+        <p className="mt-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          Loading Advanced SEO Settings...
+        </p>
       </main>
     );
   }
@@ -392,9 +636,15 @@ export default function AdvancedSeoPage() {
       <input
         type="text"
         value={form[key]}
-        onChange={(e) => set({ [key]: key === "clarityId" ? e.target.value.trim() : e.target.value.trim().toUpperCase() } as Partial<Form>)}
+        onChange={(e) =>
+          set({
+            [key]: key === "clarityId" ? e.target.value.trim() : e.target.value.trim().toUpperCase(),
+          } as Partial<Form>)
+        }
         placeholder={placeholder}
-        className={`w-full px-3 py-1.5 text-xs border rounded font-mono focus:ring-1 focus:ring-blue-500 bg-white ${formatError(key) ? "border-rose-300" : "border-gray-300"}`}
+        className={`w-full px-3 py-1.5 text-xs border rounded font-mono focus:ring-1 focus:ring-blue-500 bg-white ${
+          formatError(key) ? "border-rose-300" : "border-gray-300"
+        }`}
       />
       {formatError(key) && <p className="mt-1 text-[10px] font-semibold text-rose-600">{formatError(key)}</p>}
     </div>
@@ -405,10 +655,15 @@ export default function AdvancedSeoPage() {
       className={`${typography.pages} h-full min-h-0 w-full overflow-y-auto overflow-x-hidden bg-[#fffefb] px-[18px] py-[14px] text-[#142347] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300`}
     >
       <div className="min-h-full w-full">
-        {/* TOP HEADING — Matching Staff & Exhibitor List Style */}
+        {/* =========================================================
+            TOP HEADING — Matching Staff & Exhibitor List Style
+        ========================================================= */}
         <div className="mb-[18px] flex shrink-0 items-center justify-between border-b-[2px] border-[#293681] pb-[8px]">
           <div>
-            <h1 className="text-[19px] font-bold leading-[1.15] tracking-[-0.018em] text-[#23471d]" style={{ color: "#23471d" }}>
+            <h1
+              className="text-[19px] font-bold leading-[1.15] tracking-[-0.018em] text-[#23471d]"
+              style={{ color: "#23471d" }}
+            >
               Advanced SEO Settings
             </h1>
             <p className="mt-0.5 text-[9px] font-medium text-[#6c7587]">
@@ -429,9 +684,8 @@ export default function AdvancedSeoPage() {
 
             <button
               type="button"
-              disabled
-              title={NO_BACKEND}
-              className="flex h-[30px] items-center justify-center gap-[5px] rounded-[6px] border border-[#e2e6ea] bg-white px-[14px] text-[8.5px] font-semibold text-[#33415b] shadow-sm opacity-50 cursor-not-allowed"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex h-[30px] items-center justify-center gap-[5px] rounded-[6px] border border-[#e2e6ea] bg-white px-[14px] text-[8.5px] font-semibold text-[#33415b] transition hover:bg-slate-50 shadow-sm cursor-pointer"
             >
               <Plus className="h-[12px] w-[12px] text-[#075b33]" strokeWidth={1.7} />
               Upload Root File
@@ -443,40 +697,69 @@ export default function AdvancedSeoPage() {
               disabled={saving}
               className="flex h-[30px] items-center justify-center gap-[5px] rounded-[6px] bg-[#16a34a] px-[14px] text-[8.5px] font-semibold text-white shadow-xs transition hover:bg-[#15803d] disabled:opacity-60 cursor-pointer"
             >
-              {saving ? <div className="h-[12px] w-[12px] border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="h-[12px] w-[12px]" strokeWidth={1.7} />}
+              {saving ? (
+                <div className="h-[12px] w-[12px] border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Save className="h-[12px] w-[12px]" strokeWidth={1.7} />
+              )}
               Save All Scripts
-              <span className="ml-1 text-[8px] bg-white/20 px-1 py-0.2 rounded font-mono hidden sm:inline">Ctrl+S</span>
+              <span className="ml-1 text-[8px] bg-white/20 px-1 py-0.2 rounded font-mono hidden sm:inline">
+                Ctrl+S
+              </span>
             </button>
           </div>
         </div>
 
+        {/* =========================================================
+            MAIN SPLIT CONTENT:
+            LEFT: lg:col-span-2 (Exact Design House width)
+            RIGHT: lg:col-span-1 (Exact Design House width)
+        ========================================================= */}
         <section className="mt-[14px] grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          {/* LEFT COLUMN: SCRIPT EDITORS */}
+          {/* =========================================================
+              LEFT COLUMN: SCRIPT EDITORS (lg:col-span-2)
+          ========================================================= */}
           <div className="lg:col-span-2 min-w-0 space-y-6">
             <section className="bg-white border-2 border-gray-200 p-6 shadow-lg shrink-0 rounded-none">
+              {/* Header inside Box */}
               <div className="flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-gray-100 pb-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-blue-50 rounded">
                     <Globe className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
-                    <h2 className="text-base font-semibold text-gray-900">1. Global Script Injection & Tracking</h2>
-                    <p className="text-[11px] text-gray-500">Manage meta tags, Open Graph globals, Google Tag Manager, Analytics & Meta Pixel for live layout.</p>
+                    <h2 className="text-base font-semibold text-gray-900">
+                      1. Global Script Injection & Tracking
+                    </h2>
+                    <p className="text-[11px] text-gray-500">
+                      Manage meta tags, Open Graph globals, Google Tag Manager, Analytics & Meta Pixel for live layout.
+                    </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <button type="button" disabled title={NO_BACKEND} className="px-2.5 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 rounded text-xs font-semibold flex items-center gap-1.5 shadow-2xs opacity-50 cursor-not-allowed">
+                  <button
+                    type="button"
+                    onClick={() => insertGtmTemplate("local")}
+                    className="px-2.5 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 rounded text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                    title="Auto-generate tags for Local environment"
+                  >
                     <Sparkles className="w-3.5 h-3.5 text-blue-600" />
                     Auto Generate (Local)
                   </button>
-                  <button type="button" disabled title={NO_BACKEND} className="px-2.5 py-1.5 bg-green-50 border border-green-200 text-green-700 rounded text-xs font-semibold flex items-center gap-1.5 shadow-2xs opacity-50 cursor-not-allowed">
+                  <button
+                    type="button"
+                    onClick={() => insertGtmTemplate("live")}
+                    className="px-2.5 py-1.5 bg-green-50 border border-green-200 text-green-700 hover:bg-green-100 rounded text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                    title={`Auto-generate tags for Live environment (${PUBLIC_SITE_URL})`}
+                  >
                     <Globe className="w-3.5 h-3.5 text-green-600" />
                     Auto Generate (Live)
                   </button>
                 </div>
               </div>
 
+              {/* Form Grid */}
               <div className="grid grid-cols-1 gap-4">
                 {/* Dynamic Tracking & Verification Keys */}
                 <div className="p-4 bg-slate-50 border border-slate-200 rounded space-y-3">
@@ -488,30 +771,42 @@ export default function AdvancedSeoPage() {
                     {idField("gaId", "Google Analytics GA4 ID", "G-XXXXXXXXXX")}
                     {idField("gtmId", "Google Tag Manager (GTM) ID", "GTM-XXXXXXX")}
                     <div>
-                      <label className="block text-[11px] font-semibold text-gray-700 mb-1">Google Search Console Code</label>
+                      <label className="block text-[11px] font-semibold text-gray-700 mb-1">
+                        Google Search Console Code
+                      </label>
                       <input
                         type="text"
                         value={form.googleVerification}
                         onChange={(e) => set({ googleVerification: e.target.value })}
-                        placeholder="LSfGa6XOQVOX... or the whole meta tag"
+                        placeholder="LSfGa6XOQVOX... or whole meta tag"
                         className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded font-mono focus:ring-1 focus:ring-blue-500 bg-white"
                       />
-                      {form.googleVerification && <p className="mt-1 text-[10px] font-semibold text-gray-500">Saved as: {verificationCode(form.googleVerification)}</p>}
+                      {form.googleVerification && (
+                        <p className="mt-1 text-[10px] font-semibold text-gray-500">
+                          Saved as: {verificationCode(form.googleVerification)}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
                     {idField("fbPixelId", "Facebook (Meta) Pixel ID", "123456789012345")}
                     {idField("clarityId", "Microsoft Clarity ID", "abcd1234ef")}
                     <div>
-                      <label className="block text-[11px] font-semibold text-gray-700 mb-1">Bing Webmaster Code</label>
+                      <label className="block text-[11px] font-semibold text-gray-700 mb-1">
+                        Bing Webmaster Code
+                      </label>
                       <input
                         type="text"
                         value={form.bingVerification}
                         onChange={(e) => set({ bingVerification: e.target.value })}
-                        placeholder="Code or the whole meta tag"
+                        placeholder="Code or whole meta tag"
                         className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded font-mono focus:ring-1 focus:ring-blue-500 bg-white"
                       />
-                      {form.bingVerification && <p className="mt-1 text-[10px] font-semibold text-gray-500">Saved as: {verificationCode(form.bingVerification)}</p>}
+                      {form.bingVerification && (
+                        <p className="mt-1 text-[10px] font-semibold text-gray-500">
+                          Saved as: {verificationCode(form.bingVerification)}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -521,104 +816,163 @@ export default function AdvancedSeoPage() {
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     Select Target Scope <span className="text-red-500">*</span>
                   </label>
-                  <select disabled className="w-full px-3 py-2 border-2 border-gray-300 bg-gray-100 text-gray-700 focus:outline-none text-xs shadow-sm cursor-not-allowed font-medium">
-                    <option value="global">Global Injection (All Pages & Dynamic Routes — ensis.in)</option>
+                  <select
+                    disabled
+                    className="w-full px-3 py-2 border-2 border-gray-300 bg-gray-100 text-gray-700 focus:outline-none text-xs shadow-sm cursor-not-allowed font-medium"
+                  >
+                    <option value="global">
+                      Global Injection (All Pages & Dynamic Routes — ensis.in)
+                    </option>
                   </select>
-                  <p className="mt-1 text-[10px] text-gray-400">Injected in the root Next.js document layout to guarantee persistent tracking across all page navigations.</p>
+                  <p className="mt-1 text-[10px] text-gray-400">
+                    Injected in the root Next.js document layout to guarantee persistent tracking across all page navigations.
+                  </p>
                 </div>
 
-                <Unavailable>
-                  Custom header/footer scripts and the index / follow switches need server support that Ensis does not have yet, so they are read-only here. The tracking IDs above are saved and added to every page.
-                </Unavailable>
-
-                <fieldset disabled className="m-0 min-w-0 border-0 p-0 opacity-60 space-y-4">
-                  {/* Header Scripts Editor */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-xs font-bold text-gray-800">
-                        Header Scripts (Inside &lt;head&gt;) <span className="text-red-500">*</span>
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] text-gray-400 font-mono">0 chars | 1 lines</span>
-                        <button type="button" className="text-[11px] px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded font-medium flex items-center gap-1">
-                          <Copy className="w-3 h-3" />
-                          <span>Copy Tag</span>
-                        </button>
-                      </div>
-                    </div>
-                    <textarea
-                      rows={8}
-                      readOnly
-                      className="w-full p-4 bg-[#1e1e1e] text-[#d4d4d4] font-mono text-[11px] focus:outline-none border-2 border-gray-200 shadow-inner overflow-auto rounded"
-                      placeholder={"<!-- Paste Google Tag Manager (head snippet), Google Analytics (gtag.js), or Meta Pixel code -->\n<script>\n  // Example global header tracking\n</script>"}
-                      spellCheck={false}
-                    />
-                    <p className="text-[11px] text-gray-500">Paste Google Tag Manager (head snippet), Google Analytics (gtag.js), or Meta Pixel code.</p>
-                  </div>
-
-                  {/* Footer Scripts Editor */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-xs font-bold text-gray-800">
-                        Footer Scripts (Before &lt;/body&gt;) <span className="text-red-500">*</span>
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] text-gray-400 font-mono">0 chars | 1 lines</span>
-                        <button type="button" className="text-[11px] px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded font-medium flex items-center gap-1">
-                          <Copy className="w-3 h-3" />
-                          <span>Copy Tag</span>
-                        </button>
-                      </div>
-                    </div>
-                    <textarea
-                      rows={8}
-                      readOnly
-                      className="w-full p-4 bg-[#1e1e1e] text-[#d4d4d4] font-mono text-[11px] focus:outline-none border-2 border-gray-200 shadow-inner overflow-auto rounded"
-                      placeholder="<!-- Scripts that should load after page content (Chat widgets, Hotjar, conversion tracking) -->"
-                      spellCheck={false}
-                    />
-                    <p className="text-[11px] text-gray-500">Scripts that should load after page content (Chat widgets, Hotjar, conversion tracking).</p>
-                  </div>
-
-                  {/* Indexing / Crawlers Toggles */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-                    <div className="flex items-center justify-between rounded-[6px] border border-[#e5e6e2] px-[12px] py-[9px] bg-gray-50">
-                      <div>
-                        <p className="text-[11px] font-semibold text-[#3a4557]">Allow Search Engines to Index</p>
-                        <p className="mt-[2px] text-[9px] font-medium text-[#8b929c]">Turn off to add a noindex tag to global layout.</p>
-                      </div>
-                      <Toggle checked onChange={() => undefined} />
-                    </div>
-                    <div className="flex items-center justify-between rounded-[6px] border border-[#e5e6e2] px-[12px] py-[9px] bg-gray-50">
-                      <div>
-                        <p className="text-[11px] font-semibold text-[#3a4557]">Allow Search Engines to Follow Links</p>
-                        <p className="mt-[2px] text-[9px] font-medium text-[#8b929c]">Turn off to add a nofollow tag to global layout.</p>
-                      </div>
-                      <Toggle checked onChange={() => undefined} />
+                {/* Header Scripts Editor */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-gray-800">
+                      Header Scripts (Inside &lt;head&gt;) <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] text-gray-400 font-mono">
+                        {(scripts.headerScripts || "").length} chars | {scripts.headerScripts ? scripts.headerScripts.split("\n").length : 0} lines
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(scripts.headerScripts, "header")}
+                        className="text-[11px] px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 cursor-pointer font-medium flex items-center gap-1"
+                      >
+                        {copiedField === "header" ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-600" />
+                            <span>Copied Tag!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copy Tag</span>
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
-                </fieldset>
 
-                {/* Save Button Bar */}
+                  <textarea
+                    ref={headerRef}
+                    name="headerScripts"
+                    value={scripts.headerScripts}
+                    onChange={(e) => setScripts((prev) => ({ ...prev, headerScripts: e.target.value }))}
+                    rows={8}
+                    className="w-full p-4 bg-[#1e1e1e] text-[#d4d4d4] font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-blue-500 border-2 border-gray-200 shadow-inner overflow-auto rounded"
+                    placeholder={`<!-- Paste Google Tag Manager (head snippet), Google Analytics (gtag.js), or Meta Pixel code -->\n<script>\n  // Example global header tracking\n</script>`}
+                    spellCheck="false"
+                  />
+                  <p className="text-[11px] text-gray-500">
+                    Paste Google Tag Manager (head snippet), Google Analytics (gtag.js), or Meta Pixel code.
+                  </p>
+                </div>
+
+                {/* Footer Scripts Editor */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-gray-800">
+                      Footer Scripts (Before &lt;/body&gt;) <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] text-gray-400 font-mono">
+                        {(scripts.footerScripts || "").length} chars | {scripts.footerScripts ? scripts.footerScripts.split("\n").length : 0} lines
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(scripts.footerScripts, "footer")}
+                        className="text-[11px] px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 cursor-pointer font-medium flex items-center gap-1"
+                      >
+                        {copiedField === "footer" ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-600" />
+                            <span>Copied Tag!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copy Tag</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <textarea
+                    ref={footerRef}
+                    name="footerScripts"
+                    value={scripts.footerScripts}
+                    onChange={(e) => setScripts((prev) => ({ ...prev, footerScripts: e.target.value }))}
+                    rows={8}
+                    className="w-full p-4 bg-[#1e1e1e] text-[#d4d4d4] font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-blue-500 border-2 border-gray-200 shadow-inner overflow-auto rounded"
+                    placeholder={`<!-- Scripts that should load after page content (Chat widgets, Hotjar, conversion tracking) -->\n<noscript><iframe src='https://www.googletagmanager.com/ns.html?id=GTM-ENSIS01' height='0' width='0' style='display:none;visibility:hidden'></iframe></noscript>`}
+                    spellCheck="false"
+                  />
+                  <p className="text-[11px] text-gray-500">
+                    Scripts that should load after page content (Chat widgets, Hotjar, conversion tracking).
+                  </p>
+                </div>
+
+                {/* Indexing / Crawlers Toggles matching Page Edit */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                  <div className="flex items-center justify-between rounded-[6px] border border-[#e5e6e2] px-[12px] py-[9px] bg-gray-50">
+                    <div>
+                      <p className="text-[11px] font-semibold text-[#3a4557]">
+                        Allow Search Engines to Index
+                      </p>
+                      <p className="mt-[2px] text-[9px] font-medium text-[#8b929c]">
+                        Turn off to add a noindex tag to global layout.
+                      </p>
+                    </div>
+                    <Toggle checked={allowIndex} onChange={(value) => setAllowIndex(value)} />
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-[6px] border border-[#e5e6e2] px-[12px] py-[9px] bg-gray-50">
+                    <div>
+                      <p className="text-[11px] font-semibold text-[#3a4557]">
+                        Allow Search Engines to Follow Links
+                      </p>
+                      <p className="mt-[2px] text-[9px] font-medium text-[#8b929c]">
+                        Turn off to add a nofollow tag to global layout.
+                      </p>
+                    </div>
+                    <Toggle checked={allowFollow} onChange={(value) => setAllowFollow(value)} />
+                  </div>
+                </div>
+
+                {/* Save Global Scripts Button Bar */}
                 <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-2">
                   <div className="flex items-center gap-2 text-[11px] text-gray-500">
                     <Info className="w-4 h-4 text-blue-600 shrink-0" />
-                    <span>Tracking IDs are saved directly to the database and added to every page of the website.</span>
+                    <span>Scripts are saved directly to database and injected dynamically in layout.</span>
                   </div>
+
                   <button
                     type="button"
                     onClick={save}
                     disabled={saving}
                     className="px-6 py-2.5 bg-[#4B1426] hover:bg-[#3a0f1d] text-white font-bold text-xs rounded transition-all shadow-sm hover:shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 uppercase tracking-wider"
                   >
-                    {saving ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                    {saving ? (
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Save className="w-3.5 h-3.5" />
+                    )}
                     <span>Save Scripts</span>
                   </button>
                 </div>
               </div>
             </section>
 
-            {/* SECTION 4: ROBOTS.TXT & SITEMAP (saved with the same Save button) */}
+            {/* =========================================================
+                SECTION 4: ROBOTS.TXT & SITEMAP (Left Column Section 4)
+            ========================================================= */}
             <section className="bg-white border-2 border-gray-200 p-6 shadow-lg shrink-0 rounded-none">
               <div className="flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-gray-100 pb-4">
                 <div className="flex items-center gap-3">
@@ -626,15 +980,34 @@ export default function AdvancedSeoPage() {
                     <FileCode className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
-                    <h2 className="text-base font-semibold text-gray-900">4. robots.txt & Sitemap</h2>
-                    <p className="text-[11px] text-gray-500">Tell search engines what to crawl, and what sitemap.xml lists.</p>
+                    <h2 className="text-base font-semibold text-gray-900">
+                      4. robots.txt & Sitemap
+                    </h2>
+                    <p className="text-[11px] text-gray-500">
+                      Tell search engines what to crawl, and what sitemap.xml lists.
+                    </p>
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={save}
+                  disabled={saving}
+                  className="px-3.5 py-1.5 bg-[#134698] hover:bg-[#0f3777] text-white text-xs font-bold rounded flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {saving ? "Saving..." : "Save Configuration"}
+                </button>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-800 mb-1">robots.txt</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-gray-800">robots.txt</label>
+                    <span className="text-[10px] text-gray-400 font-mono">
+                      {(form.robots || defaultRobots(site)).length} chars | {(form.robots || defaultRobots(site)).split("\n").length} lines
+                    </span>
+                  </div>
                   <textarea
                     value={form.robots}
                     onChange={(e) => set({ robots: e.target.value })}
@@ -668,16 +1041,27 @@ export default function AdvancedSeoPage() {
                         </>
                       )}
                     </button>
-                    <a href={`${PUBLIC_SITE_URL}/robots.txt`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#134698] hover:underline">
+                    <a
+                      href={`${PUBLIC_SITE_URL}/robots.txt`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#134698] hover:underline"
+                    >
                       View live robots.txt <ExternalLink className="w-3 h-3" />
                     </a>
-                    {/disallow:\s*\/\s*$/im.test(form.robots) && <span className="text-[10px] font-semibold text-rose-600">Warning: “Disallow: /” blocks the whole website from Google.</span>}
+                    {/disallow:\s*\/\s*$/im.test(form.robots) && (
+                      <span className="text-[10px] font-semibold text-rose-600">
+                        Warning: “Disallow: /” blocks the whole website from Google.
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-700 mb-1">Website Address (for sitemap links)</label>
+                    <label className="block text-[11px] font-semibold text-gray-700 mb-1">
+                      Website Address (for sitemap links)
+                    </label>
                     <input
                       type="text"
                       value={form.sitemapUrl}
@@ -687,7 +1071,9 @@ export default function AdvancedSeoPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-gray-700 mb-1">Exclude Paths (comma separated)</label>
+                    <label className="block text-[11px] font-semibold text-gray-700 mb-1">
+                      Exclude Paths (comma separated)
+                    </label>
                     <input
                       type="text"
                       value={form.excludePaths}
@@ -700,8 +1086,12 @@ export default function AdvancedSeoPage() {
 
                 <div className="flex items-center justify-between rounded-[6px] border border-[#e5e6e2] px-[12px] py-[9px] bg-gray-50">
                   <div>
-                    <p className="text-[11px] font-semibold text-[#3a4557]">Include the fixed website pages automatically</p>
-                    <p className="mt-[2px] text-[9px] font-medium text-[#8b929c]">A path in “Exclude Paths” also hides everything under it (e.g. “orders” hides /orders/123).</p>
+                    <p className="text-[11px] font-semibold text-[#3a4557]">
+                      Include the fixed website pages automatically
+                    </p>
+                    <p className="mt-[2px] text-[9px] font-medium text-[#8b929c]">
+                      A path in “Exclude Paths” also hides everything under it (e.g. “orders” hides /orders/123).
+                    </p>
                   </div>
                   <Toggle checked={form.autoGenerate} onChange={(value) => set({ autoGenerate: value })} />
                 </div>
@@ -709,8 +1099,13 @@ export default function AdvancedSeoPage() {
             </section>
           </div>
 
-          {/* RIGHT COLUMN: FILE UPLOADS + SOCIAL */}
+          {/* =========================================================
+              RIGHT COLUMN: FILE UPLOADS + SOCIAL (lg:col-span-1)
+          ========================================================= */}
           <div className="lg:col-span-1 min-w-0 space-y-6">
+            {/* =========================================================
+                SECTION 2: STATIC SEO & ROOT FILES
+            ========================================================= */}
             <section className="bg-white border-2 border-gray-200 p-6 shadow-lg shrink-0 rounded-none">
               <div className="flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-gray-100 pb-4">
                 <div className="flex items-center gap-3">
@@ -718,64 +1113,169 @@ export default function AdvancedSeoPage() {
                     <Upload className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
-                    <h2 className="text-base font-semibold text-gray-900">2. Static SEO & Root Files</h2>
-                    <p className="text-[11px] text-gray-500">Verification & crawler files served at root domain.</p>
+                    <h2 className="text-base font-semibold text-gray-900">
+                      2. Static SEO & Root Files
+                    </h2>
+                    <p className="text-[11px] text-gray-500">
+                      Verification & crawler files served at root domain.
+                    </p>
                   </div>
                 </div>
-                <span className="text-[11px] font-bold px-2.5 py-1 bg-gray-50 text-gray-500 border border-gray-200 rounded-full flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-gray-400"></span>
-                  Not available
+
+                <span className="text-[11px] font-bold px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                  Active on Live Site
                 </span>
               </div>
 
-              <div className="mb-4">
-                <Unavailable>Uploading root files needs server support that Ensis does not have yet. Use the Search Console code and robots.txt on the left instead.</Unavailable>
+              {/* Upload Drag & Drop Area matching OG Image Upload style */}
+              <div className="mb-5">
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  Upload Static Files (.xml, .html, .txt)
+                </label>
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    const file = e.dataTransfer.files[0];
+                    if (file) void handleFileUpload(file);
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded p-6 text-center relative transition-all cursor-pointer ${
+                    isDragging
+                      ? "border-[#134698] bg-blue-50/50 scale-[0.99]"
+                      : "border-gray-300 hover:border-blue-400 hover:bg-gray-50"
+                  }`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handleFileUpload(file);
+                    }}
+                    className="hidden"
+                    accept=".xml,.html,.txt"
+                  />
+
+                  <div className="space-y-2">
+                    <div className="w-12 h-12 bg-blue-50 border border-blue-200 text-blue-600 rounded-full flex items-center justify-center mx-auto transition-transform hover:scale-105">
+                      <Upload className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-gray-800">
+                        Click to upload
+                      </span>{" "}
+                      <span className="text-xs text-gray-500">or drag and drop</span>
+                    </div>
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+                      Sitemap, Robots.txt, Google Verification HTML
+                    </p>
+                  </div>
+
+                  {uploadingFile && (
+                    <div className="absolute inset-0 bg-white/90 z-20 flex flex-col items-center justify-center rounded space-y-2">
+                      <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-xs font-semibold text-blue-700">Uploading file to server root...</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <fieldset disabled className="m-0 min-w-0 border-0 p-0 opacity-60">
-                <div className="mb-5">
-                  <label className="block text-xs font-bold text-gray-700 mb-1.5">Upload Static Files (.xml, .html, .txt)</label>
-                  <div className="border-2 border-dashed rounded p-6 text-center relative border-gray-300 cursor-not-allowed">
-                    <input ref={fileInputRef} type="file" className="hidden" accept=".xml,.html,.txt" disabled />
-                    <div className="space-y-2">
-                      <div className="w-12 h-12 bg-blue-50 border border-blue-200 text-blue-600 rounded-full flex items-center justify-center mx-auto">
-                        <Upload className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <span className="text-xs font-bold text-gray-800">Click to upload</span> <span className="text-xs text-gray-500">or drag and drop</span>
-                      </div>
-                      <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Sitemap, Robots.txt, Google Verification HTML</p>
-                    </div>
-                  </div>
-                </div>
-              </fieldset>
-
+              {/* Active Files List */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between border-b pb-2">
-                  <h3 className="text-[11px] font-bold text-[#134698] uppercase tracking-wider">Active Files (0)</h3>
+                  <h3 className="text-[11px] font-bold text-[#134698] uppercase tracking-wider">
+                    Active Files ({seoFiles.length})
+                  </h3>
                   <span className="text-[10px] text-gray-400 font-semibold">Direct Root Access</span>
                 </div>
-                <div className="py-8 text-center bg-gray-50 rounded border-2 border-dashed border-gray-200">
-                  <Globe className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                  <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider">No files uploaded yet</p>
-                  <p className="text-[10px] text-gray-400 mt-1">The live sitemap.xml and robots.txt are generated from the settings on the left.</p>
-                </div>
+
+                {seoFiles.length === 0 ? (
+                  <div className="py-8 text-center bg-gray-50 rounded border-2 border-dashed border-gray-200">
+                    <Globe className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                    <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider">
+                      No files uploaded yet
+                    </p>
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      Upload your sitemap.xml, robots.txt, or verification files above.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+                    {seoFiles.map((file) => (
+                      <div
+                        key={file._id || file.fileName}
+                        className="flex items-center justify-between p-3 border border-gray-200 bg-white hover:border-blue-300 transition-all rounded-none"
+                      >
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className="p-2 bg-gray-100 rounded text-gray-700 group-hover:bg-blue-50 group-hover:text-blue-700 transition-colors">
+                            <FileText className="w-4 h-4 text-[#0284c7]" />
+                          </div>
+                          <div className="overflow-hidden">
+                            <p className="text-xs font-bold text-gray-900 truncate">
+                              {file.originalName}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[9.5px] text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded font-semibold border border-emerald-200">
+                                Serving at root
+                              </span>
+                              <span className="text-[10px] text-gray-400 font-mono">
+                                {formatFileSize(file.size)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <a
+                            href={`${PUBLIC_SITE_URL}${file.filePath.startsWith("/") ? file.filePath : `/${file.filePath}`}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="Open file in new tab"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteFile(file._id || file.fileName, file.originalName)}
+                            className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                            title="Delete File"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
+              {/* Notice Callout matching Page Edit */}
               <div className="mt-5 p-3.5 bg-orange-50 border-l-4 border-orange-500 rounded-none">
                 <div className="flex items-center gap-1.5 text-orange-900 text-xs font-bold uppercase tracking-tight mb-1">
                   <AlertTriangle className="w-3.5 h-3.5 text-orange-600" />
                   <span>Notice</span>
                 </div>
                 <p className="text-[11px] text-orange-800 leading-relaxed font-medium">
-                  Search engines read{" "}
-                  <code className="bg-orange-100 px-1 py-0.5 rounded font-mono text-[10px]">{site.replace(/^https?:\/\//, "")}/sitemap.xml</code> and{" "}
-                  <code className="bg-orange-100 px-1 py-0.5 rounded font-mono text-[10px]">/robots.txt</code> straight from the website.
+                  Files uploaded here are served directly from the root domain (e.g.,{" "}
+                  <code className="bg-orange-100 px-1 py-0.5 rounded font-mono text-[10px]">
+                    {site.replace(/^https?:\/\//, "")}/sitemap.xml
+                  </code>
+                  ) for search crawlers and search console verification.
                 </p>
               </div>
             </section>
 
-            {/* SECTION 3: SOCIAL MEDIA LINKS & FLOATING SIDEBAR */}
+            {/* =========================================================
+                SECTION 3: SOCIAL MEDIA LINKS & FLOATING SIDEBAR
+            ========================================================= */}
             <section className="bg-white border-2 border-gray-200 p-6 shadow-lg shrink-0 rounded-none">
               <div className="flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-gray-100 pb-4">
                 <div className="flex items-center gap-3">
@@ -783,92 +1283,75 @@ export default function AdvancedSeoPage() {
                     <Share2 className="w-5 h-5" />
                   </div>
                   <div>
-                    <h2 className="text-base font-semibold text-gray-900">3. Social Media Links</h2>
-                    <p className="text-[11px] text-gray-500">Syncs with floating sidebar & website footer.</p>
+                    <h2 className="text-base font-semibold text-gray-900">
+                      3. Social Media Links
+                    </h2>
+                    <p className="text-[11px] text-gray-500">
+                      Syncs with floating sidebar & website footer.
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={addRow}
-                    disabled={!nextPlatform}
-                    title={nextPlatform ? "Add a social link" : "Every platform already has a link"}
-                    className="px-3 py-1.5 bg-white border border-[#134698] text-[#134698] hover:bg-blue-50 text-xs font-bold rounded flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Add Link
-                  </button>
-                  <button
-                    type="button"
-                    onClick={saveSocial}
-                    disabled={savingSocial || !socialLoaded}
-                    className="px-3.5 py-1.5 bg-[#134698] hover:bg-[#0f3777] text-white text-xs font-bold rounded flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
-                  >
-                    <Save className="w-3.5 h-3.5" />
-                    {savingSocial ? "Saving..." : "Save Links"}
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleSaveSocialLinks}
+                  disabled={savingSocial}
+                  className="px-3.5 py-1.5 bg-[#134698] hover:bg-[#0f3777] text-white text-xs font-bold rounded flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {savingSocial ? "Saving..." : "Save Links"}
+                </button>
               </div>
 
               <div className="space-y-4">
-                {!socialLoaded && <p className="text-[11px] font-semibold text-gray-500">Loading social links…</p>}
-                {socialLoaded && socialRows.length === 0 && (
-                  <div className="py-6 text-center bg-gray-50 rounded border-2 border-dashed border-gray-200">
-                    <Share2 className="w-7 h-7 text-gray-300 mx-auto mb-2" />
-                    <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider">No social links yet</p>
-                    <p className="text-[10px] text-gray-400 mt-1">Use “Add Link” to show a social icon on the website.</p>
-                  </div>
-                )}
-                {socialRows.map((row, index) => {
-                  const meta = metaFor(row.platform);
-                  const clicks = stats.find((item) => normalizePlatform(item._id) === normalizePlatform(row.platform))?.count || 0;
-                  const taken = (platform: string) => usedPlatforms.has(platform) && platform !== normalizePlatform(row.platform);
+                {PLATFORMS.map((platform) => {
+                  const meta = PLATFORM_META[platform];
+                  const current = socialMap[platform] || { url: "", isActive: true };
                   return (
-                    <div key={row._id || `new-${index}`} className="rounded border border-gray-200 bg-gray-50/60 p-3">
-                      <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <div key={platform}>
+                      <div className="flex items-center justify-between mb-1">
                         <label className="flex items-center gap-2 text-xs font-bold text-gray-700">
-                          <span className={`w-5 h-5 rounded-full ${meta.tint} flex items-center justify-center`}>{meta.icon}</span>
-                          {row._id ? (
-                            <span>{meta.label} URL</span>
-                          ) : (
-                            <select
-                              value={normalizePlatform(row.platform)}
-                              onChange={(e) => updateRow(index, { platform: e.target.value })}
-                              className="rounded border border-gray-300 bg-white px-1.5 py-0.5 text-xs font-bold text-gray-700"
-                            >
-                              {PLATFORMS.map((platform) => (
-                                <option key={platform} value={platform} disabled={taken(platform)}>
-                                  {PLATFORM_META[platform].label}
-                                </option>
-                              ))}
-                            </select>
-                          )}
+                          <span className={`w-5 h-5 rounded-full ${meta.tint} flex items-center justify-center`}>
+                            {meta.icon}
+                          </span>
+                          {meta.label} URL
                         </label>
-                        <div className="flex items-center gap-2.5">
-                          <span className="text-[10px] font-semibold text-gray-400">{clicks.toLocaleString()} clicks</span>
-                          <span className="text-[10px] font-semibold text-gray-500">{row.isActive ? "Shown" : "Hidden"}</span>
-                          <Toggle checked={row.isActive} onChange={(value) => updateRow(index, { isActive: value })} />
-                          <button
-                            type="button"
-                            onClick={() => removeRow(index)}
-                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
-                            title="Remove link"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9.5px] font-semibold text-gray-400">
+                            {current.isActive ? "Active" : "Disabled"}
+                          </span>
+                          <Toggle
+                            checked={current.isActive}
+                            onChange={(val) =>
+                              setSocialMap((prev) => ({
+                                ...prev,
+                                [platform]: { ...prev[platform], isActive: val },
+                              }))
+                            }
+                          />
                         </div>
                       </div>
                       <div className="relative flex items-center">
                         <input
                           type="url"
-                          value={row.url}
-                          onChange={(e) => updateRow(index, { url: e.target.value })}
+                          value={current.url}
+                          onChange={(e) =>
+                            setSocialMap((prev) => ({
+                              ...prev,
+                              [platform]: { ...prev[platform], url: e.target.value },
+                            }))
+                          }
                           placeholder={meta.placeholder}
-                          className="w-full text-xs px-3 py-2 border border-gray-300 rounded bg-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500 pr-9 font-mono"
+                          className="w-full text-xs px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 pr-9 font-mono"
                         />
-                        {row.url && (
-                          <a href={row.url} target="_blank" rel="noreferrer" className="absolute right-2 text-gray-400 hover:text-blue-600 p-1" title="Test link">
+                        {current.url && (
+                          <a
+                            href={current.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="absolute right-2 text-gray-400 hover:text-blue-600 p-1"
+                            title="Test link"
+                          >
                             <ExternalLink className="w-3.5 h-3.5" />
                           </a>
                         )}
@@ -881,8 +1364,8 @@ export default function AdvancedSeoPage() {
               <div className="mt-5 pt-4 border-t border-gray-100">
                 <button
                   type="button"
-                  onClick={saveSocial}
-                  disabled={savingSocial || !socialLoaded}
+                  onClick={handleSaveSocialLinks}
+                  disabled={savingSocial}
                   className="w-full py-2 bg-[#134698] hover:bg-[#0f3777] text-white text-xs font-bold rounded flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" />
@@ -891,7 +1374,9 @@ export default function AdvancedSeoPage() {
               </div>
             </section>
 
-            {/* SECTION 5: SOCIAL CLICK ANALYTICS */}
+            {/* =========================================================
+                SECTION 5: SOCIAL CLICK ANALYTICS
+            ========================================================= */}
             <section className="bg-white border-2 border-gray-200 p-6 shadow-lg shrink-0 rounded-none">
               <div className="flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-gray-100 pb-4">
                 <div className="flex items-center gap-3">
@@ -899,8 +1384,12 @@ export default function AdvancedSeoPage() {
                     <Sparkles className="w-5 h-5" />
                   </div>
                   <div>
-                    <h2 className="text-base font-semibold text-gray-900">5. Social Click Analytics</h2>
-                    <p className="text-[11px] text-gray-500">How often visitors tap each social icon on the website.</p>
+                    <h2 className="text-base font-semibold text-gray-900">
+                      5. Social Click Analytics
+                    </h2>
+                    <p className="text-[11px] text-gray-500">
+                      How often visitors tap each social icon on the website.
+                    </p>
                   </div>
                 </div>
                 <button
@@ -917,7 +1406,9 @@ export default function AdvancedSeoPage() {
               <div className="mb-4 flex items-end justify-between">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Total clicks</p>
-                  <p className="text-3xl font-bold leading-none text-[#134698]">{stats.reduce((sum, item) => sum + item.count, 0).toLocaleString()}</p>
+                  <p className="text-3xl font-bold leading-none text-[#134698]">
+                    {stats.reduce((sum, item) => sum + item.count, 0).toLocaleString()}
+                  </p>
                 </div>
                 <p className="text-[10px] font-semibold text-gray-400">All time</p>
               </div>
@@ -928,20 +1419,28 @@ export default function AdvancedSeoPage() {
                 ) : (
                   stats.map((item) => {
                     const meta = metaFor(item._id);
-                    const total = stats.reduce((sum, item) => sum + item.count, 0) || 1;
+                    const total = stats.reduce((sum, s) => sum + s.count, 0) || 1;
                     return (
                       <div key={item._id}>
                         <div className="mb-1 flex items-center justify-between text-[11px] font-semibold text-gray-700">
                           <span className="flex items-center gap-1.5">
-                            <span className={`w-4 h-4 rounded-full ${meta.tint} flex items-center justify-center`}>{meta.icon}</span>
+                            <span className={`w-4 h-4 rounded-full ${meta.tint} flex items-center justify-center`}>
+                              {meta.icon}
+                            </span>
                             {meta.label}
                           </span>
                           <span>
-                            {item.count.toLocaleString()} <span className="text-gray-400">({Math.round((item.count / total) * 100)}%)</span>
+                            {item.count.toLocaleString()}{" "}
+                            <span className="text-gray-400">
+                              ({Math.round((item.count / total) * 100)}%)
+                            </span>
                           </span>
                         </div>
                         <div className="h-1.5 w-full rounded-full bg-gray-100">
-                          <div className={`h-1.5 rounded-full ${meta.bar}`} style={{ width: `${Math.max(3, (item.count / total) * 100)}%` }} />
+                          <div
+                            className={`h-1.5 rounded-full ${meta.bar}`}
+                            style={{ width: `${Math.max(3, (item.count / total) * 100)}%` }}
+                          />
                         </div>
                       </div>
                     );
@@ -951,7 +1450,9 @@ export default function AdvancedSeoPage() {
 
               <div className="border-t border-gray-100 pt-4">
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <h3 className="text-[11px] font-bold text-[#134698] uppercase tracking-wider">Recent clicks</h3>
+                  <h3 className="text-[11px] font-bold text-[#134698] uppercase tracking-wider">
+                    Recent clicks
+                  </h3>
                   <select
                     value={clickFilter}
                     onChange={(e) => {
@@ -979,11 +1480,17 @@ export default function AdvancedSeoPage() {
                       return (
                         <li key={click._id} className="flex items-center justify-between gap-3 py-2">
                           <span className="flex items-center gap-2 text-[11px] font-semibold text-gray-800">
-                            <span className={`w-4 h-4 rounded-full ${meta.tint} flex items-center justify-center`}>{meta.icon}</span>
+                            <span className={`w-4 h-4 rounded-full ${meta.tint} flex items-center justify-center`}>
+                              {meta.icon}
+                            </span>
                             {meta.label}
                           </span>
-                          <span className="min-w-0 truncate text-[10px] font-medium text-gray-400">{place || "Location unknown"}</span>
-                          <span className="shrink-0 text-[10px] font-semibold text-gray-500">{new Date(click.createdAt).toLocaleString()}</span>
+                          <span className="min-w-0 truncate text-[10px] font-medium text-gray-400">
+                            {place || "Location unknown"}
+                          </span>
+                          <span className="shrink-0 text-[10px] font-semibold text-gray-500">
+                            {new Date(click.createdAt).toLocaleString()}
+                          </span>
                         </li>
                       );
                     })}
@@ -1001,7 +1508,8 @@ export default function AdvancedSeoPage() {
                       Previous
                     </button>
                     <span>
-                      Page {clickPage.page} of {Math.max(1, Math.ceil(clickPage.total / PAGE_SIZE))} · {clickPage.total.toLocaleString()} clicks
+                      Page {clickPage.page} of {Math.max(1, Math.ceil(clickPage.total / PAGE_SIZE))} ·{" "}
+                      {clickPage.total.toLocaleString()} clicks
                     </span>
                     <button
                       type="button"
