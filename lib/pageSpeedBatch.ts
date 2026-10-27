@@ -93,6 +93,12 @@ export function getSavedPageSpeed(url: string): PageSpeedAudit | null {
   return generateFallbackPageSpeed(url);
 }
 
+export function savePageSpeed(url: string, audit: PageSpeedAudit): void {
+  loadStorage();
+  memory.set(url, audit);
+  persist();
+}
+
 export function getSavedPageSpeedMap(): Map<string, PageSpeedAudit> {
   loadStorage();
   const map = new Map(memory);
