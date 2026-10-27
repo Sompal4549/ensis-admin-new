@@ -134,60 +134,6 @@ export function SectionFieldsEditor({
             </div>
           </div>
         </div>
-
-        {/* CONNECT WITH US (Social Media Links) */}
-        <div className="bg-white p-3 border border-[#e2e8f0] rounded-[6px] flex flex-col gap-3">
-          <div className="text-[11px] font-bold text-[#1e40af] border-b border-gray-100 pb-1.5 flex items-center gap-2">
-            <span>Connect With Us (Social Media Links)</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <FieldLabel>Facebook URL</FieldLabel>
-              <TextInput
-                value={String(section.facebookUrl || "")}
-                onChange={(next) => onFieldChange("facebookUrl", next)}
-                placeholder="https://www.facebook.com/ensis.in"
-                hideLimit={true}
-              />
-            </div>
-            <div>
-              <FieldLabel>Instagram URL</FieldLabel>
-              <TextInput
-                value={String(section.instagramUrl || "")}
-                onChange={(next) => onFieldChange("instagramUrl", next)}
-                placeholder="https://www.instagram.com/ensis.in"
-                hideLimit={true}
-              />
-            </div>
-            <div>
-              <FieldLabel>Twitter / X URL</FieldLabel>
-              <TextInput
-                value={String(section.twitterUrl || "")}
-                onChange={(next) => onFieldChange("twitterUrl", next)}
-                placeholder="https://x.com/your-handle"
-                hideLimit={true}
-              />
-            </div>
-            <div>
-              <FieldLabel>YouTube URL</FieldLabel>
-              <TextInput
-                value={String(section.youtubeUrl || "")}
-                onChange={(next) => onFieldChange("youtubeUrl", next)}
-                placeholder="https://www.youtube.com/@ensis-in"
-                hideLimit={true}
-              />
-            </div>
-            <div className="md:col-span-2">
-              <FieldLabel>LinkedIn URL</FieldLabel>
-              <TextInput
-                value={String(section.linkedinUrl || "")}
-                onChange={(next) => onFieldChange("linkedinUrl", next)}
-                placeholder="https://www.linkedin.com/company/ensis-in"
-                hideLimit={true}
-              />
-            </div>
-          </div>
-        </div>
       </div>
     );
   }

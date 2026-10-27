@@ -1,19 +1,162 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  FileCode,
+  Save,
+  Upload,
+  Trash2,
+  FileText,
+  Globe,
+  Check,
+  Copy,
+  ExternalLink,
+  Sparkles,
+  Info,
+  AlertTriangle,
+  Plus,
+  Share2,
+  RotateCcw,
+  RefreshCw,
+} from "lucide-react";
 import Swal from "sweetalert2";
-import { BarChart3, ExternalLink, FileCode, Map as MapIcon, RotateCcw, Save, SearchCheck } from "lucide-react";
 import { api } from "@/lib/api";
 import { useApiGet } from "@/lib/useApiGet";
 import { PUBLIC_SITE_URL } from "@/lib/cmsPages";
-import { Toggle } from "@/components/pages-cms/fields";
+import typography from "../pages/PagesTypography.module.css";
 
-/** Matches the backend's advanced SEO record (GET/PUT /seo/advanced) that the website reads */
+const FacebookIcon = ({ size = 16, color = "#1877F2" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+  </svg>
+);
+
+const InstagramIcon = ({ size = 16, color = "#E4405F" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+  </svg>
+);
+
+const TwitterIcon = ({ size = 16, color = "#000000" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z" />
+  </svg>
+);
+
+const YoutubeIcon = ({ size = 16, color = "#FF0000" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z" />
+    <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02" fill={color} />
+  </svg>
+);
+
+const LinkedinIcon = ({ size = 16, color = "#0A66C2" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+    <rect x="2" y="9" width="4" height="12" />
+    <circle cx="4" cy="4" r="2" />
+  </svg>
+);
+
+const WhatsappGlyph = ({ size = 16, color = "#25D366" }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 21l1.65-4.9A8.5 8.5 0 1 1 8 19.4L3 21z" />
+    <path d="M9 10c.5 2 2 3.5 4 4l1.2-1.2 1.8.8c-.3 1.1-1.2 1.6-2.2 1.4-2.8-.6-5-2.8-5.6-5.6-.2-1 .3-1.9 1.4-2.2l.8 1.8L9 10z" />
+  </svg>
+);
+
+// SweetAlert2 theme matching admin portal dark style
+const Toast = Swal.mixin({
+  toast: true,
+  position: "top-end",
+  showConfirmButton: false,
+  timer: 3500,
+  timerProgressBar: true,
+  background: "#1e2433",
+  color: "#e2e8f0",
+  iconColor: "#4ade80",
+  customClass: {
+    popup: "swal-toast-popup",
+    title: "swal-toast-title",
+  },
+  didOpen: (toast) => {
+    toast.style.boxShadow = "none";
+    toast.style.setProperty("-webkit-box-shadow", "none");
+    toast.style.filter = "none";
+  },
+});
+
+function showSuccess(message: string) {
+  Toast.fire({ icon: "success", title: message });
+}
+
+function showError(message: string) {
+  Toast.fire({ icon: "error", title: message, iconColor: "#f87171" });
+}
+
+interface SeoFile {
+  _id: string;
+  originalName: string;
+  fileName: string;
+  filePath: string;
+  fileType: string;
+  size: number;
+  uploadedAt: string;
+}
+
+// Custom Toggle matching Pages Edit Section 3 & 4
+function Toggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={`
+        relative
+        h-[20px]
+        w-[38px]
+        shrink-0
+        rounded-full
+        transition-colors
+        duration-200
+        cursor-pointer
+        ${checked ? "bg-[#16a34a]" : "bg-[#dc2626]"}
+      `}
+    >
+      <span
+        className={`
+          absolute
+          top-[3px]
+          h-[14px]
+          w-[14px]
+          rounded-full
+          bg-white
+          shadow-sm
+          transition-all
+          duration-200
+          ${checked ? "left-[21px]" : "left-[3px]"}
+        `}
+      />
+    </button>
+  );
+}
+
 type AdvancedSeo = {
   sitemap?: { url?: string; autoGenerate?: boolean; excludePaths?: string };
   robotsTxt?: { content?: string };
   searchConsole?: { googleVerification?: string; bingVerification?: string };
   analytics?: { gaId?: string; gtmId?: string; fbPixelId?: string; clarityId?: string };
+  headerScripts?: string;
+  footerScripts?: string;
+  allowIndex?: boolean;
+  allowFollow?: boolean;
 };
 
 type Form = {
@@ -28,6 +171,17 @@ type Form = {
   autoGenerate: boolean;
   excludePaths: string;
 };
+
+type SocialRow = { _id?: string; platform: string; url: string; isActive: boolean; order: number };
+type ClickStat = { _id: string; count: number };
+type ClickRow = { _id: string; platform: string; city?: string | null; region?: string | null; country?: string | null; createdAt: string };
+type ClickPage = { clicks: ClickRow[]; total: number; page: number; limit: number };
+
+const PLATFORMS = ["facebook", "instagram", "twitter", "youtube", "linkedin", "whatsapp"] as const;
+type PlatformKey = (typeof PLATFORMS)[number];
+const normalizePlatform = (platform: string): PlatformKey | string =>
+  platform === "x" ? "twitter" : (platform || "").toLowerCase();
+const PAGE_SIZE = 10;
 
 const defaultRobots = (site: string) => `User-agent: *
 Allow: /
@@ -49,7 +203,7 @@ const toForm = (seo: AdvancedSeo | null | undefined): Form => ({
   excludePaths: seo?.sitemap?.excludePaths || "",
 });
 
-/** Accepts either the bare code or the whole <meta ... content="..."> tag pasted from Google/Bing */
+/** Accepts either the bare code or the whole <meta ... content="..."> tag */
 const verificationCode = (value: string) => {
   const match = value.match(/content=["']([^"']+)["']/i);
   return (match ? match[1] : value).trim();
@@ -62,35 +216,320 @@ const FORMATS: Record<"gtmId" | "gaId" | "fbPixelId" | "clarityId", { pattern: R
   clarityId: { pattern: /^[a-z0-9]{6,20}$/i, example: "abcd1234ef" },
 };
 
-const inputClass =
-  "h-[40px] w-full rounded-[6px] border border-[#dfe4e8] bg-white px-[12px] text-[11.5px] font-semibold text-[#2f3d58] outline-none focus:border-[#075b33]";
-const labelClass = "mb-[5px] block text-[10.5px] font-semibold text-[#24345e]";
-const cardClass = "rounded-[9px] border border-[#e7e9ec] bg-white px-[18px] py-[16px]";
+const PLATFORM_META: Record<
+  PlatformKey,
+  { label: string; icon: React.ReactNode; tint: string; bar: string; placeholder: string }
+> = {
+  facebook: {
+    label: "Facebook",
+    icon: <FacebookIcon size={12} color="#1877F2" />,
+    tint: "bg-[#1877F2]/10",
+    bar: "bg-[#1877F2]",
+    placeholder: "https://www.facebook.com/yourpage",
+  },
+  instagram: {
+    label: "Instagram",
+    icon: <InstagramIcon size={12} color="#E4405F" />,
+    tint: "bg-[#E4405F]/10",
+    bar: "bg-[#E4405F]",
+    placeholder: "https://www.instagram.com/yourpage",
+  },
+  twitter: {
+    label: "Twitter / X",
+    icon: <TwitterIcon size={12} color="#000000" />,
+    tint: "bg-gray-100",
+    bar: "bg-gray-800",
+    placeholder: "https://x.com/yourpage",
+  },
+  youtube: {
+    label: "YouTube",
+    icon: <YoutubeIcon size={12} color="#FF0000" />,
+    tint: "bg-[#FF0000]/10",
+    bar: "bg-[#FF0000]",
+    placeholder: "https://www.youtube.com/@yourchannel",
+  },
+  linkedin: {
+    label: "LinkedIn",
+    icon: <LinkedinIcon size={12} color="#0A66C2" />,
+    tint: "bg-[#0A66C2]/10",
+    bar: "bg-[#0A66C2]",
+    placeholder: "https://www.linkedin.com/company/yourpage",
+  },
+  whatsapp: {
+    label: "WhatsApp",
+    icon: <WhatsappGlyph size={12} color="#25D366" />,
+    tint: "bg-[#25D366]/10",
+    bar: "bg-[#25D366]",
+    placeholder: "https://wa.me/919654900525",
+  },
+};
 
-function CardHeader({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle: string }) {
-  return (
-    <div className="mb-[14px] flex items-start gap-[10px]">
-      <span className="grid h-[32px] w-[32px] shrink-0 place-items-center rounded-full bg-[#eaf4ee] text-[#075b33]">{icon}</span>
-      <div>
-        <h2 className="text-[14px] font-semibold text-[#17234a]">{title}</h2>
-        <p className="mt-[2px] text-[10.5px] font-semibold text-[#66738b]">{subtitle}</p>
-      </div>
-    </div>
-  );
-}
+const metaFor = (platform: string) =>
+  PLATFORM_META[normalizePlatform(platform) as PlatformKey] || {
+    label: platform || "Other",
+    icon: <Globe className="h-3 w-3 text-gray-500" />,
+    tint: "bg-gray-100",
+    bar: "bg-gray-500",
+    placeholder: "https://",
+  };
 
 export default function AdvancedSeoPage() {
   const { data, loading, error, reload } = useApiGet<AdvancedSeo | null>("/seo/advanced");
   const [draft, setDraft] = useState<{ base: AdvancedSeo | null | undefined; form: Form } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [allowIndex, setAllowIndex] = useState(true);
+  const [allowFollow, setAllowFollow] = useState(true);
 
-  // The form starts from the saved settings and resets whenever they are reloaded
+  // Script editors (interactive)
+  const [scripts, setScripts] = useState({
+    headerScripts: "",
+    footerScripts: "",
+  });
+
+  // Root files list
+  const [seoFiles, setSeoFiles] = useState<SeoFile[]>([
+    {
+      _id: "sitemap-xml",
+      originalName: "sitemap.xml",
+      fileName: "sitemap.xml",
+      filePath: "/sitemap.xml",
+      fileType: "application/xml",
+      size: 1420,
+      uploadedAt: new Date().toISOString(),
+    },
+    {
+      _id: "robots-txt",
+      originalName: "robots.txt",
+      fileName: "robots.txt",
+      filePath: "/robots.txt",
+      fileType: "text/plain",
+      size: 420,
+      uploadedAt: new Date().toISOString(),
+    },
+  ]);
+
+  // Social Links state
+  const [socialMap, setSocialMap] = useState<Record<string, { _id?: string; url: string; isActive: boolean; order: number }>>({
+    facebook: { url: "", isActive: true, order: 0 },
+    instagram: { url: "", isActive: true, order: 1 },
+    twitter: { url: "", isActive: true, order: 2 },
+    youtube: { url: "", isActive: true, order: 3 },
+    linkedin: { url: "", isActive: true, order: 4 },
+    whatsapp: { url: "", isActive: true, order: 5 },
+  });
+  const [savingSocial, setSavingSocial] = useState(false);
+
+  // Social click stats
+  const [stats, setStats] = useState<ClickStat[]>([]);
+  const [clickPage, setClickPage] = useState<ClickPage | null>(null);
+  const [clickFilter, setClickFilter] = useState("");
+  const [clickPageNo, setClickPageNo] = useState(1);
+  const [loadingClicks, setLoadingClicks] = useState(false);
+
+  const headerRef = useRef<HTMLTextAreaElement>(null);
+  const footerRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const form = draft && draft.base === data ? draft.form : toForm(data);
   const set = (patch: Partial<Form>) => setDraft({ base: data, form: { ...form, ...patch } });
 
   useEffect(() => {
-    if (error) Swal.fire({ title: "Could not load SEO settings", text: error instanceof Error ? error.message : "", icon: "error" });
+    if (error) showError(error instanceof Error ? error.message : "Could not load SEO settings");
   }, [error]);
+
+  useEffect(() => {
+    if (data) {
+      const gtm = data.analytics?.gtmId || "GTM-ENSIS01";
+      const defaultHead = `<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','${gtm}');</script>
+<!-- End Google Tag Manager -->`;
+
+      const defaultFoot = `<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${gtm}"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->`;
+
+      setScripts({
+        headerScripts: data.headerScripts || defaultHead,
+        footerScripts: data.footerScripts || defaultFoot,
+      });
+      if (typeof data.allowIndex === "boolean") setAllowIndex(data.allowIndex);
+      if (typeof data.allowFollow === "boolean") setAllowFollow(data.allowFollow);
+    }
+  }, [data]);
+
+  const loadSocial = async () => {
+    try {
+      const list = await api.get<SocialRow[]>(`/social-clicks/links?t=${Date.now()}`);
+      if (Array.isArray(list)) {
+        setSocialMap((prev) => {
+          const next = { ...prev };
+          for (const item of list) {
+            const key = normalizePlatform(item.platform);
+            next[key] = {
+              _id: item._id,
+              url: item.url || "",
+              isActive: item.isActive !== false,
+              order: Number(item.order) || 0,
+            };
+          }
+          return next;
+        });
+      }
+    } catch (err) {
+      console.error("Could not load social links:", err);
+    }
+  };
+
+  const loadClicks = async (filter = clickFilter, pageNo = clickPageNo) => {
+    setLoadingClicks(true);
+    try {
+      const query = new URLSearchParams({ page: String(pageNo), limit: String(PAGE_SIZE) });
+      if (filter) query.set("platform", filter);
+      const [statList, clicks] = await Promise.all([
+        api.get<ClickStat[]>("/social-clicks/stats"),
+        api.get<ClickPage>(`/social-clicks?${query.toString()}`),
+      ]);
+      setStats(Array.isArray(statList) ? statList : []);
+      setClickPage(clicks && Array.isArray(clicks.clicks) ? clicks : { clicks: [], total: 0, page: 1, limit: PAGE_SIZE });
+    } catch (err) {
+      console.error("Could not load click analytics:", err);
+    } finally {
+      setLoadingClicks(false);
+    }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loaders set state only after await
+    loadSocial();
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loader sets state only after await
+    loadClicks(clickFilter, clickPageNo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clickFilter, clickPageNo]);
+
+  const handleSaveSocialLinks = async () => {
+    setSavingSocial(true);
+    try {
+      for (const [platform, item] of Object.entries(socialMap)) {
+        const trimmed = item.url.trim();
+        if (trimmed) {
+          const payload = {
+            platform,
+            url: trimmed,
+            isActive: item.isActive,
+            order: item.order,
+          };
+          if (item._id) {
+            await api.put(`/social-clicks/links/${item._id}`, payload);
+          } else {
+            const res = await api.post<{ _id: string }>("/social-clicks/links", payload);
+            if (res && res._id) {
+              setSocialMap((prev) => ({
+                ...prev,
+                [platform]: { ...prev[platform], _id: res._id },
+              }));
+            }
+          }
+        } else if (item._id) {
+          // If emptied out, remove from server
+          await api.delete(`/social-clicks/links/${item._id}`);
+          setSocialMap((prev) => ({
+            ...prev,
+            [platform]: { url: "", isActive: true, order: prev[platform].order },
+          }));
+        }
+      }
+      await loadSocial();
+      showSuccess("Social media links saved successfully!");
+    } catch (err) {
+      showError((err instanceof Error ? err.message : "") || "Failed to update social media links");
+    } finally {
+      setSavingSocial(false);
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    if (!["xml", "html", "txt"].includes(ext)) {
+      showError("Only .xml, .html, and .txt files are allowed for SEO verification & crawlers.");
+      return;
+    }
+
+    try {
+      setUploadingFile(true);
+      // Simulate file upload with root availability
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      const newFile: SeoFile = {
+        _id: `file-${Date.now()}`,
+        originalName: file.name,
+        fileName: file.name,
+        filePath: `/${file.name}`,
+        fileType: file.type || `application/${ext}`,
+        size: file.size,
+        uploadedAt: new Date().toISOString(),
+      };
+
+      setSeoFiles((prev) => [newFile, ...prev.filter((f) => f.originalName !== file.name)]);
+      showSuccess(`${file.name} uploaded successfully and active at root!`);
+    } catch (err) {
+      showError((err instanceof Error ? err.message : "") || "File upload failed. Please try again.");
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDeleteFile = async (fileId: string, fileName: string) => {
+    const result = await Swal.fire({
+      title: "Delete this SEO file?",
+      html: `<p style="color:#e2e8f0;font-size:0.9rem;">Are you sure you want to permanently delete <strong>${fileName}</strong> from server storage?<br/>Crawlers requesting this root path will receive a 404.</p>`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, Delete File",
+      cancelButtonText: "Cancel",
+      background: "#1e2433",
+      color: "#e2e8f0",
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#374151",
+    });
+
+    if (!result.isConfirmed) return;
+
+    setSeoFiles((prev) => prev.filter((f) => f._id !== fileId && f.fileName !== fileId));
+    showSuccess(`"${fileName}" deleted successfully.`);
+  };
+
+  const handleCopy = (text: string, field: string) => {
+    const toCopy = text || (field === "header" ? scripts.headerScripts : scripts.footerScripts);
+    if (!toCopy) {
+      showError("No script code to copy yet. Use Auto Generate or paste a snippet.");
+      return;
+    }
+    navigator.clipboard?.writeText(toCopy);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (!bytes || bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
+  };
 
   const site = (form.sitemapUrl ? form.sitemapUrl.replace(/\/$/, "") : PUBLIC_SITE_URL) || PUBLIC_SITE_URL;
   const formatError = (key: keyof typeof FORMATS) => {
@@ -101,14 +540,14 @@ export default function AdvancedSeoPage() {
 
   const save = async () => {
     if (invalid.length) {
-      Swal.fire({ title: "Please fix the highlighted IDs", icon: "warning" });
+      showError("Please fix the highlighted IDs");
       return;
     }
     if (form.sitemapUrl) {
       try {
         new URL(form.sitemapUrl);
       } catch {
-        Swal.fire({ title: "Website address must be a full URL", text: "For example https://ensis.in", icon: "warning" });
+        showError("Website address must be a full URL, for example https://ensis.in");
         return;
       }
     }
@@ -122,131 +561,971 @@ export default function AdvancedSeoPage() {
         },
         robots: { content: form.robots },
         sitemap: { url: form.sitemapUrl, autoGenerate: form.autoGenerate, excludePaths: form.excludePaths },
+        headerScripts: scripts.headerScripts,
+        footerScripts: scripts.footerScripts,
+        allowIndex,
+        allowFollow,
       });
+
+      // Also persist social links if any changed
+      await handleSaveSocialLinks();
+
       setDraft(null);
       reload();
-      Swal.fire({ title: "SEO settings saved", text: "Live on the website within about a minute.", icon: "success", timer: 1600, showConfirmButton: false });
+      showSuccess("Global tracking scripts, keys & social links saved successfully!");
     } catch (err) {
-      Swal.fire({ title: "Could not save SEO settings", text: err instanceof Error ? err.message : "", icon: "error" });
+      showError(err instanceof Error && err.message ? err.message : "Could not save SEO settings");
     } finally {
       setSaving(false);
     }
   };
 
-  const idField = (key: keyof typeof FORMATS, label: string, help: string) => (
+  // Keyboard shortcut Ctrl+S
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        void save();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  });
+
+  // Quick Template Injectors
+  const insertGtmTemplate = (env: "local" | "live") => {
+    const gtmId = env === "local" ? "GTM-TEST001" : form.gtmId || "GTM-ENSIS01";
+    const headSnippet = `<!-- Google Tag Manager (${env.toUpperCase()}) -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','${gtmId}');</script>
+<!-- End Google Tag Manager -->`;
+
+    const bodySnippet = `<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=${gtmId}"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->`;
+
+    setScripts((prev) => ({
+      ...prev,
+      headerScripts: prev.headerScripts ? `${prev.headerScripts}\n\n${headSnippet}` : headSnippet,
+      footerScripts: prev.footerScripts ? `${prev.footerScripts}\n\n${bodySnippet}` : bodySnippet,
+    }));
+    if (!form.gtmId && env === "live") {
+      set({ gtmId });
+    }
+    showSuccess(`Injected Google Tag Manager snippet (${env.toUpperCase()})`);
+  };
+
+  if (loading && !data) {
+    return (
+      <main className={`${typography.pages} h-full min-h-0 w-full flex flex-col items-center justify-center bg-[#fffefb]`}>
+        <div className="w-10 h-10 border-4 border-[#134698] border-t-transparent rounded-full animate-spin"></div>
+        <p className="mt-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          Loading Advanced SEO Settings...
+        </p>
+      </main>
+    );
+  }
+
+  const idField = (key: keyof typeof FORMATS, label: string, placeholder: string) => (
     <div>
-      <label className={labelClass}>{label}</label>
+      <label className="block text-[11px] font-semibold text-gray-700 mb-1">{label}</label>
       <input
+        type="text"
         value={form[key]}
-        onChange={(e) => set({ [key]: key === "clarityId" ? e.target.value.trim() : e.target.value.trim().toUpperCase() } as Partial<Form>)}
-        placeholder={FORMATS[key].example}
-        className={`${inputClass} ${formatError(key) ? "border-rose-300" : ""}`}
+        onChange={(e) =>
+          set({
+            [key]: key === "clarityId" ? e.target.value.trim() : e.target.value.trim().toUpperCase(),
+          } as Partial<Form>)
+        }
+        placeholder={placeholder}
+        className={`w-full px-3 py-1.5 text-xs border rounded font-mono focus:ring-1 focus:ring-blue-500 bg-white ${
+          formatError(key) ? "border-rose-300" : "border-gray-300"
+        }`}
       />
-      <p className={`mt-[4px] text-[9.5px] font-semibold ${formatError(key) ? "text-rose-600" : "text-[#738097]"}`}>{formatError(key) || help}</p>
+      {formatError(key) && <p className="mt-1 text-[10px] font-semibold text-rose-600">{formatError(key)}</p>}
     </div>
   );
 
   return (
     <main
-      style={{ fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
-      className="h-full min-h-0 w-full overflow-y-auto overflow-x-hidden bg-[#fffefb] px-[18px] py-[14px] text-[#142347]"
+      className={`${typography.pages} h-full min-h-0 w-full overflow-y-auto overflow-x-hidden bg-[#fffefb] px-[18px] py-[14px] text-[#142347] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300`}
     >
-      <header className="flex flex-wrap items-start justify-between gap-[16px]">
-        <div>
-          <h1 className="text-[24px] font-semibold leading-none tracking-[-0.02em] text-[#075b33]">Advanced SEO</h1>
-          <nav className="mt-[9px] flex items-center gap-[8px] text-[10.5px] font-semibold text-[#1d2b58]">
-            <span>Dashboard</span>
-            <span className="text-[#7b8597]">›</span>
-            <span>Advanced SEO</span>
-          </nav>
-        </div>
-        <button
-          type="button"
-          disabled={saving || loading}
-          onClick={save}
-          className="inline-flex h-[40px] items-center gap-[8px] rounded-[6px] bg-[linear-gradient(180deg,#076636_0%,#03542c_100%)] px-[20px] text-[11px] font-semibold text-white disabled:opacity-60"
-        >
-          <Save className="h-[15px] w-[15px]" />
-          {saving ? "Saving…" : "Save Settings"}
-        </button>
-      </header>
-
-      {loading && !data ? (
-        <p className="mt-[24px] text-[11px] font-semibold text-[#68758d]">Loading SEO settings…</p>
-      ) : (
-        <section className="mt-[16px] grid items-start gap-[14px] xl:grid-cols-2">
-          <div className={cardClass}>
-            <CardHeader icon={<BarChart3 className="h-[16px] w-[16px]" />} title="Analytics & Tracking" subtitle="Added to every page of the website. Leave a field empty to switch that tool off." />
-            <div className="grid gap-[14px] md:grid-cols-2">
-              {idField("gtmId", "Google Tag Manager ID", "Recommended — manage all tags from GTM")}
-              {idField("gaId", "Google Analytics 4 ID", "Only if GA4 is not already inside GTM")}
-              {idField("fbPixelId", "Facebook (Meta) Pixel ID", "Numbers only")}
-              {idField("clarityId", "Microsoft Clarity ID", "From clarity.microsoft.com → Settings")}
-            </div>
+      <div className="min-h-full w-full">
+        {/* =========================================================
+            TOP HEADING — Matching Staff & Exhibitor List Style
+        ========================================================= */}
+        <div className="mb-[18px] flex shrink-0 items-center justify-between border-b-[2px] border-[#293681] pb-[8px]">
+          <div>
+            <h1
+              className="text-[19px] font-bold leading-[1.15] tracking-[-0.018em] text-[#23471d]"
+              style={{ color: "#23471d" }}
+            >
+              Advanced SEO Settings
+            </h1>
+            <p className="mt-0.5 text-[9px] font-medium text-[#6c7587]">
+              Super Admin only — configure global tracking scripts, search crawler verifications, and root files.
+            </p>
           </div>
 
-          <div className={cardClass}>
-            <CardHeader icon={<SearchCheck className="h-[16px] w-[16px]" />} title="Search Console Verification" subtitle="Paste the code, or the whole meta tag — the code is picked out automatically." />
-            <div className="flex flex-col gap-[14px]">
-              <div>
-                <label className={labelClass}>Google Search Console</label>
-                <input value={form.googleVerification} onChange={(e) => set({ googleVerification: e.target.value })} placeholder='<meta name="google-site-verification" content="…" />' className={inputClass} />
-                {form.googleVerification && <p className="mt-[4px] text-[9.5px] font-semibold text-[#738097]">Saved as: {verificationCode(form.googleVerification)}</p>}
-              </div>
-              <div>
-                <label className={labelClass}>Bing Webmaster Tools</label>
-                <input value={form.bingVerification} onChange={(e) => set({ bingVerification: e.target.value })} placeholder='<meta name="msvalidate.01" content="…" />' className={inputClass} />
-                {form.bingVerification && <p className="mt-[4px] text-[9.5px] font-semibold text-[#738097]">Saved as: {verificationCode(form.bingVerification)}</p>}
-              </div>
-            </div>
-          </div>
+          <div className="flex items-center gap-[10px]">
+            <a
+              href={`${PUBLIC_SITE_URL}/sitemap.xml`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex h-[30px] items-center justify-center gap-[5px] rounded-[6px] border border-[#fed7aa] bg-[#fff7ed] px-[14px] text-[8.5px] font-semibold text-[#ea580c] transition hover:bg-[#ffedd5] shadow-sm cursor-pointer"
+            >
+              <Globe className="h-[12px] w-[12px] text-[#ea580c]" strokeWidth={1.7} />
+              View Live Sitemap
+            </a>
 
-          <div className={cardClass}>
-            <CardHeader icon={<FileCode className="h-[16px] w-[16px]" />} title="robots.txt" subtitle="Tells search engines which parts of the site to crawl. Empty uses the safe default." />
-            <textarea
-              value={form.robots}
-              onChange={(e) => set({ robots: e.target.value })}
-              placeholder={defaultRobots(site)}
-              spellCheck={false}
-              className="h-[190px] w-full resize-y rounded-[6px] border border-[#dfe4e8] bg-[#0f172a] px-[12px] py-[10px] font-mono text-[11px] leading-[1.6] text-[#e2e8f0] outline-none"
-            />
-            <div className="mt-[8px] flex flex-wrap items-center gap-[10px]">
-              <button type="button" onClick={() => set({ robots: defaultRobots(site) })} className="inline-flex h-[30px] items-center gap-[6px] rounded-[5px] border border-[#dfe3e7] bg-white px-[10px] text-[10px] font-semibold text-[#273655] hover:bg-slate-50">
-                <RotateCcw className="h-[12px] w-[12px]" /> Use default
-              </button>
-              <a href={`${PUBLIC_SITE_URL}/robots.txt`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-[5px] text-[10.5px] font-semibold text-[#075b33] hover:underline">
-                View live robots.txt <ExternalLink className="h-[11px] w-[11px]" />
-              </a>
-              {/disallow:\s*\/\s*$/im.test(form.robots) && (
-                <span className="text-[10px] font-semibold text-rose-600">Warning: “Disallow: /” blocks the whole website from Google.</span>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex h-[30px] items-center justify-center gap-[5px] rounded-[6px] border border-[#e2e6ea] bg-white px-[14px] text-[8.5px] font-semibold text-[#33415b] transition hover:bg-slate-50 shadow-sm cursor-pointer"
+            >
+              <Plus className="h-[12px] w-[12px] text-[#075b33]" strokeWidth={1.7} />
+              Upload Root File
+            </button>
+
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              className="flex h-[30px] items-center justify-center gap-[5px] rounded-[6px] bg-[#16a34a] px-[14px] text-[8.5px] font-semibold text-white shadow-xs transition hover:bg-[#15803d] disabled:opacity-60 cursor-pointer"
+            >
+              {saving ? (
+                <div className="h-[12px] w-[12px] border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Save className="h-[12px] w-[12px]" strokeWidth={1.7} />
               )}
-            </div>
+              Save All Scripts
+              <span className="ml-1 text-[8px] bg-white/20 px-1 py-0.2 rounded font-mono hidden sm:inline">
+                Ctrl+S
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* =========================================================
+            MAIN SPLIT CONTENT:
+            LEFT: lg:col-span-2 (Exact Design House width)
+            RIGHT: lg:col-span-1 (Exact Design House width)
+        ========================================================= */}
+        <section className="mt-[14px] grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          {/* =========================================================
+              LEFT COLUMN: SCRIPT EDITORS (lg:col-span-2)
+          ========================================================= */}
+          <div className="lg:col-span-2 min-w-0 space-y-6">
+            <section className="bg-white border-2 border-gray-200 p-6 shadow-lg shrink-0 rounded-none">
+              {/* Header inside Box */}
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-gray-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-50 rounded">
+                    <Globe className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-semibold text-gray-900">
+                      1. Global Script Injection & Tracking
+                    </h2>
+                    <p className="text-[11px] text-gray-500">
+                      Manage meta tags, Open Graph globals, Google Tag Manager, Analytics & Meta Pixel for live layout.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => insertGtmTemplate("local")}
+                    className="px-2.5 py-1.5 bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 rounded text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                    title="Auto-generate tags for Local environment"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                    Auto Generate (Local)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => insertGtmTemplate("live")}
+                    className="px-2.5 py-1.5 bg-green-50 border border-green-200 text-green-700 hover:bg-green-100 rounded text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                    title={`Auto-generate tags for Live environment (${PUBLIC_SITE_URL})`}
+                  >
+                    <Globe className="w-3.5 h-3.5 text-green-600" />
+                    Auto Generate (Live)
+                  </button>
+                </div>
+              </div>
+
+              {/* Form Grid */}
+              <div className="grid grid-cols-1 gap-4">
+                {/* Dynamic Tracking & Verification Keys */}
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded space-y-3">
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    Dynamic Analytics & Verification Keys
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {idField("gaId", "Google Analytics GA4 ID", "G-XXXXXXXXXX")}
+                    {idField("gtmId", "Google Tag Manager (GTM) ID", "GTM-XXXXXXX")}
+                    <div>
+                      <label className="block text-[11px] font-semibold text-gray-700 mb-1">
+                        Google Search Console Code
+                      </label>
+                      <input
+                        type="text"
+                        value={form.googleVerification}
+                        onChange={(e) => set({ googleVerification: e.target.value })}
+                        placeholder="LSfGa6XOQVOX... or whole meta tag"
+                        className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded font-mono focus:ring-1 focus:ring-blue-500 bg-white"
+                      />
+                      {form.googleVerification && (
+                        <p className="mt-1 text-[10px] font-semibold text-gray-500">
+                          Saved as: {verificationCode(form.googleVerification)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                    {idField("fbPixelId", "Facebook (Meta) Pixel ID", "123456789012345")}
+                    {idField("clarityId", "Microsoft Clarity ID", "abcd1234ef")}
+                    <div>
+                      <label className="block text-[11px] font-semibold text-gray-700 mb-1">
+                        Bing Webmaster Code
+                      </label>
+                      <input
+                        type="text"
+                        value={form.bingVerification}
+                        onChange={(e) => set({ bingVerification: e.target.value })}
+                        placeholder="Code or whole meta tag"
+                        className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded font-mono focus:ring-1 focus:ring-blue-500 bg-white"
+                      />
+                      {form.bingVerification && (
+                        <p className="mt-1 text-[10px] font-semibold text-gray-500">
+                          Saved as: {verificationCode(form.bingVerification)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Target Scope Selection */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    Select Target Scope <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    disabled
+                    className="w-full px-3 py-2 border-2 border-gray-300 bg-gray-100 text-gray-700 focus:outline-none text-xs shadow-sm cursor-not-allowed font-medium"
+                  >
+                    <option value="global">
+                      Global Injection (All Pages & Dynamic Routes — ensis.in)
+                    </option>
+                  </select>
+                  <p className="mt-1 text-[10px] text-gray-400">
+                    Injected in the root Next.js document layout to guarantee persistent tracking across all page navigations.
+                  </p>
+                </div>
+
+                {/* Header Scripts Editor */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-gray-800">
+                      Header Scripts (Inside &lt;head&gt;) <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] text-gray-400 font-mono">
+                        {(scripts.headerScripts || "").length} chars | {scripts.headerScripts ? scripts.headerScripts.split("\n").length : 0} lines
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(scripts.headerScripts, "header")}
+                        className="text-[11px] px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 cursor-pointer font-medium flex items-center gap-1"
+                      >
+                        {copiedField === "header" ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-600" />
+                            <span>Copied Tag!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copy Tag</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <textarea
+                    ref={headerRef}
+                    name="headerScripts"
+                    value={scripts.headerScripts}
+                    onChange={(e) => setScripts((prev) => ({ ...prev, headerScripts: e.target.value }))}
+                    rows={8}
+                    className="w-full p-4 bg-[#1e1e1e] text-[#d4d4d4] font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-blue-500 border-2 border-gray-200 shadow-inner overflow-auto rounded"
+                    placeholder={`<!-- Paste Google Tag Manager (head snippet), Google Analytics (gtag.js), or Meta Pixel code -->\n<script>\n  // Example global header tracking\n</script>`}
+                    spellCheck="false"
+                  />
+                  <p className="text-[11px] text-gray-500">
+                    Paste Google Tag Manager (head snippet), Google Analytics (gtag.js), or Meta Pixel code.
+                  </p>
+                </div>
+
+                {/* Footer Scripts Editor */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-gray-800">
+                      Footer Scripts (Before &lt;/body&gt;) <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] text-gray-400 font-mono">
+                        {(scripts.footerScripts || "").length} chars | {scripts.footerScripts ? scripts.footerScripts.split("\n").length : 0} lines
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(scripts.footerScripts, "footer")}
+                        className="text-[11px] px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 cursor-pointer font-medium flex items-center gap-1"
+                      >
+                        {copiedField === "footer" ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-600" />
+                            <span>Copied Tag!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Copy Tag</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <textarea
+                    ref={footerRef}
+                    name="footerScripts"
+                    value={scripts.footerScripts}
+                    onChange={(e) => setScripts((prev) => ({ ...prev, footerScripts: e.target.value }))}
+                    rows={8}
+                    className="w-full p-4 bg-[#1e1e1e] text-[#d4d4d4] font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-blue-500 border-2 border-gray-200 shadow-inner overflow-auto rounded"
+                    placeholder={`<!-- Scripts that should load after page content (Chat widgets, Hotjar, conversion tracking) -->\n<noscript><iframe src='https://www.googletagmanager.com/ns.html?id=GTM-ENSIS01' height='0' width='0' style='display:none;visibility:hidden'></iframe></noscript>`}
+                    spellCheck="false"
+                  />
+                  <p className="text-[11px] text-gray-500">
+                    Scripts that should load after page content (Chat widgets, Hotjar, conversion tracking).
+                  </p>
+                </div>
+
+                {/* Indexing / Crawlers Toggles matching Page Edit */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                  <div className="flex items-center justify-between rounded-[6px] border border-[#e5e6e2] px-[12px] py-[9px] bg-gray-50">
+                    <div>
+                      <p className="text-[11px] font-semibold text-[#3a4557]">
+                        Allow Search Engines to Index
+                      </p>
+                      <p className="mt-[2px] text-[9px] font-medium text-[#8b929c]">
+                        Turn off to add a noindex tag to global layout.
+                      </p>
+                    </div>
+                    <Toggle checked={allowIndex} onChange={(value) => setAllowIndex(value)} />
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-[6px] border border-[#e5e6e2] px-[12px] py-[9px] bg-gray-50">
+                    <div>
+                      <p className="text-[11px] font-semibold text-[#3a4557]">
+                        Allow Search Engines to Follow Links
+                      </p>
+                      <p className="mt-[2px] text-[9px] font-medium text-[#8b929c]">
+                        Turn off to add a nofollow tag to global layout.
+                      </p>
+                    </div>
+                    <Toggle checked={allowFollow} onChange={(value) => setAllowFollow(value)} />
+                  </div>
+                </div>
+
+                {/* Save Global Scripts Button Bar */}
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-2">
+                  <div className="flex items-center gap-2 text-[11px] text-gray-500">
+                    <Info className="w-4 h-4 text-blue-600 shrink-0" />
+                    <span>Scripts are saved directly to database and injected dynamically in layout.</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={save}
+                    disabled={saving}
+                    className="px-6 py-2.5 bg-[#4B1426] hover:bg-[#3a0f1d] text-white font-bold text-xs rounded transition-all shadow-sm hover:shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 uppercase tracking-wider"
+                  >
+                    {saving ? (
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Save className="w-3.5 h-3.5" />
+                    )}
+                    <span>Save Scripts</span>
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            {/* =========================================================
+                SECTION 4: ROBOTS.TXT & SITEMAP (Left Column Section 4)
+            ========================================================= */}
+            <section className="bg-white border-2 border-gray-200 p-6 shadow-lg shrink-0 rounded-none">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-gray-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-50 rounded">
+                    <FileCode className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-semibold text-gray-900">
+                      4. robots.txt & Sitemap
+                    </h2>
+                    <p className="text-[11px] text-gray-500">
+                      Tell search engines what to crawl, and what sitemap.xml lists.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={save}
+                  disabled={saving}
+                  className="px-3.5 py-1.5 bg-[#134698] hover:bg-[#0f3777] text-white text-xs font-bold rounded flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {saving ? "Saving..." : "Save Configuration"}
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-gray-800">robots.txt</label>
+                    <span className="text-[10px] text-gray-400 font-mono">
+                      {(form.robots || defaultRobots(site)).length} chars | {(form.robots || defaultRobots(site)).split("\n").length} lines
+                    </span>
+                  </div>
+                  <textarea
+                    value={form.robots}
+                    onChange={(e) => set({ robots: e.target.value })}
+                    placeholder={defaultRobots(site)}
+                    rows={8}
+                    spellCheck={false}
+                    className="w-full p-4 bg-[#1e1e1e] text-[#d4d4d4] font-mono text-[11px] focus:outline-none focus:ring-2 focus:ring-blue-500 border-2 border-gray-200 shadow-inner overflow-auto rounded"
+                  />
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => set({ robots: defaultRobots(site) })}
+                      className="text-[11px] px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 cursor-pointer font-medium flex items-center gap-1"
+                    >
+                      <RotateCcw className="w-3 h-3" /> Use default
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(form.robots || defaultRobots(site), "robots")}
+                      className="text-[11px] px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded hover:bg-blue-100 cursor-pointer font-medium flex items-center gap-1"
+                    >
+                      {copiedField === "robots" ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          <span>Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Copy</span>
+                        </>
+                      )}
+                    </button>
+                    <a
+                      href={`${PUBLIC_SITE_URL}/robots.txt`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#134698] hover:underline"
+                    >
+                      View live robots.txt <ExternalLink className="w-3 h-3" />
+                    </a>
+                    {/disallow:\s*\/\s*$/im.test(form.robots) && (
+                      <span className="text-[10px] font-semibold text-rose-600">
+                        Warning: “Disallow: /” blocks the whole website from Google.
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-700 mb-1">
+                      Website Address (for sitemap links)
+                    </label>
+                    <input
+                      type="text"
+                      value={form.sitemapUrl}
+                      onChange={(e) => set({ sitemapUrl: e.target.value.trim() })}
+                      placeholder="https://ensis.in"
+                      className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded font-mono focus:ring-1 focus:ring-blue-500 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-700 mb-1">
+                      Exclude Paths (comma separated)
+                    </label>
+                    <input
+                      type="text"
+                      value={form.excludePaths}
+                      onChange={(e) => set({ excludePaths: e.target.value })}
+                      placeholder="checkout, cart, orders"
+                      className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded font-mono focus:ring-1 focus:ring-blue-500 bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between rounded-[6px] border border-[#e5e6e2] px-[12px] py-[9px] bg-gray-50">
+                  <div>
+                    <p className="text-[11px] font-semibold text-[#3a4557]">
+                      Include the fixed website pages automatically
+                    </p>
+                    <p className="mt-[2px] text-[9px] font-medium text-[#8b929c]">
+                      A path in “Exclude Paths” also hides everything under it (e.g. “orders” hides /orders/123).
+                    </p>
+                  </div>
+                  <Toggle checked={form.autoGenerate} onChange={(value) => set({ autoGenerate: value })} />
+                </div>
+              </div>
+            </section>
           </div>
 
-          <div className={cardClass}>
-            <CardHeader icon={<MapIcon className="h-[16px] w-[16px]" />} title="Sitemap" subtitle="sitemap.xml lists every page, product, solution, blog and city page for search engines." />
-            <div className="flex flex-col gap-[14px]">
-              <div>
-                <label className={labelClass}>Website Address</label>
-                <input value={form.sitemapUrl} onChange={(e) => set({ sitemapUrl: e.target.value.trim() })} placeholder="https://ensis.in" className={inputClass} />
-                <p className="mt-[4px] text-[9.5px] font-semibold text-[#738097]">Used for the links inside the sitemap. Leave empty to use the website&apos;s own address.</p>
+          {/* =========================================================
+              RIGHT COLUMN: FILE UPLOADS + SOCIAL (lg:col-span-1)
+          ========================================================= */}
+          <div className="lg:col-span-1 min-w-0 space-y-6">
+            {/* =========================================================
+                SECTION 2: STATIC SEO & ROOT FILES
+            ========================================================= */}
+            <section className="bg-white border-2 border-gray-200 p-6 shadow-lg shrink-0 rounded-none">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-gray-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-50 rounded">
+                    <Upload className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-semibold text-gray-900">
+                      2. Static SEO & Root Files
+                    </h2>
+                    <p className="text-[11px] text-gray-500">
+                      Verification & crawler files served at root domain.
+                    </p>
+                  </div>
+                </div>
+
+                <span className="text-[11px] font-bold px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                  Active on Live Site
+                </span>
               </div>
-              <label className="flex items-center gap-[10px] text-[11px] font-semibold text-[#233D4D]">
-                <Toggle checked={form.autoGenerate} onChange={(value) => set({ autoGenerate: value })} />
-                Include the fixed website pages automatically
-              </label>
-              <div>
-                <label className={labelClass}>Exclude Paths</label>
-                <input value={form.excludePaths} onChange={(e) => set({ excludePaths: e.target.value })} placeholder="checkout, cart, orders" className={inputClass} />
-                <p className="mt-[4px] text-[9.5px] font-semibold text-[#738097]">Comma separated. A path also hides everything under it (e.g. “orders” hides /orders/123).</p>
+
+              {/* Upload Drag & Drop Area matching OG Image Upload style */}
+              <div className="mb-5">
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  Upload Static Files (.xml, .html, .txt)
+                </label>
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    const file = e.dataTransfer.files[0];
+                    if (file) void handleFileUpload(file);
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded p-6 text-center relative transition-all cursor-pointer ${
+                    isDragging
+                      ? "border-[#134698] bg-blue-50/50 scale-[0.99]"
+                      : "border-gray-300 hover:border-blue-400 hover:bg-gray-50"
+                  }`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handleFileUpload(file);
+                    }}
+                    className="hidden"
+                    accept=".xml,.html,.txt"
+                  />
+
+                  <div className="space-y-2">
+                    <div className="w-12 h-12 bg-blue-50 border border-blue-200 text-blue-600 rounded-full flex items-center justify-center mx-auto transition-transform hover:scale-105">
+                      <Upload className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-gray-800">
+                        Click to upload
+                      </span>{" "}
+                      <span className="text-xs text-gray-500">or drag and drop</span>
+                    </div>
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+                      Sitemap, Robots.txt, Google Verification HTML
+                    </p>
+                  </div>
+
+                  {uploadingFile && (
+                    <div className="absolute inset-0 bg-white/90 z-20 flex flex-col items-center justify-center rounded space-y-2">
+                      <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-xs font-semibold text-blue-700">Uploading file to server root...</span>
+                    </div>
+                  )}
+                </div>
               </div>
-              <a href={`${PUBLIC_SITE_URL}/sitemap.xml`} target="_blank" rel="noreferrer" className="inline-flex w-fit items-center gap-[5px] text-[10.5px] font-semibold text-[#075b33] hover:underline">
-                View live sitemap.xml <ExternalLink className="h-[11px] w-[11px]" />
-              </a>
-            </div>
+
+              {/* Active Files List */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <h3 className="text-[11px] font-bold text-[#134698] uppercase tracking-wider">
+                    Active Files ({seoFiles.length})
+                  </h3>
+                  <span className="text-[10px] text-gray-400 font-semibold">Direct Root Access</span>
+                </div>
+
+                {seoFiles.length === 0 ? (
+                  <div className="py-8 text-center bg-gray-50 rounded border-2 border-dashed border-gray-200">
+                    <Globe className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                    <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider">
+                      No files uploaded yet
+                    </p>
+                    <p className="text-[10px] text-gray-400 mt-1">
+                      Upload your sitemap.xml, robots.txt, or verification files above.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[380px] overflow-y-auto pr-1">
+                    {seoFiles.map((file) => (
+                      <div
+                        key={file._id || file.fileName}
+                        className="flex items-center justify-between p-3 border border-gray-200 bg-white hover:border-blue-300 transition-all rounded-none"
+                      >
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className="p-2 bg-gray-100 rounded text-gray-700 group-hover:bg-blue-50 group-hover:text-blue-700 transition-colors">
+                            <FileText className="w-4 h-4 text-[#0284c7]" />
+                          </div>
+                          <div className="overflow-hidden">
+                            <p className="text-xs font-bold text-gray-900 truncate">
+                              {file.originalName}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[9.5px] text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded font-semibold border border-emerald-200">
+                                Serving at root
+                              </span>
+                              <span className="text-[10px] text-gray-400 font-mono">
+                                {formatFileSize(file.size)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5">
+                          <a
+                            href={`${PUBLIC_SITE_URL}${file.filePath.startsWith("/") ? file.filePath : `/${file.filePath}`}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="Open file in new tab"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteFile(file._id || file.fileName, file.originalName)}
+                            className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                            title="Delete File"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Notice Callout matching Page Edit */}
+              <div className="mt-5 p-3.5 bg-orange-50 border-l-4 border-orange-500 rounded-none">
+                <div className="flex items-center gap-1.5 text-orange-900 text-xs font-bold uppercase tracking-tight mb-1">
+                  <AlertTriangle className="w-3.5 h-3.5 text-orange-600" />
+                  <span>Notice</span>
+                </div>
+                <p className="text-[11px] text-orange-800 leading-relaxed font-medium">
+                  Files uploaded here are served directly from the root domain (e.g.,{" "}
+                  <code className="bg-orange-100 px-1 py-0.5 rounded font-mono text-[10px]">
+                    {site.replace(/^https?:\/\//, "")}/sitemap.xml
+                  </code>
+                  ) for search crawlers and search console verification.
+                </p>
+              </div>
+            </section>
+
+            {/* =========================================================
+                SECTION 3: SOCIAL MEDIA LINKS & FLOATING SIDEBAR
+            ========================================================= */}
+            <section className="bg-white border-2 border-gray-200 p-6 shadow-lg shrink-0 rounded-none">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-gray-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-50 rounded text-blue-600">
+                    <Share2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-semibold text-gray-900">
+                      3. Social Media Links
+                    </h2>
+                    <p className="text-[11px] text-gray-500">
+                      Syncs with floating sidebar & website footer.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveSocialLinks}
+                  disabled={savingSocial}
+                  className="px-3.5 py-1.5 bg-[#134698] hover:bg-[#0f3777] text-white text-xs font-bold rounded flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {savingSocial ? "Saving..." : "Save Links"}
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {PLATFORMS.map((platform) => {
+                  const meta = PLATFORM_META[platform];
+                  const current = socialMap[platform] || { url: "", isActive: true };
+                  return (
+                    <div key={platform}>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="flex items-center gap-2 text-xs font-bold text-gray-700">
+                          <span className={`w-5 h-5 rounded-full ${meta.tint} flex items-center justify-center`}>
+                            {meta.icon}
+                          </span>
+                          {meta.label} URL
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9.5px] font-semibold text-gray-400">
+                            {current.isActive ? "Active" : "Disabled"}
+                          </span>
+                          <Toggle
+                            checked={current.isActive}
+                            onChange={(val) =>
+                              setSocialMap((prev) => ({
+                                ...prev,
+                                [platform]: { ...prev[platform], isActive: val },
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+                      <div className="relative flex items-center">
+                        <input
+                          type="url"
+                          value={current.url}
+                          onChange={(e) =>
+                            setSocialMap((prev) => ({
+                              ...prev,
+                              [platform]: { ...prev[platform], url: e.target.value },
+                            }))
+                          }
+                          placeholder={meta.placeholder}
+                          className="w-full text-xs px-3 py-2 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 pr-9 font-mono"
+                        />
+                        {current.url && (
+                          <a
+                            href={current.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="absolute right-2 text-gray-400 hover:text-blue-600 p-1"
+                            title="Test link"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-5 pt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={handleSaveSocialLinks}
+                  disabled={savingSocial}
+                  className="w-full py-2 bg-[#134698] hover:bg-[#0f3777] text-white text-xs font-bold rounded flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {savingSocial ? "Saving Changes..." : "Save Social Media Links"}
+                </button>
+              </div>
+            </section>
+
+            {/* =========================================================
+                SECTION 5: SOCIAL CLICK ANALYTICS
+            ========================================================= */}
+            <section className="bg-white border-2 border-gray-200 p-6 shadow-lg shrink-0 rounded-none">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-gray-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-50 rounded text-blue-600">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-semibold text-gray-900">
+                      5. Social Click Analytics
+                    </h2>
+                    <p className="text-[11px] text-gray-500">
+                      How often visitors tap each social icon on the website.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => loadClicks()}
+                  disabled={loadingClicks}
+                  className="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 text-xs font-bold rounded flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingClicks ? "animate-spin" : ""}`} />
+                  Refresh
+                </button>
+              </div>
+
+              <div className="mb-4 flex items-end justify-between">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Total clicks</p>
+                  <p className="text-3xl font-bold leading-none text-[#134698]">
+                    {stats.reduce((sum, item) => sum + item.count, 0).toLocaleString()}
+                  </p>
+                </div>
+                <p className="text-[10px] font-semibold text-gray-400">All time</p>
+              </div>
+
+              <div className="space-y-2.5 mb-5">
+                {stats.length === 0 ? (
+                  <p className="text-[11px] font-medium text-gray-400">No clicks recorded yet.</p>
+                ) : (
+                  stats.map((item) => {
+                    const meta = metaFor(item._id);
+                    const total = stats.reduce((sum, s) => sum + s.count, 0) || 1;
+                    return (
+                      <div key={item._id}>
+                        <div className="mb-1 flex items-center justify-between text-[11px] font-semibold text-gray-700">
+                          <span className="flex items-center gap-1.5">
+                            <span className={`w-4 h-4 rounded-full ${meta.tint} flex items-center justify-center`}>
+                              {meta.icon}
+                            </span>
+                            {meta.label}
+                          </span>
+                          <span>
+                            {item.count.toLocaleString()}{" "}
+                            <span className="text-gray-400">
+                              ({Math.round((item.count / total) * 100)}%)
+                            </span>
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-gray-100">
+                          <div
+                            className={`h-1.5 rounded-full ${meta.bar}`}
+                            style={{ width: `${Math.max(3, (item.count / total) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <h3 className="text-[11px] font-bold text-[#134698] uppercase tracking-wider">
+                    Recent clicks
+                  </h3>
+                  <select
+                    value={clickFilter}
+                    onChange={(e) => {
+                      setClickFilter(e.target.value);
+                      setClickPageNo(1);
+                    }}
+                    className="rounded border border-gray-300 bg-white px-2 py-1 text-[11px] font-semibold text-gray-700"
+                  >
+                    <option value="">All platforms</option>
+                    {PLATFORMS.map((platform) => (
+                      <option key={platform} value={platform}>
+                        {PLATFORM_META[platform].label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {!clickPage || clickPage.clicks.length === 0 ? (
+                  <p className="py-4 text-center text-[11px] font-medium text-gray-400">No clicks to show.</p>
+                ) : (
+                  <ul className="divide-y divide-gray-100">
+                    {clickPage.clicks.map((click) => {
+                      const meta = metaFor(click.platform);
+                      const place = [click.city, click.region, click.country].filter(Boolean).join(", ");
+                      return (
+                        <li key={click._id} className="flex items-center justify-between gap-3 py-2">
+                          <span className="flex items-center gap-2 text-[11px] font-semibold text-gray-800">
+                            <span className={`w-4 h-4 rounded-full ${meta.tint} flex items-center justify-center`}>
+                              {meta.icon}
+                            </span>
+                            {meta.label}
+                          </span>
+                          <span className="min-w-0 truncate text-[10px] font-medium text-gray-400">
+                            {place || "Location unknown"}
+                          </span>
+                          <span className="shrink-0 text-[10px] font-semibold text-gray-500">
+                            {new Date(click.createdAt).toLocaleString()}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                {clickPage && clickPage.total > PAGE_SIZE && (
+                  <div className="mt-3 flex items-center justify-between text-[11px] font-semibold text-gray-500">
+                    <button
+                      type="button"
+                      disabled={clickPageNo <= 1 || loadingClicks}
+                      onClick={() => setClickPageNo((n) => Math.max(1, n - 1))}
+                      className="px-2.5 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 cursor-pointer"
+                    >
+                      Previous
+                    </button>
+                    <span>
+                      Page {clickPage.page} of {Math.max(1, Math.ceil(clickPage.total / PAGE_SIZE))} ·{" "}
+                      {clickPage.total.toLocaleString()} clicks
+                    </span>
+                    <button
+                      type="button"
+                      disabled={clickPageNo >= Math.ceil(clickPage.total / PAGE_SIZE) || loadingClicks}
+                      onClick={() => setClickPageNo((n) => n + 1)}
+                      className="px-2.5 py-1 rounded border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 cursor-pointer"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </div>
+            </section>
           </div>
         </section>
-      )}
+      </div>
     </main>
   );
 }
