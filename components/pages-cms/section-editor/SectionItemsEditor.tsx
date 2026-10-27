@@ -5,7 +5,10 @@ import { ChevronRight, Plus, Trash2 } from "lucide-react";
 import { FieldLabel, ImageUploadField, SelectField, TextInput, Textarea, Toggle, VideoUploadField } from "../fields";
 import RichTextEditor from "@/components/RichTextEditor";
 import { IMAGE_KEY_PATTERN, LONG_TEXT_KEY_PATTERN, VIDEO_KEY_PATTERN, humanizeKey } from "./sectionFieldHelpers";
+import { NestedValueEditor } from "./NestedValueEditor";
 import type { CmsRecord } from "@/lib/cmsJson";
+import { HeroFeaturesEditor } from "./HeroFeaturesEditor";
+import { HeroSlideScheduleEditor, todaySlideSchedule } from "./HeroSlideScheduleEditor";
 
 /* =========================================================
    GENERIC SECTION ITEMS EDITOR
@@ -322,12 +325,17 @@ export function SectionItemsEditor({
               : item;
           }
 
+          // Hero slides: booleans (Show Lutus / Is Center) sit in one row next to the Schedule switch
+          const isHeroSection = sectionId === "hero" || sectionId === "home.hero";
+
           const fieldEntries = Object.entries(itemToEdit)
             .filter(
               ([key, value]) =>
                 key !== "_id" &&
                 key !== "img" &&
                 key !== "status" &&
+                !(key === "schedule" && value && typeof value === "object" && !Array.isArray(value)) &&
+                !(isHeroSection && key === "features") &&
                 !(sectionId === "why-exhibit-hero" && key === "icon") &&
                 !(sectionId === "expo-categories" && key === "icon") &&
                 !(sectionId === "industry-segments" && key === "icon") &&
@@ -341,11 +349,19 @@ export function SectionItemsEditor({
                 (typeof value === "string" ||
                   typeof value === "number" ||
                   typeof value === "boolean" ||
-                  (Array.isArray(value) && value.every((entry) => typeof entry === "string")))
+                  (Array.isArray(value) && value.every((entry) => typeof entry === "string")) ||
+                  (Array.isArray(value) && value.length > 0 && typeof value[0] === "object" && value[0] !== null) ||
+                  (Boolean(value) && typeof value === "object"))
             )
             .sort(([a], [b]) => (FIELD_ORDER_PRIORITY[a] || 99) - (FIELD_ORDER_PRIORITY[b] || 99));
 
           const isOpen = openIndex === index;
+
+          const boolEntries = isHeroSection ? fieldEntries.filter(([, value]) => typeof value === "boolean") : [];
+          const textEntries = isHeroSection ? fieldEntries.filter(([, value]) => typeof value !== "boolean") : fieldEntries;
+          const storedSchedule = item.schedule as { start?: string; end?: string } | undefined;
+          const hasSchedule =
+            !!storedSchedule && typeof storedSchedule === "object" && (typeof storedSchedule.start === "string" || typeof storedSchedule.end === "string");
 
           return (
             <div
@@ -383,13 +399,16 @@ export function SectionItemsEditor({
 
               {isOpen && (
                 <div className="p-[12px] grid grid-cols-2 gap-[10px] bg-white">
-                  {fieldEntries.map(([key, value]) => {
-                    const isImageKey = IMAGE_KEY_PATTERN.test(key) && key !== "imageAlt";
+                  {textEntries.map(([key, value]) => {
+                    const isObjectValue = Boolean(value) && typeof value === "object" && !Array.isArray(value);
+                    const isObjectList =
+                      Array.isArray(value) && value.length > 0 && typeof value[0] === "object" && value[0] !== null;
+                    const isImageKey = !isObjectValue && IMAGE_KEY_PATTERN.test(key) && key !== "imageAlt";
                     const isVideoKey = VIDEO_KEY_PATTERN.test(key);
                     const isLong = (LONG_TEXT_KEY_PATTERN.test(key) || Array.isArray(value)) && !key.startsWith("feature");
 
                     return (
-                      <div key={key} className={isImageKey || isVideoKey || isLong ? "col-span-2 w-full" : "col-span-1"}>
+                      <div key={key} className={isImageKey || isVideoKey || isLong || isObjectValue || isObjectList ? "col-span-2 w-full" : "col-span-1"}>
                         <FieldLabel>
                           {sectionId === "industry-segments" && key === "image"
                             ? "Main Image (Upload / URL)"
@@ -414,7 +433,15 @@ export function SectionItemsEditor({
                                             : humanizeKey(key)}
                         </FieldLabel>
 
-                        {key === "icon" && sectionId !== "journey-glimpse" ? (
+                        {isObjectValue || isObjectList ? (
+                          <NestedValueEditor
+                            fieldKey={key}
+                            value={value}
+                            depth={1}
+                            onChange={(next) => onChangeItem(index, key, next)}
+                            addLabel={`Add ${humanizeKey(key).replace(/\s*\(.*\)$/, "")} Item`}
+                          />
+                        ) : key === "icon" && sectionId !== "journey-glimpse" ? (
                           <SelectField
                             value={String(value)}
                             options={[
@@ -531,6 +558,20 @@ export function SectionItemsEditor({
                             }
                             placeholder="comma, separated, values"
                           />
+                        ) : key === "icon" ? (
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={String(value)}
+                              onChange={(e) => onChangeItem(index, key, e.target.value)}
+                              className="h-[34px] flex-1 rounded border border-[#cbd5e1] px-2.5 text-[12px] bg-white text-[#1e293b] focus:border-[#0f766e] focus:outline-none font-medium"
+                            >
+                              <option value="leaf">🌿 Leaf (Ayurveda & Sustainable Teak)</option>
+                              <option value="users">👥 Users (Artisans, Designers & Team)</option>
+                              <option value="growth">📈 Growth (Pathways & Learning)</option>
+                              <option value="heart">❤️ Heart (Wellness Culture & Perks)</option>
+                              <option value="bulb">💡 Bulb (Precision Craft & Innovation)</option>
+                            </select>
+                          </div>
                         ) : key === "color" ? (
                           <div className="flex items-center gap-2">
                             <div className="relative flex-1">
@@ -579,6 +620,30 @@ export function SectionItemsEditor({
                       </div>
                     );
                   })}
+                  {/* Hero: Schedule switch + boolean switches (Show Lutus / Is Center) in one row; the calendar only opens when Schedule is on */}
+                  {isHeroSection && (
+                    <div className="col-span-2 flex flex-wrap items-center gap-x-[18px] gap-y-[8px] rounded-[6px] border border-[#e2e8f0] bg-[#f8fafc] px-[10px] py-[8px]">
+                      <label className="flex cursor-pointer items-center gap-[7px]">
+                        <span className="text-[11px] font-bold text-[#1e40af]">Schedule</span>
+                        <Toggle
+                          checked={hasSchedule}
+                          onChange={(next) => onChangeItem(index, "schedule", next ? todaySlideSchedule() : undefined)}
+                        />
+                      </label>
+                      {boolEntries.map(([key, value]) => (
+                        <label key={key} className="flex cursor-pointer items-center gap-[7px]">
+                          <span className="text-[11px] font-semibold text-[#334155]">{humanizeKey(key)}</span>
+                          <Toggle checked={value as boolean} onChange={(next) => onChangeItem(index, key, next)} />
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {isHeroSection && hasSchedule && (
+                    <HeroSlideScheduleEditor value={item.schedule} onChange={(next) => onChangeItem(index, "schedule", next)} />
+                  )}
+                  {(sectionId === "hero" || sectionId === "home.hero") && (
+                    <HeroFeaturesEditor value={item.features} onChange={(next) => onChangeItem(index, "features", next)} />
+                  )}
                 </div>
               )}
             </div>

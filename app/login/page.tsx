@@ -27,7 +27,7 @@ import {
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { setCredentials, logout, loginAdmin, verifyTwoFactor } from "@/store/slices/authSlice";
 import { authApi, type LoginResult, type VerifyTwoFactorResponse } from "@/lib/authApi";
-import { ApiRequestError } from "@/lib/api";
+import { api, ApiRequestError } from "@/lib/api";
 import { Input } from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -68,6 +68,30 @@ export default function LoginPage() {
   const [totpCode, setTotpCode] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string>("/ensis-logo.webp");
+  const [logoAlt, setLogoAlt] = useState<string>("Ensis");
+
+  useEffect(() => {
+    let active = true;
+    api
+      .get<{ data?: { logo?: { imageUrl?: string; alt?: string } }; logo?: { imageUrl?: string; alt?: string } }>(
+        "/component-content/layout.header"
+      )
+      .then((res) => {
+        if (!active || !res) return;
+        const logo = res.data?.logo || res.logo;
+        if (logo?.imageUrl) {
+          setLogoUrl(logo.imageUrl);
+        }
+        if (logo?.alt) {
+          setLogoAlt(logo.alt);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
   const [error, setError] = useState("");
 
   const [secret, setSecret] = useState("");
@@ -453,73 +477,53 @@ export default function LoginPage() {
       <section
         className="
           login-brand
-          md:translate-y-10
-          xl:translate-y-14
+          !justify-center
         "
         aria-label="Ensis values"
       >
-        {/* LOGO */}
+        <div className="flex flex-col items-center justify-center p-8 xl:p-10 rounded-3xl bg-slate-950/65 backdrop-blur-md border border-white/20 shadow-2xl max-w-[480px] w-full text-center">
+          {/* LOGO */}
+          <div className="inline-flex items-center justify-center bg-white rounded-2xl px-6 py-3.5 shadow-lg border border-white/80 mb-3">
+            <img
+              src={logoUrl}
+              alt={logoAlt}
+              className="h-[55px] xl:h-[68px] w-auto object-contain"
+              onError={() => setLogoUrl("/ensis-logo.webp")}
+            />
+          </div>
 
-        <div
-          className="
-            brand-emblem
-            !h-[170px]
-            !w-[170px]
-            xl:!h-[195px]
-            xl:!w-[195px]
-          "
-        >
-          { }
+          {/* ORNAMENT */}
+          <div className="gold-ornament !text-amber-400 !my-1">
+            <i style={{ background: "linear-gradient(90deg, transparent, #fbbf24)" }} />
+            <b className="text-amber-400 text-xs">◆</b>
+            <i style={{ background: "linear-gradient(90deg, #fbbf24, transparent)" }} />
+          </div>
 
-          <img
-            src="/ensis-logo.webp"
-            alt="Ensis"
-          />
+          {/* INITIATIVE */}
+          <p className="!text-[16px] xl:!text-[18px] !font-bold text-[#fef08a] tracking-wide my-1 drop-shadow-sm">
+            {text.initiative}
+          </p>
+
+          <div className="gold-ornament !text-amber-400 !my-1">
+            <i style={{ background: "linear-gradient(90deg, transparent, #fbbf24)" }} />
+            <b className="text-amber-400 text-xs">◆</b>
+            <i style={{ background: "linear-gradient(90deg, #fbbf24, transparent)" }} />
+          </div>
+
+          {/* TITLE */}
+          <h1 className="!mt-2 !leading-tight text-center">
+            <span style={{ color: "#38bdf8", fontWeight: 800 }} className="text-[32px] xl:text-[40px] drop-shadow-md">
+              Ensis
+            </span>{" "}
+            <span style={{ color: "#fb923c", fontWeight: 800 }} className="text-[32px] xl:text-[40px] drop-shadow-md">
+              Wellness
+            </span>
+            <br />
+            <span style={{ color: "#ffffff", fontWeight: 700 }} className="text-[20px] xl:text-[24px] tracking-wide drop-shadow-md">
+              {text.portalTitle}
+            </span>
+          </h1>
         </div>
-
-        {/* ORNAMENT */}
-
-        <div className="gold-ornament">
-          <i />
-          <b>◆</b>
-          <i />
-        </div>
-
-        {/* INITIATIVE */}
-
-        <p
-          className="
-            brand-initiative
-            !text-[18px]
-            xl:!text-[20px]
-            !font-semibold
-          "
-        >
-          {text.initiative}
-        </p>
-
-        <div className="gold-ornament">
-          <i />
-          <b>◆</b>
-          <i />
-        </div>
-
-        {/* TITLE */}
-
-        <h1 style={{ WebkitTextStroke: "none", textShadow: "none", border: "none" }}>
-          <span style={{ color: "#1446A0", fontWeight: 600 }}>Ensis</span>{" "}
-          <span style={{ color: "#F26B1D", fontWeight: 600 }}>Wellness</span>
-          <br />
-
-          <span style={{ color: "#ffffff", WebkitTextStroke: "none", textShadow: "none" }}>
-            {text.portalTitle}
-          </span>
-        </h1>
-
-
-
-
-
       </section>
 
       {/* =====================================================
@@ -539,21 +543,20 @@ export default function LoginPage() {
           <div className="auth-heading">
             <div
               style={{
-                width: 72,
-                height: 72,
-                margin: "0 auto 6px",
-                overflow: "visible",
+                width: 140,
+                height: 52,
+                margin: "0 auto 8px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                mixBlendMode: "multiply",
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/ensis-logo.webp"
-                alt="Ensis"
-                style={{ width: "100%", height: "100%", objectFit: "contain", transform: "scale(2.2)" }}
+                src={logoUrl}
+                alt={logoAlt}
+                onError={() => setLogoUrl("/ensis-logo.webp")}
+                style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
               />
             </div>
 

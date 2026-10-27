@@ -36,6 +36,7 @@ import {
   ShoppingBag,
   ShieldCheck,
   Star,
+  Server,
   UserCheck,
   UserCog,
   Users,
@@ -118,9 +119,9 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Careers & Applications",
     items: [
-      { label: "Career Applications", href: "/career-applications", icon: Briefcase, badge: "NEW" },
       { label: "Career Dashboard", href: "/career-dashboard", icon: LayoutGrid },
       { label: "Job Postings", href: "/job-postings", icon: Briefcase },
+      { label: "Applications", href: "/career-applications", icon: Users },
       { label: "Applications & AI Response", href: "/applications-ai-response", icon: Bot },
       { label: "↳ Submit Form", href: "/applications-ai-response?modal=submitform", icon: FileText },
       { label: "↳ Candidate Details", href: "/applications-ai-response?modal=candidatedetails", icon: FileText },
@@ -160,6 +161,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: "Users & Roles", href: "/roles", icon: Users },
       { label: "Staff Management", href: "/staff", icon: UserCog },
       { label: "Security Center", href: "/system-services", icon: LockKeyhole },
+      { label: "Servers & Domains", href: "/infrastructure", icon: Server, badge: "NEW" },
       { label: "Backups & Restore", icon: DatabaseBackup, disabled: true },
       { label: "Audit Logs", href: "/audit-log", icon: History },
       { label: "Settings", href: "/settings", icon: Settings },

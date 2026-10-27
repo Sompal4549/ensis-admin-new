@@ -1,5 +1,5 @@
 import { ChevronRight } from "lucide-react";
-import { SectionFieldsEditor, SectionItemsEditor, SectionTitle } from "../section-editor";
+import { SectionFieldsEditor, SectionItemsEditor, SectionNestedDataEditor, SectionTitle } from "../section-editor";
 import { Toggle } from "../fields";
 import { LayoutSectionEditor } from "../section-editor/LayoutSectionEditor";
 import { isLayoutSection } from "../page-strategies/layout";
@@ -168,6 +168,12 @@ export function PageSectionsPanel({
                     onFieldChange={(key, value) => updateSectionField(sectionIndex, key, value)}
                   />
 
+                  <SectionNestedDataEditor
+                    section={section}
+                    onSectionFieldChange={(key, value) => updateSectionField(sectionIndex, key, value)}
+                    onDataChange={(nextData) => updateSectionField(sectionIndex, "data", nextData)}
+                  />
+
                   {Array.isArray(section.slides) && (
                     <div className="flex flex-col gap-[8px]">
                       <SectionItemsEditor
@@ -187,16 +193,23 @@ export function PageSectionsPanel({
                             previous.map((sec, i) => {
                               if (i !== sectionIndex) return sec;
                               const slides = [...(sec.slides ?? [])];
-                              const blank = {
-                                title: "NEW HERO SLIDE",
-                                description: "Enter slide description...",
-                                image: "",
-                                alt: "Hero Banner Slide",
-                                buttonLabel: "Book Your Stall",
-                                buttonHref: "/registration/book-a-stand",
-                                secondaryButtonLabel: "Register as Visitor",
-                                secondaryButtonHref: "/registration/visitor-registration",
-                              };
+                              // Clone the shape of the last slide so a new slide has exactly the
+                              // same fields (title/highlight/button names, Show Lutus, Is Center...)
+                              // as the slides already there, with blank values of the right type.
+                              const template = slides[slides.length - 1];
+                              const blank: CmsRecord = template
+                                ? Object.fromEntries(
+                                    Object.entries(template)
+                                      .filter(([k]) => k !== "_id" && k !== "id" && k !== "schedule")
+                                      .map(([k, v]) => [k, Array.isArray(v) ? [] : typeof v === "boolean" ? false : ""]),
+                                  )
+                                : {};
+                              blank.id = `slide-${slides.length + 1}`;
+                              if (!blank.title) blank.title = "NEW HERO SLIDE";
+                              if (blank.description === undefined || blank.description === null) blank.description = "Enter slide description...";
+                              if (blank.image === undefined) blank.image = "";
+                              if (blank.showLutus === undefined) blank.showLutus = false;
+                              if (blank.isCenter === undefined) blank.isCenter = false;
                               return { ...sec, slides: [...slides, blank] };
                             }),
                           );
@@ -215,7 +228,46 @@ export function PageSectionsPanel({
                     </div>
                   )}
 
-                  {Array.isArray(section.items) && section.key !== "hero" && section.key !== "introduction-section" && section.key !== "why-participate" && section.key !== "conference-section" && section.key !== "sponsors-attend" && section.key !== "testimonials-section" && (
+                  {section.key === "ourStory" && Array.isArray(section.stats) && (
+                    <div className="flex flex-col gap-[8px]">
+                      <span className="text-[10.5px] font-bold text-[#1e293b]">Stats</span>
+                      <SectionItemsEditor
+                        items={section.stats}
+                        onChangeItem={(itemIndex, key, value) => {
+                          setSectionsDraft((previous) =>
+                            previous.map((sec, i) => {
+                              if (i !== sectionIndex) return sec;
+                              const stats = [...(sec.stats ?? [])];
+                              stats[itemIndex] = { ...stats[itemIndex], [key]: value };
+                              return { ...sec, stats };
+                            }),
+                          );
+                        }}
+                        onAddItem={() => {
+                          setSectionsDraft((previous) =>
+                            previous.map((sec, i) => {
+                              if (i !== sectionIndex) return sec;
+                              const stats = [...(sec.stats ?? [])];
+                              const blank: CmsRecord = { number: "", title: "", subTitle: "", imageurl: "", imageAlt: "" };
+                              return { ...sec, stats: [...stats, blank] };
+                            }),
+                          );
+                        }}
+                        onRemoveItem={(itemIndex) => {
+                          setSectionsDraft((previous) =>
+                            previous.map((sec, i) => {
+                              if (i !== sectionIndex) return sec;
+                              const stats = (sec.stats ?? []).filter((_: unknown, idx: number) => idx !== itemIndex);
+                              return { ...sec, stats };
+                            }),
+                          );
+                        }}
+                        sectionId={`${section.key}-stats`}
+                      />
+                    </div>
+                  )}
+
+                  {Array.isArray(section.items) && section.key !== "introduction-section" && section.key !== "why-participate" && section.key !== "conference-section" && section.key !== "sponsors-attend" && section.key !== "testimonials-section" && (
                     <SectionItemsEditor
                       items={section.items}
                       onChangeItem={(itemIndex, key, value) => updateSectionItem(sectionIndex, itemIndex, key, value)}

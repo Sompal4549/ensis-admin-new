@@ -231,7 +231,7 @@ export default function VideoHighlightsManagementPage() {
   const fetchBackendVideos = async (quiet = false) => {
     try {
       if (!quiet) setIsSyncing(true);
-      const res = await fetch(`${BACKEND_URL}/api/website/gallery/video-highlights/items`);
+      const res = await fetch(`${BACKEND_URL}/api/website/gallery/video-highlights/items`, { headers: authHeader() });
       if (!res.ok) return;
       const json = await res.json();
       const rawItems = json?.data;
@@ -431,7 +431,7 @@ export default function VideoHighlightsManagementPage() {
         if (editingItem?._id) {
           const res = await fetch(`${BACKEND_URL}/api/website/gallery/video-highlights/items/${editingItem._id}`, {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...authHeader() },
             body: JSON.stringify(payload),
           });
           if (!res.ok) throw new Error(`Server responded with ${res.status}`);
@@ -441,7 +441,7 @@ export default function VideoHighlightsManagementPage() {
       } else {
         const res = await fetch(`${BACKEND_URL}/api/website/gallery/video-highlights/items`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeader() },
           body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error(`Server responded with ${res.status}`);
@@ -461,7 +461,7 @@ export default function VideoHighlightsManagementPage() {
     try {
       const res = await fetch(`${BACKEND_URL}/api/website/gallery/video-highlights/items/${item._id}/status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeader() },
         body: JSON.stringify({ status: nextStatus }),
       });
       if (!res.ok) throw new Error(`Server responded with ${res.status}`);
@@ -484,7 +484,7 @@ export default function VideoHighlightsManagementPage() {
     });
     if (!confirmed.isConfirmed || !item._id) return;
     try {
-      const res = await fetch(`${BACKEND_URL}/api/website/gallery/video-highlights/items/${item._id}`, { method: "DELETE" });
+      const res = await fetch(`${BACKEND_URL}/api/website/gallery/video-highlights/items/${item._id}`, { method: "DELETE", headers: authHeader() });
       if (!res.ok) throw new Error(`Server responded with ${res.status}`);
       showSuccess(`"${item.title}" deleted.`);
       if (selectedId === item.id) setSelectedId(null);
@@ -519,7 +519,7 @@ export default function VideoHighlightsManagementPage() {
       setBulkDeleting(true);
       const res = await fetch(`${BACKEND_URL}/api/website/gallery/video-highlights/items/bulk-delete`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeader() },
         body: JSON.stringify({ ids }),
       });
       if (!res.ok) throw new Error(`Server responded with ${res.status}`);

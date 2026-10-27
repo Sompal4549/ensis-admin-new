@@ -143,8 +143,10 @@ function pagesSubRouteLabel(pathname: string): string | null {
 const CAREERS_SECTION_ROUTES = [
   "/career-dashboard",
   "/job-postings",
+  "/career-applications",
   "/applications-ai-response",
   "/career-settings",
+  "/ip-block-limits",
 ];
 
 /** Mirrors pagesSubRouteLabel's role, but for the whole "Careers & Applications" nav
@@ -153,7 +155,7 @@ function careersSectionLabel(pathname: string): string | null {
   const isCareersRoute = CAREERS_SECTION_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
-  return isCareersRoute ? "Careers & Applications" : null;
+  return isCareersRoute ? "Careers" : null;
 }
 
 export default function Topbar({ onMenuClick }: { onMenuClick: () => void }) {

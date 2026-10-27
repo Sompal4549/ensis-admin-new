@@ -589,19 +589,37 @@ export default function JobPostingsPage() {
                         <td className="px-[6px] py-[6px] text-[7px] font-bold text-[#2563eb]">{job.views.toLocaleString()}</td>
                         <td className="px-[6px] py-[6px] text-[7px] font-medium text-[#334155]">{job.applications}</td>
                         <td className="px-[6px] py-[6px]">
-                          <select
-                            value={job.status}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => handleStatusChange(job.id, e.target.value as JobStatus)}
-                            className={`h-[22px] w-full cursor-pointer appearance-none rounded-[4px] px-[6px] pr-[16px] text-[7px] font-bold outline-none bg-no-repeat bg-[right_5px_center] shadow-xs transition ${STATUS_STYLES[job.status]}`}
-                            style={{
-                              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
-                            }}
-                          >
-                            <option value="Active" className="bg-white font-bold text-[#23714a]">Active</option>
-                            <option value="Draft" className="bg-white font-bold text-[#b78103]">Draft</option>
-                            <option value="Closed" className="bg-white font-bold text-[#c62828]">Closed</option>
-                          </select>
+                          <div className="flex flex-col gap-1">
+                            <select
+                              value={job.status}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => handleStatusChange(job.id, e.target.value as JobStatus)}
+                              className={`h-[20px] w-full cursor-pointer appearance-none rounded-[4px] px-[6px] pr-[14px] text-[7px] font-bold outline-none bg-no-repeat bg-[right_4px_center] shadow-xs transition ${STATUS_STYLES[job.status]}`}
+                              style={{
+                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+                              }}
+                            >
+                              <option value="Active" className="bg-white font-bold text-[#23714a]">Active (Open)</option>
+                              <option value="Draft" className="bg-white font-bold text-[#b78103]">Draft</option>
+                              <option value="Closed" className="bg-white font-bold text-[#c62828]">Closed</option>
+                            </select>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStatusChange(job.id, job.status === "Active" ? "Closed" : "Active");
+                              }}
+                              title={job.status === "Active" ? "Click to close job" : "Click to open job"}
+                              className={`inline-flex items-center justify-center gap-1 rounded py-0.5 px-1 text-[6.5px] font-bold transition ${
+                                job.status === "Active"
+                                  ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-300"
+                              }`}
+                            >
+                              <span className={`h-1.5 w-1.5 rounded-full ${job.status === "Active" ? "bg-emerald-500" : "bg-slate-400"}`} />
+                              {job.status === "Active" ? "Toggle: Open" : "Toggle: Closed"}
+                            </button>
+                          </div>
                         </td>
                         <td className="px-[6px] py-[6px] truncate text-[7px] font-medium text-[#334155]">{job.closingDate || "—"}</td>
                         <td className="px-[6px] py-[6px]">

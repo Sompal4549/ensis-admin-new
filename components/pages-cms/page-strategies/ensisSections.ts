@@ -25,10 +25,61 @@ const ENSIS_PAGE_PREFIX: Record<string, string> = {
 
 export const isEnsisPage = (configKey?: string) => Boolean(configKey && ENSIS_PAGE_PREFIX[configKey]);
 
+/**
+ * Sections hidden from the editor: leftovers in Settings that no website component
+ * reads any more (grep "scheduleHero": zero hits in frontend/backend). They stay in
+ * the database until the next save of the page replaces its sections.
+ */
+const HIDDEN_SECTION_KEYS = new Set([
+  // Home: leftover section nothing renders any more (zero code references).
+  "home.scheduleHero",
+  // About: both components are commented out in ensis-Frontend RenderSections.tsx,
+  // so they never appear on the page — hiding the accordions from the editor.
+  "about.whyChooseEnsis",
+  "about.ourExpertise",
+]);
+
 const componentKeyOf = (prefix: string, section: CmsRecord): string => {
   if (typeof section.componentKey === "string" && section.componentKey) return section.componentKey;
   const key = String(section.key || "");
   return key.includes(".") ? key : `${prefix}.${key}`;
+};
+
+/**
+ * Live content stores images as objects ({ imageUrl, alt }) while the generic field
+ * editors only render strings, so those fields silently disappeared from the form
+ * (About hero image, Stats Strip icons). Flatten such values to the plain URL and
+ * carry the alt text over when the record has no alt field of its own.
+ * `data` and other nested objects are left untouched.
+ */
+const flattenImageFields = (record: CmsRecord): CmsRecord => {
+  const out: CmsRecord = { ...record };
+  Object.keys(out).forEach((key) => {
+    const value = out[key];
+    if (!value || typeof value !== "object" || Array.isArray(value)) return;
+    const url =
+      typeof value.imageUrl === "string"
+        ? value.imageUrl
+        : typeof value.imageurl === "string"
+          ? value.imageurl
+          : undefined;
+    if (url === undefined) return;
+    out[key] = url;
+    const alt = typeof value.alt === "string" ? value.alt : "";
+    if (alt) {
+      if (!out.imageAlt) out.imageAlt = alt;
+      else if (!out.alt) out.alt = alt;
+    }
+  });
+  const lists = ["items", "slides"];
+  lists.forEach((listKey) => {
+    const list = out[listKey];
+    if (!Array.isArray(list)) return;
+    out[listKey] = list.map((entry: CmsRecord) =>
+      entry && typeof entry === "object" && !Array.isArray(entry) ? flattenImageFields(entry) : entry,
+    );
+  });
+  return out;
 };
 
 /**
@@ -45,15 +96,51 @@ export function resolveEnsisSections(
 ): SectionsDraft {
   const prefix = ENSIS_PAGE_PREFIX[configKey];
 
+  // For careersPage: only expose the 6 redesign sections defined in Contract §2
+  if (configKey === "careersPage") {
+    const activeKeys = new Set([
+      "career.banner",
+      "career.features",
+      "career.section",
+      "career.emptyState",
+      "career.whyWork",
+      "career.lifeAtEnsis",
+      "career.talentCommunity",
+    ]);
+
+    const storedMap = new Map<string, CmsRecord>();
+    if (Array.isArray(stored)) {
+      stored.forEach((s) => {
+        const compKey = componentKeyOf(prefix, s);
+        storedMap.set(compKey, s);
+        if (s.key) storedMap.set(String(s.key), s);
+      });
+    }
+
+    return fallback
+      .filter((item) => activeKeys.has(String(item.key)))
+      .map((item) => {
+        const compKey = String(item.key);
+        const saved = storedMap.get(compKey);
+        return {
+          ...item,
+          ...(saved || {}),
+          componentKey: compKey,
+        };
+      });
+  }
+
   if (Array.isArray(stored) && stored.length > 0) {
-    return stored.map((section) => {
-      const componentKey = componentKeyOf(prefix, section);
-      const defaults = fallback.find((item) => item.key === componentKey || item.key === section.key);
-      return { ...(defaults || {}), ...section, componentKey };
-    });
+    return stored
+      .filter((section) => !HIDDEN_SECTION_KEYS.has(String(section.key || "")))
+      .map((section) => {
+        const componentKey = componentKeyOf(prefix, section);
+        const defaults = fallback.find((item) => item.key === componentKey || item.key === section.key);
+        return flattenImageFields({ ...(defaults || {}), ...section, componentKey });
+      });
   }
 
   return fallback
-    .filter((item) => String(item.key || "").startsWith(`${prefix}.`))
-    .map((item) => ({ ...item, componentKey: item.key }));
+    .filter((item) => String(item.key || "").startsWith(`${prefix}.`) && !HIDDEN_SECTION_KEYS.has(String(item.key || "")))
+    .map((item) => flattenImageFields({ ...item, componentKey: item.key }));
 }

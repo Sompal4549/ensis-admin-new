@@ -4,7 +4,7 @@ import React from "react";
 import { X, Sparkles, CheckCircle2, AlertTriangle, HelpCircle, Code, Link as LinkIcon, RefreshCw, FileText, ChevronDown, ChevronUp, Search, Eye, Filter } from "lucide-react";
 import { formatDateTime } from "../SeoBadges";
 
-import { seoAuditApi } from "@/lib/seoAuditApi";
+import { seoAuditApi, seoErrorMessage } from "@/lib/seoAuditApi";
 import type { SeoPageDetail, SeoRecommendationResponse, SeoRecommendationItem } from "@/lib/seoAuditApi";
 
 export function OpenAiAuditModal({
@@ -20,10 +20,11 @@ export function OpenAiAuditModal({
   pageDetail: SeoPageDetail | null;
   aiState: SeoRecommendationResponse | null;
   aiLoading: boolean;
-  onReGenerate: (provider?: "openai" | "gemini") => void;
+  onReGenerate: () => void;
 }) {
   const [fixedItems, setFixedItems] = React.useState<Record<number, boolean>>({});
   const [applyingFixIdx, setApplyingFixIdx] = React.useState<number | null>(null);
+  const [fixError, setFixError] = React.useState<string | null>(null);
   const [expandedPhase, setExpandedPhase] = React.useState<number | null>(null);
   const [expandedItems, setExpandedItems] = React.useState<Record<number, boolean>>({});
   const [priorityFilter, setPriorityFilter] = React.useState<"all" | "high" | "medium" | "low">("all");
@@ -70,32 +71,24 @@ export function OpenAiAuditModal({
     page?.metaDescription ||
     "No meta description was captured for this route — set one in the SEO editor.";
   const keywordTerms = page?.metaKeywords || "—";
-  const activeProvider: "openai" | "gemini" = rec?.provider === "gemini" ? "gemini" : "openai";
+  const usableSuggestion = (value: string | null) => (value && !value.startsWith("<") ? value : undefined);
+  const canApply = (item: SeoRecommendationItem) =>
+    Boolean(usableSuggestion(item.suggestedTitle) || usableSuggestion(item.suggestedDescription));
 
+  // Saves only the AI-suggested title/description to the CMS page; nothing is made up when a suggestion is absent
   const handleApplyFix = async (idx: number, item: SeoRecommendationItem) => {
+    if (!canApply(item)) return;
     setApplyingFixIdx(idx);
+    setFixError(null);
     try {
       const targetPageId = page?.id || page?.path?.replace(/^\//, "") || "home";
-      const cleanTitleName = targetPageId === "home" ? "Home Pavilion" : targetPageId.replace(/-/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
-      
-      const newTitle = item.suggestedTitle && !item.suggestedTitle.startsWith("<")
-        ? item.suggestedTitle
-        : `Ensis | ${cleanTitleName} – Panchkarma & Spa Solutions`;
-
-      const newDesc = item.suggestedDescription && !item.suggestedDescription.startsWith("<")
-        ? item.suggestedDescription
-        : `Discover official ${cleanTitleName.toLowerCase()} details from Ensis — handcrafted Panchkarma, Ayurvedic and spa equipment with turnkey wellness setups across India.`;
-
       await seoAuditApi.updateSeo(targetPageId, {
-        metaTitle: newTitle,
-        metaDescription: newDesc,
+        metaTitle: usableSuggestion(item.suggestedTitle),
+        metaDescription: usableSuggestion(item.suggestedDescription),
       });
-
       setFixedItems((prev) => ({ ...prev, [idx]: true }));
-      onReGenerate(activeProvider);
-    } catch {
-      setFixedItems((prev) => ({ ...prev, [idx]: true }));
-      onReGenerate(activeProvider);
+    } catch (caught) {
+      setFixError(seoErrorMessage(caught, "Could not save the SEO fix"));
     } finally {
       setApplyingFixIdx(null);
     }
@@ -164,17 +157,7 @@ export function OpenAiAuditModal({
             <button
               type="button"
               disabled={aiLoading}
-              onClick={() => onReGenerate(activeProvider === "openai" ? "gemini" : "openai")}
-              className="inline-flex items-center gap-1.5 rounded-lg border bg-slate-800 hover:bg-slate-700 border-slate-600 px-2.5 py-1 text-[11px] font-bold text-slate-200 transition-all cursor-pointer disabled:opacity-50"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Check with Other Tool</span>
-            </button>
-
-            <button
-              type="button"
-              disabled={aiLoading}
-              onClick={() => onReGenerate(activeProvider)}
+              onClick={() => onReGenerate()}
               className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900/80 border border-emerald-500/40 px-2.5 py-1 text-[11px] font-bold text-emerald-300 transition-all cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${aiLoading ? "animate-spin text-emerald-400" : ""}`} />
@@ -205,13 +188,27 @@ export function OpenAiAuditModal({
             </div>
           )}
 
-          {!aiLoading && !rec && (
+          {!aiLoading && !rec && aiState?.message && (
+            <div className="flex items-start gap-2 rounded-xl border border-red-500/40 bg-red-950/40 p-4 text-[12.5px] font-semibold text-red-200">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-red-400" />
+              <span>{aiState.message}</span>
+            </div>
+          )}
+
+          {!aiLoading && !rec && !aiState?.message && (
             <div className="rounded-xl border border-slate-800 bg-[#0d1527] p-8 text-center">
               <Sparkles className="mx-auto mb-2.5 h-8 w-8 text-emerald-400" />
               <h4 className="text-[14px] font-bold text-white">No Audit Report Generated Yet</h4>
               <p className="mt-1 text-[12px] text-slate-400">
                 Click <strong>Re-Audit Page</strong> to launch live technical inspection.
               </p>
+            </div>
+          )}
+
+          {fixError && (
+            <div className="flex items-start gap-2 rounded-xl border border-red-500/40 bg-red-950/40 p-3 text-[12px] font-semibold text-red-200">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-red-400" />
+              <span>{fixError}</span>
             </div>
           )}
 
@@ -790,11 +787,13 @@ export function OpenAiAuditModal({
                             <span className="text-[11px] text-slate-400 font-medium">
                               {isItemFixed
                                 ? "✓ Metadata updated and saved to database."
-                                : "Apply auto-remediation to update page metadata automatically:"}
+                                : canApply(item)
+                                  ? "Save the suggested title/description to this page's CMS SEO fields:"
+                                  : "No title/description suggestion in this item — apply it manually."}
                             </span>
                             <button
                               type="button"
-                              disabled={isItemFixed || applyingFixIdx === idx}
+                              disabled={isItemFixed || applyingFixIdx === idx || !canApply(item)}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleApplyFix(idx, item);

@@ -18,6 +18,7 @@ import {
   Gauge,
   Layers,
   Lightbulb,
+  Monitor,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -51,6 +52,9 @@ export interface SeoCheckupFullReportProps {
   url?: string;
   meta?: ReportMetaOverride;
   pagespeed?: PageSpeedSnapshot | null;
+  /** Which Lighthouse run the PageSpeed numbers belong to; the switch below is hidden without onStrategyChange */
+  strategy?: "mobile" | "desktop";
+  onStrategyChange?: (strategy: "mobile" | "desktop") => void;
   report?: SeoCheckupReportData;
   onClose?: () => void;
   onReAudit?: () => void;
@@ -450,6 +454,8 @@ export default function SeoCheckupFullReport({
   url,
   meta,
   pagespeed: pagespeedProp,
+  strategy,
+  onStrategyChange,
   report: reportProp,
   onClose,
   onReAudit,
@@ -526,6 +532,16 @@ export default function SeoCheckupFullReport({
         }
       `}</style>
 
+      {/* This checklist is built from the bundled route snapshot, not from the backend crawler */}
+      <div className="no-print flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-6 py-2.5 text-[11.5px] font-semibold text-amber-800">
+        <span aria-hidden>⚠</span>
+        <span>
+          Static checklist: scores, word counts, links and search numbers here come from a route snapshot bundled with the
+          admin (captured {ROUTE_META_CAPTURED_AT}); only the PageSpeed values are live. For measured results from the
+          latest site audit, use the <strong>Overview</strong> and <strong>Pages</strong> tabs of the SEO dashboard.
+        </span>
+      </div>
+
       {/* Report header */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-4 text-slate-900">
         <div className="flex items-center gap-3">
@@ -569,6 +585,23 @@ export default function SeoCheckupFullReport({
         </div>
 
         <div className="no-print flex flex-wrap items-center gap-2">
+          {onStrategyChange && (
+            <div className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-100 p-0.5 text-[11px] font-bold">
+              {(["mobile", "desktop"] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => onStrategyChange(option)}
+                  className={`inline-flex cursor-pointer items-center gap-1 rounded-md px-2.5 py-1 transition ${
+                    (strategy ?? "mobile") === option ? "bg-white text-blue-700 shadow-xs" : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {option === "mobile" ? <Smartphone className="h-3 w-3" /> : <Monitor className="h-3 w-3" />}
+                  {option === "mobile" ? "Mobile" : "Desktop"}
+                </button>
+              ))}
+            </div>
+          )}
           {onReAudit && (
             <button
               type="button"

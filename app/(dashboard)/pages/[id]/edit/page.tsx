@@ -636,10 +636,11 @@ export default function CmsEditPage() {
           year: "",
         };
         if (items[0]) {
-          Object.keys(items[0]).forEach((k) => {
-            if (k !== "_id" && !(k in defaultItemTemplate)) {
-              defaultItemTemplate[k] = "";
-            }
+          Object.entries(items[0]).forEach(([k, v]) => {
+            if (k === "_id" || k === "schedule" || k in defaultItemTemplate) return;
+            // Keep the type of the copied field: booleans stay booleans (toggles),
+            // arrays stay arrays, only text fields become "".
+            defaultItemTemplate[k] = Array.isArray(v) ? [] : typeof v === "boolean" ? false : "";
           });
         }
         return { ...section, items: [...items, defaultItemTemplate] };

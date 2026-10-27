@@ -7,8 +7,10 @@ const SETTINGS_KEY = "ensis_admin_settings_v3";
 const defaultMockSettings: Settings = {
   _id: "",
   siteName: "Ensis - Premium Panchkarma & Wellness Spaces",
-  helplineNumber: "+91 9876543210",
+  helplineNumber: "+91 9654900525",
+  whatsappNumber: "+91 9654900525",
   supportEmail: "info@ensis.in",
+  address: "12/29, Site-II, Loni Road, Industrial Area, Mohan Nagar - 201007, India, Uttar Pradesh, India",
   banners: [],
   socialLinks: [],
 };
@@ -16,13 +18,22 @@ const defaultMockSettings: Settings = {
 export const settingsApi = {
   get: async (): Promise<Settings> => {
     try {
-      const res = await api.get<Partial<Settings> & { data?: Partial<Settings> }>("/settings?website=ensis");
-      const backendData = res?.data || res || {};
+      const res = await api.get<Partial<Settings> & { data?: Partial<Settings>; websiteName?: string }>("/settings?website=ensis");
+      const backendData = (res?.data || res || {}) as Partial<Settings> & { websiteName?: string };
       if (backendData && Object.keys(backendData).length > 0) {
+        const normalized: Settings = {
+          ...defaultMockSettings,
+          ...backendData,
+          siteName: backendData.siteName || backendData.websiteName || defaultMockSettings.siteName,
+          helplineNumber: backendData.helplineNumber || defaultMockSettings.helplineNumber,
+          supportEmail: backendData.supportEmail || defaultMockSettings.supportEmail,
+          whatsappNumber: backendData.whatsappNumber || defaultMockSettings.whatsappNumber,
+          address: backendData.address || defaultMockSettings.address,
+        };
         if (typeof window !== "undefined") {
-          localStorage.setItem(SETTINGS_KEY, JSON.stringify(backendData));
+          localStorage.setItem(SETTINGS_KEY, JSON.stringify(normalized));
         }
-        return { ...defaultMockSettings, ...backendData };
+        return normalized;
       }
     } catch (e) {
       console.warn("Failed to fetch settings from backend API, using local storage:", e);
@@ -32,7 +43,16 @@ export const settingsApi = {
       const stored = localStorage.getItem(SETTINGS_KEY);
       if (stored) {
         try {
-          return { ...defaultMockSettings, ...JSON.parse(stored) };
+          const parsed = JSON.parse(stored);
+          // Purge stale mock values if stored
+          if (
+            parsed.helplineNumber?.includes("9876543210") ||
+            parsed.helplineNumber?.includes("4567 8900")
+          ) {
+            localStorage.removeItem(SETTINGS_KEY);
+          } else {
+            return { ...defaultMockSettings, ...parsed };
+          }
         } catch {
           // ignore error
         }

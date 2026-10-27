@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { FieldLabel, ImageUploadField, PdfUploadField, TextInput, Textarea, Toggle } from "../fields";
 import type { CmsRecord } from "@/lib/cmsJson";
-import { FooterSocialLinks } from "./FooterSocialLinks";
 
 type Data = CmsRecord;
 
@@ -197,10 +196,60 @@ function HeaderForm({ data, onChange }: { data: Data; onChange: (data: Data) => 
   );
 }
 
+/** Same defaults the storefront footer uses, so an untouched field shows what visitors currently see */
+const FOOTER_DEFAULT_COLUMNS: Data[] = [
+  {
+    title: "Quick Links",
+    links: [
+      ["Home", "/"], ["About Us", "/about-us"], ["Our Solutions", "/solutions"], ["Our Products", "/products"],
+      ["Our Projects", "/projects-and-clients"], ["Our Clients", "/projects-and-clients"], ["Why Choose Us", "/about-us"],
+      ["Blogs", "/blog"], ["Careers", "/career"], ["Contact Us", "/contact"],
+    ].map(([label, href]) => ({ label, href })),
+  },
+  {
+    title: "Product Categories",
+    links: [
+      "Panchkarma Tables & Equipment", "Ayurveda Therapy Equipment", "Spa & Wellness Furniture", "Hydrotherapy Equipment",
+      "Massage & Treatment Tables", "Consultation & Examination Furniture", "Hospitality & Resort Spa Setup",
+      "Accessories & Consumables", "Herbal & Oil Preparation Equipment",
+    ].map((label) => ({ label, href: "/products" })),
+  },
+  {
+    title: "Our Solutions",
+    links: [
+      ["Panchkarma Clinic Setup", "/solutions/panchkarma-clinic-setup"], ["Resort & Spa Setup", "/solutions/resort-spa-setup"],
+      ["Wellness Retreat Design", "/solutions/wellness-retreat-design"], ["Ayurveda Hospital Setup", "/solutions/ayurveda-hospital-setup"],
+      ["Interior & Equipment Integration", "/solutions/interior-equipment-integration"], ["Customised Solutions", "/turnkey"],
+      ["Turnkey Project Execution", "/turnkey"], ["Consultancy & Support", "/consultancy"], ["AMC & Service Support", "/contact"],
+    ].map(([label, href]) => ({ label, href })),
+  },
+];
+const FOOTER_DEFAULT_STRAP: Data[] = [
+  { title: "Premium Quality", desc: "Durable & Reliable Products" },
+  { title: "Ayurvedic Expertise", desc: "Rooted in Ancient Wisdom" },
+  { title: "End to End Support", desc: "From Planning to Installation" },
+  { title: "Customized Solutions", desc: "Tailored For Your Unique Needs" },
+  { title: "Pan India Service", desc: "Delivering Wellness Across India" },
+];
+const FOOTER_DEFAULT_BRAND_TEXT =
+  "Premium Ayurveda, Panchakarma\nand spa equipment designed for clinics,\nresorts and healthcare spaces.\nWe create durable, functional and\naesthetically crafted wellness solutions\nacross India.";
+const FOOTER_DEFAULT_BOTTOM_LINKS: Data[] = [
+  { label: "Sitemap", href: "/sitemap.xml" },
+  { label: "Privacy Policy", href: "/privacy-policy" },
+  { label: "Terms & Conditions", href: "/terms-and-conditions" },
+  { label: "Disclaimer", href: "/terms-and-conditions" },
+  { label: "Refund Policy", href: "/refund-policy" },
+];
+
 function FooterForm({ data, onChange }: { data: Data; onChange: (data: Data) => void }) {
-  const columns = asList(data.navigation);
+  const savedColumns = asList(data.footerColumns);
+  const columns = savedColumns.length ? savedColumns : FOOTER_DEFAULT_COLUMNS;
+  const strap = FOOTER_DEFAULT_STRAP.map((item, i) => ({ ...item, ...(asList(data.strap)[i] || {}) }));
+  const updateStrap = (index: number, field: string, value: string) =>
+    onChange({ ...data, strap: strap.map((item, i) => (i === index ? { ...item, [field]: value } : item)) });
+  const bottomLinks = asList(getPath(data, "bottom.links")).length ? asList(getPath(data, "bottom.links")) : FOOTER_DEFAULT_BOTTOM_LINKS;
   const updateColumn = (index: number, next: Data) =>
-    onChange({ ...data, navigation: columns.map((column, i) => (i === index ? next : column)) });
+    onChange({ ...data, footerColumns: columns.map((column, i) => (i === index ? next : column)) });
 
   return (
     <div className="flex flex-col gap-4">
@@ -212,30 +261,51 @@ function FooterForm({ data, onChange }: { data: Data; onChange: (data: Data) => 
           <Text data={data} path="company.maplink" label="Google Map Embed Link" placeholder="https://www.google.com/maps/embed?..." onChange={onChange} />
         </div>
         <div>
-          <FieldLabel required>Footer Description</FieldLabel>
+          <FieldLabel required>Footer Description (left panel)</FieldLabel>
           <Textarea
-            value={String(getPath(data, "company.description") || "")}
-            onChange={(next) => onChange(setPath(data, "company.description", next))}
-            rows={4}
+            value={String(data.brandText ?? FOOTER_DEFAULT_BRAND_TEXT)}
+            onChange={(next) => onChange({ ...data, brandText: next })}
+            rows={6}
             noLimit
           />
+          <p className="mt-1 text-[10px] font-medium text-slate-500">Each new line is a line break on desktop; on mobile the text wraps by itself.</p>
         </div>
       </Card>
 
       <Card title="Get In Touch (Contact Information)">
+        <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          Offices, phone numbers and email shown in the footer come from the Contact page &rarr; Get In Touch section, so both always match.
+          Add one entry per office with a title containing &ldquo;Office&rdquo; (e.g. &ldquo;Corporate Office | Delhi-NCR, India&rdquo;), a &ldquo;Phone Number&rdquo; entry
+          (several numbers separated by commas; they also appear in the Call Us box) and an &ldquo;Email&rdquo; entry. Until then the footer shows its built-in offices.
+        </p>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Text data={data} path="contact.phone" label="Phone Number" placeholder="+919654900525" required onChange={onChange} />
-          <Text data={data} path="contact.email" label="Contact Email" placeholder="info@ensis.in" required onChange={onChange} />
           <Text data={data} path="contact.whatsappPhone" label="WhatsApp Number" placeholder="+919654900525" onChange={onChange} />
-        </div>
-        <div>
-          <FieldLabel>Address</FieldLabel>
-          <Textarea value={String(getPath(data, "contact.address") || "")} onChange={(next) => onChange(setPath(data, "contact.address", next))} rows={2} noLimit />
         </div>
       </Card>
 
-      <Card title="Social Links (footer icons)">
-        <FooterSocialLinks />
+      <Card title="Features Strip (top of footer)">
+        <p className="text-[10px] font-medium text-slate-500">Five highlights shown left to right. Without an uploaded icon the built-in icon is used.</p>
+        {strap.map((item, index) => (
+          <div key={index} className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div>
+              <FieldLabel>{`Highlight ${index + 1} Title`}</FieldLabel>
+              <TextInput value={String(item.title || "")} onChange={(next) => updateStrap(index, "title", next)} hideLimit />
+            </div>
+            <div>
+              <FieldLabel>{`Highlight ${index + 1} Text`}</FieldLabel>
+              <TextInput value={String(item.desc || "")} onChange={(next) => updateStrap(index, "desc", next)} hideLimit />
+            </div>
+            <div>
+              <FieldLabel>{`Highlight ${index + 1} Icon`}</FieldLabel>
+              <ImageUploadField value={String(item.iconUrl || "")} onChange={(next) => updateStrap(index, "iconUrl", next)} />
+            </div>
+          </div>
+        ))}
+      </Card>
+
+      <Card title="Call Us Box (left panel)">
+        <Text data={data} path="callUs.label" label="Box Heading" placeholder="Call Us Today" onChange={onChange} />
+        <p className="text-[10px] font-medium text-slate-500">The numbers in this box come from the Contact page &rarr; Get In Touch &ldquo;Phone Number&rdquo; entry.</p>
       </Card>
 
       {columns.map((column, index) => (
@@ -247,7 +317,7 @@ function FooterForm({ data, onChange }: { data: Data; onChange: (data: Data) => 
             </div>
             <button
               type="button"
-              onClick={() => onChange({ ...data, navigation: columns.filter((_, i) => i !== index) })}
+              onClick={() => onChange({ ...data, footerColumns: columns.filter((_, i) => i !== index) })}
               className="inline-flex h-[34px] items-center gap-[6px] rounded-[5px] border border-rose-200 bg-white px-[10px] text-[10px] font-bold text-rose-500 hover:bg-rose-50"
             >
               <Trash2 className="h-[12px] w-[12px]" />
@@ -268,25 +338,40 @@ function FooterForm({ data, onChange }: { data: Data; onChange: (data: Data) => 
       ))}
       <button
         type="button"
-        onClick={() => onChange({ ...data, navigation: [...columns, { title: "", links: [] }] })}
+        onClick={() => onChange({ ...data, footerColumns: [...columns, { title: "", links: [] }] })}
         className="inline-flex h-[34px] w-fit items-center gap-[6px] rounded-[5px] border border-dashed border-[#93c5fd] bg-white px-[12px] text-[10px] font-bold text-[#1e40af] hover:bg-blue-50"
       >
         <Plus className="h-[12px] w-[12px]" />
         Add Footer Column
       </button>
 
-      <Card title="Copyright Bar">
-        <Text data={data} path="copyright.text" label="Copyright Text" placeholder="© 2026 Ensis. All Rights Reserved." onChange={onChange} />
+      <Card title="Bottom Bar">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <Text data={data} path="bottom.brand" label="Brand Line (after © and the year)" placeholder="ENSIS" onChange={onChange} />
+          <Text data={data} path="bottom.tagline" label="Brand Of Line" placeholder="A Brand of Design House India Pvt. Ltd." onChange={onChange} />
+          <Text data={data} path="bottom.rights" label="Rights Line" placeholder="All Rights Reserved." onChange={onChange} />
+        </div>
+        <p className="text-[10px] font-medium text-slate-500">The © symbol and the current year are added automatically before the brand line.</p>
         <ListEditor
-          items={asList(getPath(data, "copyright.links"))}
+          items={bottomLinks}
           columns={[
             { field: "label", label: "Link Label", placeholder: "Privacy Policy" },
             { field: "href", label: "Link", placeholder: "/privacy-policy" },
           ]}
           blank={{ label: "", href: "/" }}
           addLabel="Add Link"
-          onChange={(links) => onChange(setPath(data, "copyright.links", links))}
+          onChange={(links) => onChange(setPath(data, "bottom.links", links))}
         />
+      </Card>
+
+      <Card title="Developer Credit (Copyright Bar)">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <Text data={data} path="copyright.developer.label" label="Credit Text" placeholder="Designed & Developed by" onChange={onChange} />
+          <Text data={data} path="copyright.developer.name" label="Company Name" placeholder="enCodency" onChange={onChange} />
+          <Text data={data} path="copyright.developer.href" label="Company Website" placeholder="https://encodency.com" onChange={onChange} />
+        </div>
+        <ImageField data={data} path="copyright.developer.logoUrl" label="Company Logo (optional, shown on the red badge)" onChange={onChange} />
+        <p className="text-[10px] font-medium text-slate-500">Without a logo the badge shows the company name as text. Clear the company name to hide the credit.</p>
       </Card>
     </div>
   );

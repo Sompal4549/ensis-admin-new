@@ -265,7 +265,7 @@ export default function TestimonialVideosManagementPage() {
   // Fetch from backend
   const fetchBackendVideos = async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/website/home/testimonials-carousel`);
+      const res = await fetch(`${BACKEND_URL}/api/website/home/testimonials-carousel`, { headers: authHeader() });
       if (!res.ok) return;
       const json = await res.json();
       const rawVideos = json?.data?.videos;
@@ -338,7 +338,7 @@ export default function TestimonialVideosManagementPage() {
 
       const res = await fetch(`${BACKEND_URL}/api/website/home/testimonials-carousel`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeader() },
         body: JSON.stringify(payload),
       });
 
