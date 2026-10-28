@@ -3,6 +3,7 @@ export { SectionFieldsEditor } from "./SectionFieldsEditor";
 export { SectionItemsEditor } from "./SectionItemsEditor";
 export { SectionNestedDataEditor } from "./SectionNestedDataEditor";
 export { NestedValueEditor, isRecord } from "./NestedValueEditor";
+export { ClauseDetailsEditor } from "./ClauseDetailsEditor";
 export {
   SECTION_SKIP_KEYS,
   LONG_TEXT_KEY_PATTERN,

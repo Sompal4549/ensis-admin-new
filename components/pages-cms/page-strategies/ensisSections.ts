@@ -21,6 +21,8 @@ const ENSIS_PAGE_PREFIX: Record<string, string> = {
   enquiryPage: "enquiry",
   privacyPolicyPage: "policy",
   termsAndConditionsPage: "policy",
+  disclaimerPage: "policy",
+  refundPolicyPage: "policy",
 };
 
 export const isEnsisPage = (configKey?: string) => Boolean(configKey && ENSIS_PAGE_PREFIX[configKey]);
@@ -33,10 +35,21 @@ export const isEnsisPage = (configKey?: string) => Boolean(configKey && ENSIS_PA
 const HIDDEN_SECTION_KEYS = new Set([
   // Home: leftover section nothing renders any more (zero code references).
   "home.scheduleHero",
-  // About: both components are commented out in ensis-Frontend RenderSections.tsx,
-  // so they never appear on the page — hiding the accordions from the editor.
+  // About: both components are commented out in ensis-Frontend RenderSections.tsx
   "about.whyChooseEnsis",
   "about.ourExpertise",
+  // Blog: sections commented out in ensis-Frontend RenderSections.tsx
+  "blog.mediaResources",
+  "blog.stayInspired",
+  "blog.supportWellness",
+  "blog.featureStrip",
+  "blog.features_strip",
+  "features_strip",
+  // Contact: sections commented out or null in ensis-Frontend RenderSections.tsx
+  "contact.ctaBanner",
+  "contact.featuresStrip",
+  "enquiry.features_strip",
+  "enquiry.ctaBanner",
 ]);
 
 const componentKeyOf = (prefix: string, section: CmsRecord): string => {
@@ -131,13 +144,35 @@ export function resolveEnsisSections(
   }
 
   if (Array.isArray(stored) && stored.length > 0) {
-    return stored
+    const mapped = stored
       .filter((section) => !HIDDEN_SECTION_KEYS.has(String(section.key || "")))
       .map((section) => {
         const componentKey = componentKeyOf(prefix, section);
         const defaults = fallback.find((item) => item.key === componentKey || item.key === section.key);
         return flattenImageFields({ ...(defaults || {}), ...section, componentKey });
       });
+
+    // Check if the fallback has a hero/banner section that stored is missing (e.g. policy pages where only clauses were stored)
+    const fallbackHero = fallback.find((item) => {
+      const k = String(item.key || "").toLowerCase();
+      return k.includes("hero") || k.includes("banner") || k.endsWith(".page");
+    });
+    if (fallbackHero) {
+      const hasHeroInStored = mapped.some((s) => {
+        const k = String(s.key || s.componentKey || "").toLowerCase();
+        return (
+          k === String(fallbackHero.key).toLowerCase() ||
+          k.includes("hero") ||
+          k.includes("banner") ||
+          (prefix === "enquiry" && k.includes("enquiry"))
+        );
+      });
+      if (!hasHeroInStored) {
+        mapped.unshift(flattenImageFields({ ...fallbackHero, componentKey: fallbackHero.key }));
+      }
+    }
+
+    return mapped;
   }
 
   return fallback

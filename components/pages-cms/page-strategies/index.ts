@@ -21,4 +21,5 @@ export { syncEPromotionSectionsFromLiveApi, saveEPromotionSections } from "./epr
 export { syncPartnershipSectionsFromLiveApi, savePartnershipSections } from "./partnership";
 export { SUB_PARTNERSHIP_SLUGS, syncSubPartnershipSectionsFromLiveApi, saveSubPartnershipSections } from "./subPartnership";
 export { syncPageSeoFromLiveApi, savePageCore } from "./pageSeo";
+export { isPolicyConfigKey, syncPolicySectionsFromLiveApi } from "./policy";
 export type { SectionsDraft, SetSectionsDraft } from "./types";

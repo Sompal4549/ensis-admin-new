@@ -75,6 +75,9 @@ const routeAliases: Record<string, string> = {
   "privacy-policy": "privacyPolicyPage",
   "terms": "termsAndConditionsPage",
   "terms-and-conditions": "termsAndConditionsPage",
+  "disclaimer": "disclaimerPage",
+  "refund": "refundPolicyPage",
+  "refund-policy": "refundPolicyPage",
 };
 
 export function findCmsPageByRouteKey(pages: CmsPage[], routeKey?: string): CmsPage | undefined {
@@ -194,6 +197,8 @@ export const pageDefinitions = [
   ["enquiryPage", "Product & Custom Quotation Enquiries", "/enquiry", "page"],
   ["privacyPolicyPage", "Privacy Policy", "/privacy-policy", "page"],
   ["termsAndConditionsPage", "Terms & Conditions", "/terms-and-conditions", "page"],
+  ["disclaimerPage", "Disclaimer - Legal Notice", "/disclaimer", "page"],
+  ["refundPolicyPage", "Refund Policy - Cancellation Guidelines", "/refund-policy", "page"],
 ] as const;
 
 function seoScore(config: SettingsPageConfig): number {

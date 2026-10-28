@@ -471,60 +471,13 @@ export default function LoginPage() {
       />
 
       {/* =====================================================
-          LEFT BRAND
+          LEFT BRAND (CLEARED AS REQUESTED)
       ===================================================== */}
 
       <section
-        className="
-          login-brand
-          !justify-center
-        "
-        aria-label="Ensis values"
-      >
-        <div className="flex flex-col items-center justify-center p-8 xl:p-10 rounded-3xl bg-slate-950/65 backdrop-blur-md border border-white/20 shadow-2xl max-w-[480px] w-full text-center">
-          {/* LOGO */}
-          <div className="inline-flex items-center justify-center bg-white rounded-2xl px-6 py-3.5 shadow-lg border border-white/80 mb-3">
-            <img
-              src={logoUrl}
-              alt={logoAlt}
-              className="h-[55px] xl:h-[68px] w-auto object-contain"
-              onError={() => setLogoUrl("/ensis-logo.webp")}
-            />
-          </div>
-
-          {/* ORNAMENT */}
-          <div className="gold-ornament !text-amber-400 !my-1">
-            <i style={{ background: "linear-gradient(90deg, transparent, #fbbf24)" }} />
-            <b className="text-amber-400 text-xs">◆</b>
-            <i style={{ background: "linear-gradient(90deg, #fbbf24, transparent)" }} />
-          </div>
-
-          {/* INITIATIVE */}
-          <p className="!text-[16px] xl:!text-[18px] !font-bold text-[#fef08a] tracking-wide my-1 drop-shadow-sm">
-            {text.initiative}
-          </p>
-
-          <div className="gold-ornament !text-amber-400 !my-1">
-            <i style={{ background: "linear-gradient(90deg, transparent, #fbbf24)" }} />
-            <b className="text-amber-400 text-xs">◆</b>
-            <i style={{ background: "linear-gradient(90deg, #fbbf24, transparent)" }} />
-          </div>
-
-          {/* TITLE */}
-          <h1 className="!mt-2 !leading-tight text-center">
-            <span style={{ color: "#38bdf8", fontWeight: 800 }} className="text-[32px] xl:text-[40px] drop-shadow-md">
-              Ensis
-            </span>{" "}
-            <span style={{ color: "#fb923c", fontWeight: 800 }} className="text-[32px] xl:text-[40px] drop-shadow-md">
-              Wellness
-            </span>
-            <br />
-            <span style={{ color: "#ffffff", fontWeight: 700 }} className="text-[20px] xl:text-[24px] tracking-wide drop-shadow-md">
-              {text.portalTitle}
-            </span>
-          </h1>
-        </div>
-      </section>
+        className="login-brand pointer-events-none"
+        aria-hidden
+      />
 
       {/* =====================================================
           RIGHT AUTH

@@ -478,7 +478,7 @@ export default function PagesCmsPage() {
 
   const [activePagination, setActivePagination] =
     useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(20);
 
   const [actionMenu, setActionMenu] =
     useState<number | null>(null);
@@ -973,18 +973,6 @@ export default function PagesCmsPage() {
                     </div>
                   );
                 })}
-
-                {Array.from({
-                  length: Math.max(
-                    0,
-                    pageSize - paginatedPages.length,
-                  ),
-                }).map((_, index) => (
-                  <div
-                    key={`blank-${index}`}
-                    className="min-h-[44px] border-b border-[#f0f0ec] last:border-b-0"
-                  />
-                ))}
               </div>
 
               {/* PAGINATION */}
