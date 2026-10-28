@@ -65,6 +65,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: "Dashboard", href: "/", icon: LayoutDashboard },
       { label: "General Enquiries", href: "/general-enquiries", icon: Mail },
+      { label: "Product & Quotation Enquiries", href: "/enquiries", icon: FileText, badge: "NEW" },
       { label: "Contact Us Messages", href: "/contact-us", icon: MessageSquareText },
       { label: "Communication / Follow-ups", href: "/communication", icon: MessageSquare, badge: "NEW" },
     ],

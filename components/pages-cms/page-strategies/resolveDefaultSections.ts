@@ -45,7 +45,11 @@ import {
   defaultEnsisBlogSections,
   defaultEnsisCareersSections,
   defaultEnsisContactSections,
+  defaultEnsisEnquirySections,
   defaultEnsisPolicySections,
+  defaultEnsisTermsSections,
+  defaultEnsisDisclaimerSections,
+  defaultEnsisRefundSections,
 } from "@/lib/ensisContent";
 import type { SectionsDraft } from "./types";
 
@@ -70,9 +74,11 @@ export function resolveDefaultSectionsForPage(page: CmsPage): SectionsDraft {
   if (key === "blogpage" || slug.includes("blog") || title.includes("blog")) return defaultEnsisBlogSections;
   if (key === "careerspage" || slug.includes("career") || title.includes("career")) return defaultEnsisCareersSections;
   if (key === "contactpage" || slug.includes("contact") || title.includes("contact")) return defaultEnsisContactSections;
-  if (key === "enquirypage" || slug.includes("enquiry") || title.includes("enquiry")) return defaultEnsisContactSections;
+  if (key === "enquirypage" || slug.includes("enquiry") || title.includes("enquiry")) return defaultEnsisEnquirySections;
   if (key === "privacypolicypage" || slug.includes("privacy") || title.includes("privacy")) return defaultEnsisPolicySections;
-  if (key === "termsandconditionspage" || slug.includes("terms") || title.includes("terms")) return defaultEnsisPolicySections;
+  if (key === "termsandconditionspage" || slug.includes("terms") || title.includes("terms")) return defaultEnsisTermsSections;
+  if (key === "disclaimerpage" || slug.includes("disclaimer") || title.includes("disclaimer")) return defaultEnsisDisclaimerSections;
+  if (key === "refundpolicypage" || slug.includes("refund") || title.includes("refund")) return defaultEnsisRefundSections;
 
   // Fallbacks for Ensis pages if accessed
   if (key === "careerspage" || slug === "/careers") return defaultCareersSections;
@@ -134,9 +140,11 @@ export function resolveResetDefaultsForPage(page: CmsPage): SectionsDraft {
   if (key === "blogpage" || slug.includes("blog") || title.includes("blog")) return defaultEnsisBlogSections;
   if (key === "careerspage" || slug.includes("career") || title.includes("career")) return defaultEnsisCareersSections;
   if (key === "contactpage" || slug.includes("contact") || title.includes("contact")) return defaultEnsisContactSections;
-  if (key === "enquirypage" || slug.includes("enquiry") || title.includes("enquiry")) return defaultEnsisContactSections;
+  if (key === "enquirypage" || slug.includes("enquiry") || title.includes("enquiry")) return defaultEnsisEnquirySections;
   if (key === "privacypolicypage" || slug.includes("privacy") || title.includes("privacy")) return defaultEnsisPolicySections;
-  if (key === "termsandconditionspage" || slug.includes("terms") || title.includes("terms")) return defaultEnsisPolicySections;
+  if (key === "termsandconditionspage" || slug.includes("terms") || title.includes("terms")) return defaultEnsisTermsSections;
+  if (key === "disclaimerpage" || slug.includes("disclaimer") || title.includes("disclaimer")) return defaultEnsisDisclaimerSections;
+  if (key === "refundpolicypage" || slug.includes("refund") || title.includes("refund")) return defaultEnsisRefundSections;
 
   let defaults = defaultEnsisLandingSections;
   if (key === "careerspage" || slug === "/careers") defaults = defaultCareersSections;

@@ -220,7 +220,16 @@ function AddNewPostContent() {
   const categoryOptions = useMemo(() => {
     const list = categoryList.length
       ? categoryList
-      : ["Wellness", "Guides", "Design", "Trends", "Industry Insights", "Voice of Experts"].map((name) => ({ name, hidden: false }));
+      : [
+          "Ayurveda Knowledge",
+          "Wellness & Lifestyle",
+          "Clinic & Spa Design",
+          "Panchkarma Equipment",
+          "Project Insights",
+          "Industry Trends",
+          "Voice of Experts",
+          "Wellness",
+        ].map((name) => ({ name, hidden: false }));
     // A post saved under a category that no longer exists keeps showing it
     const current = blogData.category.trim();
     return current && !list.some((c) => c.name.toLowerCase() === current.toLowerCase()) ? [{ name: current, hidden: false }, ...list] : list;

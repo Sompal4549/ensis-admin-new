@@ -76,6 +76,8 @@ import {
   saveSubPartnershipSections,
   syncPageSeoFromLiveApi,
   savePageCore,
+  isPolicyConfigKey,
+  syncPolicySectionsFromLiveApi,
 } from "@/components/pages-cms/page-strategies";
 import type { FormState } from "@/components/pages-cms/types";
 import {
@@ -497,8 +499,8 @@ export default function CmsEditPage() {
       syncSponsorshipSectionsFromLiveApi(setSectionsDraft);
     }
 
-    if (page.configKey === "termsAndConditionsPage" || page.slug?.includes("terms-and-conditions")) {
-      syncTermsSectionsFromLiveApi(setSectionsDraft);
+    if (page.configKey && isPolicyConfigKey(page.configKey)) {
+      syncPolicySectionsFromLiveApi(page.configKey, setSectionsDraft);
     }
 
     if (page.configKey === "msmePage") {

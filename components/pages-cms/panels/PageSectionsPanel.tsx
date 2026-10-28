@@ -1,5 +1,5 @@
-import { ChevronRight } from "lucide-react";
-import { SectionFieldsEditor, SectionItemsEditor, SectionNestedDataEditor, SectionTitle } from "../section-editor";
+import { ArrowDown, ArrowUp, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { ClauseDetailsEditor, SectionFieldsEditor, SectionItemsEditor, SectionNestedDataEditor, SectionTitle } from "../section-editor";
 import { Toggle } from "../fields";
 import { LayoutSectionEditor } from "../section-editor/LayoutSectionEditor";
 import { isLayoutSection } from "../page-strategies/layout";
@@ -28,6 +28,33 @@ export function PageSectionsPanel({
   removeSectionItem: (sectionIndex: number, itemIndex: number) => void;
   resetToWebsiteDefaults: () => void;
 }) {
+  const moveSection = (fromIndex: number, delta: number) => {
+    const toIndex = fromIndex + delta;
+    if (toIndex < 0 || toIndex >= sectionsDraft.length) return;
+    setSectionsDraft((prev) => {
+      const next = [...prev];
+      const [item] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, item);
+      return next.map((sec, idx) => ({
+        ...sec,
+        index: idx,
+      }));
+    });
+    setOpenSectionIndices((prev) => {
+      const next = new Set<number>();
+      for (const idx of prev) {
+        if (idx === fromIndex) {
+          next.add(toIndex);
+        } else if (idx === toIndex) {
+          next.add(fromIndex);
+        } else {
+          next.add(idx);
+        }
+      }
+      return next;
+    });
+  };
+
   return (
     <section
       className="
@@ -135,6 +162,28 @@ export function PageSectionsPanel({
                   </span>
                 ) : (
                 <div className="flex items-center gap-[10px]" onClick={(e) => e.stopPropagation()}>
+                  {/* REORDER UP / DOWN */}
+                  <div className="flex items-center gap-[2px] border-r border-[#e2e8f0] pr-[8px]">
+                    <button
+                      type="button"
+                      disabled={sectionIndex === 0}
+                      onClick={() => moveSection(sectionIndex, -1)}
+                      className="p-1 text-[#64748b] hover:text-[#233D4D] hover:bg-[#e2e8f0]/60 rounded disabled:opacity-25 disabled:cursor-not-allowed transition"
+                      title="Move section up"
+                    >
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={sectionIndex === sectionsDraft.length - 1}
+                      onClick={() => moveSection(sectionIndex, 1)}
+                      className="p-1 text-[#64748b] hover:text-[#233D4D] hover:bg-[#e2e8f0]/60 rounded disabled:opacity-25 disabled:cursor-not-allowed transition"
+                      title="Move section down"
+                    >
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
                   <div className="flex items-center gap-[6px]">
                     <span
                       className={`text-[9.5px] font-bold ${section.enabled !== false ? "text-[#16a34a]" : "text-[#dc2626]"
@@ -147,6 +196,21 @@ export function PageSectionsPanel({
                       onChange={(value) => updateSectionField(sectionIndex, "enabled", value)}
                     />
                   </div>
+
+                  {sectionIndex > 0 && !isLayoutSection(section) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (typeof window !== "undefined" && window.confirm(`Remove section "${section.name || section.title || sectionIndex + 1}"?`)) {
+                          setSectionsDraft((prev) => prev.filter((_, idx) => idx !== sectionIndex));
+                        }
+                      }}
+                      className="text-[#94a3b8] hover:text-rose-600 transition p-1"
+                      title="Delete this section"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
                 )}
               </div>
@@ -276,11 +340,45 @@ export function PageSectionsPanel({
                       sectionId={section.key}
                     />
                   )}
+
+                  {!isLayoutSection(section) && sectionIndex > 0 && (
+                    <ClauseDetailsEditor
+                      section={section}
+                      onChange={(updatedFields) => {
+                        setSectionsDraft((prev) =>
+                          prev.map((sec, i) =>
+                            i === sectionIndex ? { ...sec, ...updatedFields } : sec
+                          )
+                        );
+                      }}
+                    />
+                  )}
                 </div>
               )}
             </div>
           );
         })}
+
+        <div className="flex items-center justify-between pt-2 border-t border-[#f1f5f9] mt-2">
+          <button
+            type="button"
+            onClick={() => {
+              const newIndex = sectionsDraft.length + 1;
+              const newSec: CmsRecord = {
+                key: `clause-${Date.now()}`,
+                name: `${newIndex}. New Clause`,
+                title: `New Clause`,
+                description: "",
+                enabled: true,
+              };
+              setSectionsDraft((prev) => [...prev, newSec]);
+              setOpenSectionIndices((prev) => new Set([...prev, sectionsDraft.length]));
+            }}
+            className="inline-flex items-center gap-1.5 rounded-[5px] border border-[#233D4D] bg-white px-3 py-1.5 text-[11px] font-bold text-[#233D4D] hover:bg-[#fdf2f4] transition shadow-xs"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add New Section / Clause
+          </button>
+        </div>
       </div>
     </section>
   );
