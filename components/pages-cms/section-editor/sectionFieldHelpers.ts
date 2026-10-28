@@ -5,7 +5,20 @@
    editable without a bespoke form per section.
 ========================================================= */
 
-export const SECTION_SKIP_KEYS = new Set(["_id", "key", "slides", "items", "enabled", "name"]);
+export const SECTION_SKIP_KEYS = new Set([
+  "_id",
+  "key",
+  "slides",
+  "items",
+  "cards",
+  "checkItems",
+  "bullets",
+  "link",
+  "extra",
+  "extra2",
+  "enabled",
+  "name",
+]);
 export const LONG_TEXT_KEY_PATTERN = /description|shortDescription|subtitle|quote|message|statement|notice|bullets|extra|text/i;
 export const IMAGE_KEY_PATTERN = /image|img|logo|photo|banner|picture|bg|avatar|thumbnail/i;
 export const VIDEO_KEY_PATTERN = /video|youtube|embed|vimeo|clip|mediaUrl/i;
