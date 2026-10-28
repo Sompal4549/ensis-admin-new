@@ -433,9 +433,11 @@ export const defaultEnsisBlogSections: CmsRecord[] = [
     key: "blog.hero",
     name: "Blog Banner",
     enabled: true,
-    title: "Ayurvedic Wellness & Equipment Insights",
-    subtitle: "Guides, Case Studies & Industry News",
-    description: "Learn about traditional Panchkarma therapy room designs, equipment care, and emerging wellness trends.",
+    eyebrow: "OUR BLOG",
+    title: "Insights for a",
+    highlight: "Healthier Tomorrow",
+    description: "Explore expert articles, wellness tips, Ayurvedic knowledge and industry insights to create better healing spaces.",
+    backgroundImage: "/assets/blog.png",
   },
   {
     key: "blog.allBlogs",
@@ -443,29 +445,6 @@ export const defaultEnsisBlogSections: CmsRecord[] = [
     enabled: true,
     heading: "Latest Publications",
     subtitle: "Curated by experienced Ayurvedic doctors and biomedical designers",
-  },
-  {
-    key: "blog.mediaResources",
-    name: "Media & Downloadable Resources",
-    enabled: true,
-    heading: "Catalogs, Guides & Blueprints",
-    subtitle: "Download official specification sheets and brochures",
-  },
-  {
-    key: "blog.stayInspired",
-    name: "Newsletter Subscription",
-    enabled: true,
-    heading: "Stay Ahead in Wellness Design",
-    subtitle: "Subscribe to our bi-weekly newsletter for industry updates.",
-  },
-  {
-    key: "blog.supportWellness",
-    name: "Support & Knowledgebase",
-    enabled: true,
-    heading: "Need Equipment Maintenance Advice?",
-    subtitle: "Our technical team is available for live video support and spares dispatch.",
-    buttonLabel: "Contact Support",
-    buttonHref: "/contact",
   },
 ];
 
@@ -550,9 +529,11 @@ export const defaultEnsisContactSections: CmsRecord[] = [
     key: "contact.hero",
     name: "Contact Hero Banner",
     enabled: true,
-    title: "Connect With Our Equipment & Turnkey Specialists",
-    subtitle: "Global Sales & Factory Visits",
-    description: "Get in touch for custom equipment quotations, turnkey consultations, or to book a visit to our manufacturing facility.",
+    heading: "CONTACT US",
+    title: "Let's Create",
+    highlightedText: "Your Wellness Space",
+    description: "Have questions or need help? Our team is here to assist you with expert guidance and support.",
+    backgroundImage: "/assets/contact/banner.webp",
   },
   {
     key: "contact.getInTouch",
@@ -561,18 +542,9 @@ export const defaultEnsisContactSections: CmsRecord[] = [
     heading: "Send Us a Message",
     subtitle: "Our sales engineering team replies within 4 business hours.",
     email: "info@ensis.in",
-    phone: "+91 9876543210",
-    address: "Ensis Wellness Spaces, Industrial Area, Phase II, New Delhi, India",
+    phone: "+91 9654900525",
+    address: "Plot No. 12/29, Site-II Industrial Area, Loni Road, Mohan Nagar, Ghaziabad, UP – 201007",
     workingHours: "Monday - Saturday: 9:00 AM - 6:30 PM IST",
-  },
-  {
-    key: "contact.ctaBanner",
-    name: "Direct WhatsApp & Call Banner",
-    enabled: true,
-    heading: "Need Immediate Assistance?",
-    subtitle: "Chat directly with our senior technical advisor on WhatsApp.",
-    buttonLabel: "Chat on WhatsApp",
-    buttonHref: "https://wa.me/919876543210",
   },
   {
     key: "contact.premiumMap",
@@ -583,20 +555,102 @@ export const defaultEnsisContactSections: CmsRecord[] = [
   },
 ];
 
-export const defaultEnsisPolicySections: CmsRecord[] = [
+export const defaultEnsisEnquirySections: CmsRecord[] = [
   {
-    key: "policy.hero",
-    name: "Policy Header",
+    key: "enquiry.page",
+    name: "Enquiry Hero & Quotation Form",
     enabled: true,
-    title: "Privacy Policy & Customer Security",
-    subtitle: "Last Updated: October 2026",
-    description: "How Ensis collects, protects, and handles institutional customer information.",
+    eyebrow: "ENQUIRY",
+    title: "Let's Build Your",
+    subtitle: "Wellness Vision",
+    description: "Share your requirements with our technical team for custom Panchkarma equipment and wellness layouts.",
+    backgroundImage: "/assets/privacy_and_enquiry.png",
   },
   {
-    key: "policy.content",
-    name: "Policy Content & Clauses",
+    key: "enquiry.getInTouch",
+    name: "Direct Contact Information",
     enabled: true,
-    heading: "Data Protection & Privacy Commitment",
-    text: "At Ensis, we respect your privacy and are committed to protecting all personal and institutional data collected during sales inquiries, quotation generation, and equipment delivery.",
+    heading: "Need Quick Advice?",
+    phone: "+91 9654900525",
+    email: "info@ensis.in",
+    address: "Plot No. 12/29, Site-II Industrial Area, Mohan Nagar, Ghaziabad, UP – 201007",
+  },
+];
+
+export const defaultEnsisPolicySections: CmsRecord[] = [
+  {
+    key: "policy.privacyHero",
+    name: "Privacy Policy Hero Banner",
+    enabled: true,
+    eyebrow: "POLICY GUIDE",
+    title: "Privacy Policy",
+    subtitle: "Your privacy is important to us. This policy explains how ENSIS collects, uses, protects and respects your information.",
+    backgroundImage: "/assets/privacy_and_enquiry.png",
+  },
+  {
+    key: "policy.privacy",
+    name: "Privacy Policy Content & Clauses",
+    enabled: true,
+    title: "Data Protection & Privacy Commitment",
+    description: "At Ensis, we respect your privacy and are committed to protecting all personal and institutional data.",
+  },
+];
+
+export const defaultEnsisTermsSections: CmsRecord[] = [
+  {
+    key: "policy.termsHero",
+    name: "Terms & Conditions Hero Banner",
+    enabled: true,
+    eyebrow: "LEGAL NOTICE",
+    title: "Terms & Conditions",
+    subtitle: "Please read these terms and conditions carefully before using our website and services.",
+    backgroundImage: "/assets/privacy_and_enquiry.png",
+  },
+  {
+    key: "policy.terms",
+    name: "Terms & Conditions Clauses",
+    enabled: true,
+    title: "Commercial & Operational Terms",
+    description: "Rules, product warranties, commercial commitments and terms of service.",
+  },
+];
+
+export const defaultEnsisDisclaimerSections: CmsRecord[] = [
+  {
+    key: "policy.disclaimerHero",
+    name: "Disclaimer Hero Banner",
+    enabled: true,
+    eyebrow: "LEGAL NOTICE",
+    title: "Disclaimer",
+    subtitle: "Important information about the use of our website, products, services and content.",
+    backgroundImage: "/assets/disclaimer_hero.webp",
+  },
+  {
+    key: "policy.disclaimer",
+    name: "Disclaimer Content",
+    enabled: true,
+    title: "Website & Product Disclaimer",
+    subtitle: "Important legal and operational disclaimers for ENSIS.",
+    description: "Important information about the use of our website, products, services and content.",
+  },
+];
+
+export const defaultEnsisRefundSections: CmsRecord[] = [
+  {
+    key: "policy.refundHero",
+    name: "Refund Policy Hero Banner",
+    enabled: true,
+    eyebrow: "COMMERCIAL TERMS",
+    title: "Refund Policy",
+    subtitle: "Clear guidelines on order cancellations, project adjustments and refund processing.",
+    backgroundImage: "/assets/disclaimer_hero.webp",
+  },
+  {
+    key: "policy.refund",
+    name: "Refund & Cancellation Policy",
+    enabled: true,
+    title: "Cancellation & Refund Terms",
+    subtitle: "Clear guidelines on order cancellations, project adjustments and refund processing.",
+    description: "Comprehensive refund terms for standard equipment, turnkey setups and custom orders.",
   },
 ];
