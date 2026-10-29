@@ -17,7 +17,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const pathname = usePathname();
   const useCompactReadableScale = pathname !== "/" && !pathname.startsWith("/pages") && !pathname.startsWith("/staff") && !pathname.startsWith("/infrastructure");
-  const isFullHeightView = pathname.startsWith("/pages");
 
   return (
     <RequireAdminAuth>
@@ -48,7 +47,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div className="flex min-w-0 flex-1 flex-col relative z-10">
           <Topbar onMenuClick={() => setMobileNavOpen(true)} />
-          <main className={`min-h-0 flex-1 flex flex-col ${isFullHeightView ? "overflow-hidden" : "overflow-y-auto"} pl-1.5 pr-1.5 pb-1.5 pt-1 lg:pl-1.5 lg:pr-1.5 lg:pb-1.5 lg:pt-1 ${useCompactReadableScale ? contentScale.adminContent : ""}`}>{children}</main>
+          <main className={`min-h-0 flex-1 overflow-y-auto pl-1.5 pr-1.5 pb-1.5 pt-1 lg:pl-1.5 lg:pr-1.5 lg:pb-1.5 lg:pt-1 ${useCompactReadableScale ? contentScale.adminContent : ""}`}>{children}</main>
           <AdminFooter />
         </div>
         <AdminSocialRail />
