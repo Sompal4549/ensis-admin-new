@@ -478,7 +478,7 @@ export default function PagesCmsPage() {
 
   const [activePagination, setActivePagination] =
     useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(10);
 
   const [actionMenu, setActionMenu] =
     useState<number | null>(null);
