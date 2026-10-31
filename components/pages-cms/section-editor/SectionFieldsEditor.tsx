@@ -317,12 +317,18 @@ export function SectionFieldsEditor({
                     ? "Background Image (Upload)"
                     : (section.key === "msme-pms-banner" || section.name === "MsmePmsBanner") && key === "imageAlt"
                       ? "Background Image Alt Text"
-                      : (section.key === "careers-hero" || section.key === "careers-bottom-banner") && key === "image"
-                        ? "Background Image (Upload)"
-                      : (section.key === "careers-hero" || section.key === "careers-bottom-banner") && key === "imageAlt"
+                      : (section.key === "careers-hero" || section.key === "careers-bottom-banner" || section.key === "career.banner") && (key === "image" || key === "backgroundImage")
+                        ? "Background Image (Upload / URL)"
+                      : (section.key === "careers-hero" || section.key === "careers-bottom-banner" || section.key === "career.banner") && key === "imageAlt"
                         ? "Background Image Alt Text"
-                      : section.key === "careers-hero" && key === "title"
-                        ? "H1 Title"
+                      : (section.key === "careers-hero" || section.key === "career.banner") && (key === "title" || key === "heading")
+                        ? "Hero Heading"
+                      : (section.key === "career.banner" && key === "highlight")
+                        ? "Highlighted Word / Phrase (Orange)"
+                      : (section.key === "careers-hero" || section.key === "career.banner") && (key === "ctaText" || key === "buttonText")
+                        ? "Primary Button Text"
+                      : (section.key === "careers-hero" || section.key === "career.banner") && (key === "ctaHref" || key === "buttonHref")
+                        ? "Primary Button Link"
                       : section.key === "careers-hero" && key === "badgeText"
                         ? "Green Badge Text (bottom right)"
                       : section.key === "careers-openings" && key === "emptyTitle"
