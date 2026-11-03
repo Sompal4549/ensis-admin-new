@@ -21,13 +21,9 @@ export const staffApi = {
   update: (id: string, input: InviteStaffInput) => api.patch<StaffMember>(`/users/admin/staff/${id}`, input),
   updateStatus: (id: string, status: StaffStatus) => api.patch<StaffMember>(`/users/admin/staff/${id}/status`, { status }),
   updateRole: (id: string, roleId: string) => api.patch<StaffMember>(`/users/admin/staff/${id}/role`, { roleId }),
-  setPassword: (id: string, password: string) =>
-    api.post<{ _id: string; hasPassword: boolean }>(`/users/admin/staff/${id}/set-password`, { password }),
-  resetPassword: async (id: string): Promise<{ temporaryPassword: string }> => {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%";
-    const tmp = Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-    await api.post<{ _id: string; hasPassword: boolean }>(`/users/admin/staff/${id}/set-password`, { password: tmp });
-    return { temporaryPassword: tmp };
-  },
+  resetPassword: (id: string, newPassword?: string) =>
+    api.patch<{ password: string; temporaryPassword: string }>(`/users/admin/staff/${id}/reset-password`, {
+      newPassword,
+    }),
   delete: (id: string) => api.delete<{ deleted: boolean }>(`/users/admin/staff/${id}`),
 };
