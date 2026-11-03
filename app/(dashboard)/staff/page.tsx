@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus, Copy, Check, Pencil, Camera, Loader2, PowerOff, Power, Trash2, ExternalLink, User, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Copy, Check, Pencil, Camera, Loader2, PowerOff, Power, Trash2, ExternalLink, User, ChevronLeft, ChevronRight, KeyRound } from "lucide-react";
 import Swal from "sweetalert2";
 import LottieAvatar from "@/components/LottieAvatar";
 import { showUploadError } from "@/lib/uploadLimit";
@@ -73,6 +73,13 @@ export default function StaffPage() {
   const [copied, setCopied] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  // Reset Password modal state
+  const [resetPasswordModal, setResetPasswordModal] = useState(false);
+  const [resetTarget, setResetTarget] = useState<StaffMember | null>(null);
+  const [resetResult, setResetResult] = useState<string | null>(null);
+  const [resetCopied, setResetCopied] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const totalPages = Math.max(1, Math.ceil(staff.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
@@ -263,6 +270,39 @@ export default function StaffPage() {
       setCopied(true);
       showSuccess("Password copied to clipboard!");
       setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const openResetPassword = (member: StaffMember) => {
+    setResetTarget(member);
+    setResetResult(null);
+    setResetCopied(false);
+    setResetPasswordModal(true);
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetTarget) return;
+    setResetting(true);
+    try {
+      const res = await staffApi.resetPassword(resetTarget._id);
+      const pwd = res.temporaryPassword ?? "";
+      setResetResult(pwd);
+      showSuccess(`Password reset for ${resetTarget.name}!`);
+    } catch (err) {
+      const msg = err instanceof ApiRequestError ? err.message : "Failed to reset password.";
+      showError(msg);
+      setResetPasswordModal(false);
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  const copyResetPassword = () => {
+    if (!resetResult) return;
+    navigator.clipboard.writeText(resetResult).then(() => {
+      setResetCopied(true);
+      showSuccess("Password copied!");
+      setTimeout(() => setResetCopied(false), 2000);
     });
   };
 
@@ -511,6 +551,16 @@ export default function StaffPage() {
                               </button>
                             )}
 
+                            {/* Reset Password (Purple) */}
+                            <button
+                              type="button"
+                              title="Reset Staff Password"
+                              onClick={() => openResetPassword(s)}
+                              className="flex h-[25px] w-[25px] items-center justify-center rounded-[6px] bg-purple-500/10 text-purple-600 backdrop-blur-md border border-purple-400/30 shadow-[0_2px_6px_rgba(147,51,234,0.12)] transition-all hover:bg-purple-500/20 hover:border-purple-400/50 hover:shadow-[0_3px_10px_rgba(147,51,234,0.25)] hover:scale-105 active:scale-95"
+                            >
+                              <KeyRound className="h-[12px] w-[12px] text-purple-600" />
+                            </button>
+
                             {/* Delete (Red Glassmorphism) */}
                             <button
                               type="button"
@@ -677,6 +727,46 @@ export default function StaffPage() {
           </div>
         )}
       </Modal>
+
+      {/* Reset Password Modal */}
+      {resetPasswordModal && resetTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="relative w-full max-w-sm rounded-[10px] border border-[#e8e5df] bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-100">
+                <KeyRound className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="text-[13px] font-bold text-[#18233b]">Reset Password</h3>
+                <p className="text-[10px] text-[#6c7587]">{resetTarget.name}</p>
+              </div>
+              <button type="button" onClick={() => setResetPasswordModal(false)} className="ml-auto text-[#6c7587] hover:text-[#18233b] text-lg leading-none">✕</button>
+            </div>
+            {resetResult ? (
+              <div className="space-y-3">
+                <p className="text-[11px] text-[#6c7587]">New temporary password for <strong className="text-[#18233b]">{resetTarget.email}</strong>. Share it securely — shown only once.</p>
+                <div className="flex items-center gap-2 rounded-[6px] border border-[#e8e5df] bg-[#f8fafc] px-3 py-2">
+                  <span className="flex-1 select-all font-mono text-[12px] font-semibold text-[#18233b]">{resetResult}</span>
+                  <button type="button" onClick={copyResetPassword} className="text-[#6c7587] hover:text-[#18233b]">
+                    {resetCopied ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+                <button type="button" onClick={() => setResetPasswordModal(false)} className="h-[34px] w-full rounded-[6px] bg-[#16a34a] text-[11px] font-semibold text-white transition hover:bg-[#15803d]">Done</button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-[11px] text-[#6c7587]">This will generate a new temporary password for <strong className="text-[#18233b]">{resetTarget.name}</strong>. Their current password will stop working immediately.</p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setResetPasswordModal(false)} className="h-[34px] flex-1 rounded-[6px] border border-[#e8e5df] text-[11px] font-semibold text-[#6c7587] transition hover:bg-[#f8fafc]">Cancel</button>
+                  <button type="button" onClick={handleResetPassword} disabled={resetting} className="h-[34px] flex-1 rounded-[6px] bg-purple-600 text-[11px] font-semibold text-white transition hover:bg-purple-700 disabled:opacity-60">
+                    {resetting ? <Loader2 className="mx-auto h-3.5 w-3.5 animate-spin" /> : "Reset Password"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
