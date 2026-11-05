@@ -115,8 +115,11 @@ export const productBackupApi = {
 export const getImageUrl = (image?: string) => {
   if (!image || typeof image !== "string") return "";
   if (image.startsWith("http") || image.startsWith("data:") || image.startsWith("blob:")) return image;
-  if (!image.startsWith("/uploads")) return image;
-  return `${getBackendUrl()}${image}`;
+  const cleanPath = image.startsWith("/") ? image : `/${image}`;
+  if (cleanPath.startsWith("/uploads")) {
+    return `${getBackendUrl()}${cleanPath}`;
+  }
+  return image;
 };
 
 /** Uploads one image for a product and returns its URL */
