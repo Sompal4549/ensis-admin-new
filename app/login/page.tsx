@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
 
 import {
@@ -42,9 +42,10 @@ type Step =
   | "forgot-password-sent"
   | "reset-password";
 
-export default function LoginPage() {
+function LoginPageInner() {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const searchParams = useSearchParams();
 
   const { admin, hydrated } = useAppSelector(
     (state) => state.auth,
@@ -58,6 +59,18 @@ export default function LoginPage() {
   const text = translations.login;
 
   const [step, setStep] = useState<Step>("credentials");
+
+  // Read resetToken from email link (e.g. /login?resetToken=xxx&email=yyy)
+  useEffect(() => {
+    const token = searchParams.get("resetToken");
+    const emailParam = searchParams.get("email");
+    if (token) {
+      setResetToken(token);
+      if (emailParam) setForgotEmail(emailParam);
+      setStep("reset-password");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -1547,5 +1560,13 @@ export default function LoginPage() {
         )}
       </footer>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginPageInner />
+    </Suspense>
   );
 }

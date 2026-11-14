@@ -1,7 +1,7 @@
 import Swal from "sweetalert2";
 import { settingsApi } from "./settingsApi";
 
-export const DEFAULT_MAX_IMAGE_UPLOAD_KB = 500;
+export const DEFAULT_MAX_IMAGE_UPLOAD_KB = 5120; // 5 MB limit, matching backend max size
 
 export async function getMaxImageUploadKB(): Promise<number> {
   try {

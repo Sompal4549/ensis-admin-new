@@ -3,7 +3,11 @@ import { getImageSizeError } from "./uploadLimit";
 
 export interface UploadResult {
   url: string;
-  publicId: string;
+  publicId?: string;
+  data?: {
+    url?: string;
+    publicId?: string;
+  };
 }
 
 export const uploadApi = {
@@ -12,6 +16,8 @@ export const uploadApi = {
     if (sizeError) throw new Error(sizeError);
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("folder", folder);
+    formData.append("subDir", folder.replace(/^ensis[/\\]?/, ""));
     return api.postForm<UploadResult>(`/uploads?folder=${encodeURIComponent(folder)}`, formData);
   },
 };

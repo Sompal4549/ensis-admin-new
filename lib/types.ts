@@ -571,6 +571,7 @@ export interface StaffMember {
   status: StaffStatus;
   lockUntil?: string | null;
   isEmailVerified: boolean;
+  hasPassword?: boolean;
   lastLoginAt?: string;
   createdAt: string;
 }
