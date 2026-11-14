@@ -50,6 +50,10 @@ const HIDDEN_SECTION_KEYS = new Set([
   "contact.featuresStrip",
   "enquiry.features_strip",
   "enquiry.ctaBanner",
+  "enquiry.getInTouch",
+  // Products: commented out in ensis-Frontend RenderSections.tsx
+  "product.featureStrip",
+  "product.features_strip",
 ]);
 
 const componentKeyOf = (prefix: string, section: CmsRecord): string => {

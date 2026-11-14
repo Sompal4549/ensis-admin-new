@@ -566,6 +566,7 @@ function CreateJobForm() {
 
   // New fields for Career redesign
   const [coverImage, setCoverImage] = useState<string>("");
+  const [coverImageAlt, setCoverImageAlt] = useState<string>("");
   const [shortDescription, setShortDescription] = useState<string>("");
   const [aiCheckPoints, setAiCheckPoints] = useState<string[]>([]);
   const [responsibilitiesList, setResponsibilitiesList] = useState<string[]>([]);
@@ -1178,6 +1179,9 @@ function CreateJobForm() {
                     <ImageUploadField
                       value={coverImage}
                       onChange={setCoverImage}
+                      alt={coverImageAlt}
+                      onAltChange={setCoverImageAlt}
+                      altPlaceholder="Job cover image description..."
                     />
                     <p className="mt-1 text-[9px] text-[#64748b]">
                       16:10 landscape image. If empty, default brand imagery is shown on the storefront.

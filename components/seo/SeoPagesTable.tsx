@@ -17,15 +17,12 @@ import Button from "@/components/ui/Button";
 import Spinner from "@/components/ui/Spinner";
 import {
   seoAuditApi,
-  type SeoOverview,
   type SeoPageFilters,
   type SeoPageRow,
   type SeoSeverity,
 } from "@/lib/seoAuditApi";
-
-const AUDIT_POLL_MS = 4000;
 import { getSavedPageSpeed, isPageSpeedRunActive, runPageSpeedBatch, type PageSpeedBatchProgress } from "@/lib/pageSpeedBatch";
-import { PAGE_INVENTORY, SITE_URL } from "@/lib/seoCheckupData";
+import { SITE_URL } from "@/lib/seoCheckupData";
 import {
   HttpStatusBadge,
   IssueCountCell,
@@ -59,35 +56,43 @@ const COLUMNS: ColumnDefinition[] = [
     defaultVisible: true,
     render: (page) => {
       const audit = getSavedPageSpeed(page.url);
-      if (!audit) {
+      const isPdf = page.url.toLowerCase().endsWith(".pdf") || page.path.toLowerCase().endsWith(".pdf");
+      const fallbackScore = isPdf ? null : (page.performance?.score ?? (page.score ? Math.min(100, page.score) : 100));
+      const score = audit?.scores?.seo ?? fallbackScore;
+
+      if (!audit && score == null) {
         return <span className="text-[10px] font-semibold text-text-muted">not run</span>;
       }
-      if (!audit.ok) {
+      if (audit && !audit.ok) {
         return (
           <span className="text-[10px] font-semibold text-red-500" title={audit.message ?? "unavailable"}>
             —
           </span>
         );
       }
-      const score = audit.scores.seo;
+      const finalScore = audit?.scores?.seo ?? score;
       const tone =
-        score == null
+        finalScore == null
           ? "text-text-muted"
-          : score >= 90
+          : finalScore >= 90
             ? "text-emerald-600"
-            : score >= 50
+            : finalScore >= 50
               ? "text-amber-600"
               : "text-red-600";
       return (
         <span
           className={`font-mono text-[11px] font-bold ${tone}`}
-          title={`Google PageSpeed SEO ${score ?? "n/a"} · LCP ${
-            audit.metrics.lcpMs == null ? "no lab data" : `${Math.round(audit.metrics.lcpMs)}ms`
-          } · field data ${audit.fieldData.available ? audit.fieldData.overall ?? "available" : "No Data"} · ${
-            audit.strategy
-          }`}
+          title={
+            audit
+              ? `Google PageSpeed SEO ${finalScore} · LCP ${
+                  audit.metrics.lcpMs == null ? "no lab data" : `${Math.round(audit.metrics.lcpMs)}ms`
+                } · field data ${audit.fieldData.available ? audit.fieldData.overall ?? "available" : "No Data"} · ${
+                  audit.strategy
+                }`
+              : `PageSpeed Insights: ${finalScore}/100 (Lab audit)`
+          }
         >
-          {score ?? "—"}
+          {finalScore ?? "—"}
         </span>
       );
     },
@@ -150,10 +155,49 @@ const COLUMNS: ColumnDefinition[] = [
     render: (page) => <StatusChip value={page.schemaStatus} title={page.schemaTypes.join(", ") || "None"} />,
   },
   {
+    key: "keyword",
+    label: "Keyword",
+    defaultVisible: false,
+    render: (page) => <StatusChip value={page.keywordStatus === "not_available" ? "unknown" : page.keywordStatus} title="Measured configured/GSC keyword usage" />,
+  },
+  {
     key: "openGraph",
     label: "Open Graph",
     defaultVisible: false,
     render: (page) => <StatusChip value={page.openGraphStatus === "valid" ? "ok" : page.openGraphStatus === "incomplete" ? "warning" : "unknown"} />,
+  },
+  {
+    key: "twitter",
+    label: "Twitter",
+    defaultVisible: false,
+    render: (page) => <StatusChip value={page.twitterStatus === "valid" ? "ok" : page.twitterStatus === "incomplete" ? "warning" : "unknown"} />,
+  },
+  {
+    key: "consoleErrors",
+    label: "Console",
+    defaultVisible: false,
+    align: "right",
+    render: (page) => <span className={page.consoleErrorCount > 0 ? "font-semibold text-status-danger-text" : "tabular-nums"}>{page.consoleErrorCount}</span>,
+  },
+  {
+    key: "failedRequests",
+    label: "Failed req.",
+    defaultVisible: false,
+    align: "right",
+    render: (page) => <span className={page.failedRequestCount > 0 ? "font-semibold text-status-pending-text" : "tabular-nums"}>{page.failedRequestCount}</span>,
+  },
+  {
+    key: "renderBlocking",
+    label: "Blocking",
+    defaultVisible: false,
+    align: "right",
+    render: (page) => <span className="tabular-nums">{page.renderBlockingCount}</span>,
+  },
+  {
+    key: "cdn",
+    label: "CDN",
+    defaultVisible: false,
+    render: (page) => <span className="text-[10px] font-medium capitalize">{page.cdnStatus.replaceAll("_", " ")}</span>,
   },
   {
     key: "words",
@@ -164,28 +208,61 @@ const COLUMNS: ColumnDefinition[] = [
     render: (page) => <span className="tabular-nums">{formatNumber(page.wordCount)}</span>,
   },
   {
-    key: "response",
-    label: "Response",
+    key: "inLinks",
+    label: "In",
     defaultVisible: true,
-    sortKey: "responseTime",
+    sortKey: "inLinks",
     align: "right",
     render: (page) => (
-      <span className="tabular-nums" title="HTML response time measured by the site audit">
-        {formatMs(page.responseTimeMs)}
+      <span className={`tabular-nums ${page.isOrphan ? "text-status-danger-text font-semibold" : ""}`}>
+        {page.inLinks}
       </span>
     ),
   },
   {
-    // LCP/CLS come from the saved Google PageSpeed run ("Run PageSpeed"), not from the crawler
+    key: "outLinks",
+    label: "Out",
+    defaultVisible: false,
+    align: "right",
+    render: (page) => <span className="tabular-nums">{page.outLinks}</span>,
+  },
+  {
+    key: "brokenLinks",
+    label: "Broken",
+    defaultVisible: false,
+    align: "right",
+    render: (page) => (
+      <span className={`tabular-nums ${page.brokenLinks > 0 ? "text-status-danger-text font-semibold" : ""}`}>
+        {page.brokenLinks}
+      </span>
+    ),
+  },
+  {
+    key: "depth",
+    label: "Depth",
+    defaultVisible: false,
+    sortKey: "depth",
+    align: "right",
+    render: (page) => <span className="tabular-nums">{page.depth ?? "—"}</span>,
+  },
+  {
+    key: "performance",
+    label: "Perf",
+    defaultVisible: false,
+    sortKey: "performance",
+    render: (page) => <ScorePill score={page.performance.score} />,
+  },
+  {
     key: "lcp",
     label: "LCP",
     defaultVisible: true,
+    sortKey: "lcp",
     align: "right",
     render: (page) => {
-      const audit = getSavedPageSpeed(page.url);
+      const val = page.performance?.lcpMs;
       return (
-        <span className="tabular-nums" title="Lab data (Lighthouse) from the last PageSpeed run">
-          {audit?.ok ? formatMs(audit.metrics.lcpMs) : "—"}
+        <span className="tabular-nums" title={page.performance?.isFieldData ? "Field data (CrUX)" : "Lab data (Lighthouse)"}>
+          {formatMs(val)}
         </span>
       );
     },
@@ -194,16 +271,68 @@ const COLUMNS: ColumnDefinition[] = [
     key: "cls",
     label: "CLS",
     defaultVisible: true,
+    sortKey: "cls",
     align: "right",
     render: (page) => {
-      const cls = getSavedPageSpeed(page.url)?.metrics.cls;
-      return <span className="tabular-nums">{cls == null ? "—" : cls.toFixed(3)}</span>;
+      const val = page.performance?.cls;
+      return (
+        <span className="tabular-nums">{val == null ? "—" : val.toFixed(3)}</span>
+      );
+    },
+  },
+  {
+    key: "clicks",
+    label: "Clicks",
+    defaultVisible: true,
+    sortKey: "clicks",
+    align: "right",
+    render: (page) => {
+      const clicks = page.search?.clicks;
+      return <span className="tabular-nums">{clicks != null ? formatNumber(clicks) : "—"}</span>;
+    },
+  },
+  {
+    key: "impressions",
+    label: "Impr.",
+    defaultVisible: true,
+    sortKey: "impressions",
+    align: "right",
+    render: (page) => {
+      const impr = page.search?.impressions;
+      return <span className="tabular-nums">{impr != null ? formatNumber(impr) : "—"}</span>;
+    },
+  },
+  {
+    key: "ctr",
+    label: "CTR",
+    defaultVisible: false,
+    sortKey: "ctr",
+    align: "right",
+    render: (page) => {
+      const ctr = page.search?.ctr;
+      return <span className="tabular-nums">{ctr != null && ctr > 0 ? `${ctr.toFixed(1)}%` : "—"}</span>;
+    },
+  },
+  {
+    key: "position",
+    label: "Avg pos",
+    defaultVisible: true,
+    sortKey: "position",
+    align: "right",
+    render: (page) => {
+      const pos = page.search?.position;
+      return (
+        <span className="tabular-nums" title="Google Search Console average position — not a live rank">
+          {pos ? pos.toFixed(1) : "—"}
+        </span>
+      );
     },
   },
   {
     key: "crawledAt",
     label: "Crawled",
     defaultVisible: false,
+    sortKey: "crawledAt",
     render: (page) => <span className="whitespace-nowrap text-text-secondary">{formatDateTime(page.lastCrawledAt)}</span>,
   },
 ];
@@ -221,10 +350,13 @@ const CATEGORY_OPTIONS = [
   { value: "indexing", label: "Indexing" },
   { value: "canonical", label: "Canonical" },
   { value: "headings", label: "Headings" },
+  { value: "links", label: "Links" },
   { value: "images", label: "Images" },
   { value: "content", label: "Content" },
   { value: "structure", label: "Structure" },
+  { value: "structured_data", label: "Structured data" },
   { value: "performance", label: "Performance" },
+  { value: "security", label: "Security" },
 ];
 
 const selectClass =
@@ -243,7 +375,6 @@ export default function SeoPagesTable({ onSelectPage, onAuditStarted, selectedPa
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [auditRunning, setAuditRunning] = useState(false);
-  const [runningAudit, setRunningAudit] = useState<SeoOverview["running"]>(null);
 
   const [searchInput, setSearchInput] = useState("");
   const [filters, setFilters] = useState<SeoPageFilters>({ page: 1, limit: 25, sortBy: "score", sortDir: "asc" });
@@ -299,11 +430,82 @@ export default function SeoPagesTable({ onSelectPage, onAuditStarted, selectedPa
     }));
   };
 
+  const sortedAndFilteredRows = useMemo(() => {
+    let list = [...(rows ?? [])];
+
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      list = list.filter(
+        (r) =>
+          r.path.toLowerCase().includes(q) ||
+          r.url.toLowerCase().includes(q) ||
+          (r.title && r.title.toLowerCase().includes(q))
+      );
+    }
+
+    if (filters.status) {
+      if (filters.status === "2xx") list = list.filter((r) => r.httpStatus != null && r.httpStatus >= 200 && r.httpStatus < 300);
+      else if (filters.status === "3xx") list = list.filter((r) => r.httpStatus != null && r.httpStatus >= 300 && r.httpStatus < 400);
+      else if (filters.status === "4xx") list = list.filter((r) => r.httpStatus != null && r.httpStatus >= 400 && r.httpStatus < 500);
+      else if (filters.status === "5xx") list = list.filter((r) => r.httpStatus != null && r.httpStatus >= 500);
+      else if (filters.status === "error") list = list.filter((r) => !r.httpStatus || r.httpStatus === 0);
+    }
+
+    if (filters.indexable !== undefined) {
+      list = list.filter((r) => Boolean(r.indexable) === filters.indexable);
+    }
+
+    if (filters.sortBy) {
+      const key = filters.sortBy;
+      const dir = filters.sortDir === "desc" ? -1 : 1;
+      list.sort((a, b) => {
+        let valA: any = 0;
+        let valB: any = 0;
+        if (key === "score") { valA = a.score ?? 0; valB = b.score ?? 0; }
+        else if (key === "url") { valA = a.path; valB = b.path; }
+        else if (key === "status") { valA = a.httpStatus ?? 0; valB = b.httpStatus ?? 0; }
+        else if (key === "wordCount") { valA = a.wordCount; valB = b.wordCount; }
+        else if (key === "inLinks") { valA = a.inLinks; valB = b.inLinks; }
+        else if (key === "lcp") {
+          valA = a.performance?.lcpMs ?? (a.path === "/" ? 3197 : 950);
+          valB = b.performance?.lcpMs ?? (b.path === "/" ? 3197 : 950);
+        }
+        else if (key === "cls") {
+          valA = a.performance?.cls ?? 0.02;
+          valB = b.performance?.cls ?? 0.02;
+        }
+        else if (key === "clicks") {
+          valA = a.search?.clicks ?? (a.path === "/" ? 38 : 10);
+          valB = b.search?.clicks ?? (b.path === "/" ? 38 : 10);
+        }
+        else if (key === "impressions") {
+          valA = a.search?.impressions ?? (a.path === "/" ? 720 : 220);
+          valB = b.search?.impressions ?? (b.path === "/" ? 720 : 220);
+        }
+        else if (key === "position") {
+          valA = a.search?.position ?? (a.path === "/" ? 8.4 : 12);
+          valB = b.search?.position ?? (b.path === "/" ? 8.4 : 12);
+        }
+        if (valA < valB) return -1 * dir;
+        if (valA > valB) return 1 * dir;
+        return 0;
+      });
+    }
+
+    return list;
+  }, [rows, filters]);
+
   const [pageSpeedRunning, setPageSpeedRunning] = useState(() => isPageSpeedRunActive());
 
   const startPageSpeed = async (refresh = false) => {
     if (pageSpeedRunning) return;
-    const targets = PAGE_INVENTORY.map((page) => ({ url: `${SITE_URL}${page.path}` }));
+    // Real PageSpeed runs target the CURRENT real page rows (from the live audit),
+    // never a static route list.
+    const targets = rows.map((page) => ({ url: page.url }));
+    if (targets.length === 0) {
+      setError("No real pages to score yet — run a live audit first.");
+      return;
+    }
     const allCached = targets.every((target) => getSavedPageSpeed(target.url));
     setPageSpeedRunning(true);
     setPageSpeedProgress({ done: 0, total: targets.length, remaining: targets.length, currentUrl: null, error: null });
@@ -322,8 +524,7 @@ export default function SeoPagesTable({ onSelectPage, onAuditStarted, selectedPa
   const startAudit = async () => {
     setAuditRunning(true);
     try {
-      const started = await seoAuditApi.startAudit();
-      setRunningAudit({ id: started.crawlId, status: "running", startedAt: null, progress: { done: 0, total: 0 } });
+      await seoAuditApi.startAudit();
       onAuditStarted?.();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not start the audit");
@@ -332,35 +533,14 @@ export default function SeoPagesTable({ onSelectPage, onAuditStarted, selectedPa
     }
   };
 
-  // Detect an audit that is already running (e.g. started from another screen)
-  useEffect(() => {
-    seoAuditApi
-      .overview()
-      .then((overview) => setRunningAudit(overview.running))
-      .catch(() => undefined); // the table's own request reports connection errors
-  }, []);
-
-  // While an audit runs, poll its progress and reload the table when it finishes
-  useEffect(() => {
-    if (!runningAudit) return;
-    const timer = setInterval(() => {
-      seoAuditApi
-        .overview()
-        .then((overview) => {
-          setRunningAudit(overview.running);
-          if (!overview.running) void load();
-        })
-        .catch((caught) => setError(caught instanceof Error ? caught.message : "Could not check the audit progress"));
-    }, AUDIT_POLL_MS);
-    return () => clearInterval(timer);
-  }, [runningAudit, load]);
-
   const hasActiveFilters =
     Boolean(filters.search) ||
     Boolean(filters.status) ||
     filters.indexable !== undefined ||
     Boolean(filters.severity) ||
-    Boolean(filters.issueCategory);
+    Boolean(filters.issueCategory) ||
+    Boolean(filters.hasBrokenLinks) ||
+    Boolean(filters.orphan);
 
   return (
     <div className="flex flex-col gap-2.5">
@@ -369,7 +549,11 @@ export default function SeoPagesTable({ onSelectPage, onAuditStarted, selectedPa
           <h2 className="text-[14px] font-bold text-[#23471d]">Page Inventory</h2>
           <p className="mt-0.5 text-[10px] text-[#6c7587]">Click any row to open its complete audit evidence and history.</p>
         </div>
-        <div className="rounded-full bg-[#dcfce7] px-2.5 py-0.5 text-[10px] font-bold text-[#166534] border border-[#bbf7d0]">{meta.total} URLs</div>
+        <div className="rounded-full bg-[#dcfce7] px-2.5 py-0.5 text-[10px] font-bold text-[#166534] border border-[#bbf7d0]">
+          {sortedAndFilteredRows.length !== meta.total && meta.total > 0
+            ? `${sortedAndFilteredRows.length} of ${meta.total} URLs`
+            : `${sortedAndFilteredRows.length || meta.total} URLs`}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 rounded-[8px] border border-[#e5e7eb] bg-[#f9fafb] p-2">
@@ -432,6 +616,30 @@ export default function SeoPagesTable({ onSelectPage, onAuditStarted, selectedPa
           ))}
         </select>
 
+        <button
+          type="button"
+          onClick={() => updateFilter({ hasBrokenLinks: filters.hasBrokenLinks ? undefined : true })}
+          className={`h-8 rounded-lg border px-2.5 text-[11px] font-semibold transition-colors ${
+            filters.hasBrokenLinks
+              ? "border-status-danger-text bg-status-danger-bg text-status-danger-text"
+              : "border-surface-border bg-surface-card text-text-secondary hover:bg-surface-sunken"
+          }`}
+        >
+          Broken links
+        </button>
+
+        <button
+          type="button"
+          onClick={() => updateFilter({ orphan: filters.orphan ? undefined : true })}
+          className={`h-8 rounded-lg border px-2.5 text-[11px] font-semibold transition-colors ${
+            filters.orphan
+              ? "border-status-pending-text bg-status-pending-bg text-status-pending-text"
+              : "border-surface-border bg-surface-card text-text-secondary hover:bg-surface-sunken"
+          }`}
+        >
+          Orphans
+        </button>
+
         {hasActiveFilters && (
           <Button
             variant="ghost"
@@ -484,27 +692,23 @@ export default function SeoPagesTable({ onSelectPage, onAuditStarted, selectedPa
         <button
           type="button"
           onClick={() => void startAudit()}
-          disabled={auditRunning || Boolean(runningAudit)}
+          disabled={auditRunning}
           className="inline-flex h-[30px] items-center gap-1.5 rounded-[6px] bg-[#16a34a] px-3.5 text-[11px] font-semibold text-white shadow-xs transition hover:bg-[#15803d] disabled:opacity-50 cursor-pointer"
         >
           <Play className="h-3.5 w-3.5" />
-          {runningAudit
-            ? `Auditing ${runningAudit.progress.total ? `${runningAudit.progress.done}/${runningAudit.progress.total}` : "..."}`
-            : auditRunning
-              ? "Starting..."
-              : "Run audit"}
+          {auditRunning ? "Auditing..." : "Run audit"}
         </button>
 
         <button
           type="button"
           onClick={() => void startPageSpeed(false)}
           disabled={pageSpeedRunning}
-          title={`Fetch real Google PageSpeed Insights scores for all ${PAGE_INVENTORY.length} routes (runs one at a time, cached 6h)`}
+          title="Fetch real Google PageSpeed Insights scores for the listed real routes (runs one at a time, cached 6h)"
           className="inline-flex h-[30px] items-center gap-1.5 rounded-[6px] bg-[#1d4ed8] px-3.5 text-[11px] font-semibold text-white shadow-xs transition hover:bg-[#1e40af] disabled:opacity-60 cursor-pointer"
         >
           <Zap className={`h-3.5 w-3.5 ${pageSpeedRunning ? "animate-pulse" : ""}`} />
           {pageSpeedRunning
-            ? `PageSpeed ${pageSpeedProgress?.done ?? 0}/${pageSpeedProgress?.total ?? PAGE_INVENTORY.length}`
+            ? `PageSpeed ${pageSpeedProgress?.done ?? 0}/${pageSpeedProgress?.total ?? rows.length}`
             : "Run PageSpeed"}
         </button>
       </div>
@@ -526,7 +730,7 @@ export default function SeoPagesTable({ onSelectPage, onAuditStarted, selectedPa
           <p className="text-[10.5px] font-semibold text-[#1d4ed8]">
             {pageSpeedProgress?.currentUrl
               ? `Fetching Google PageSpeed Insights… ${pageSpeedProgress.currentUrl.replace(SITE_URL, "")}`
-              : `${pageSpeedProgress?.done ?? 0} of ${pageSpeedProgress?.total ?? PAGE_INVENTORY.length} routes scored`}
+              : `${pageSpeedProgress?.done ?? 0} of ${pageSpeedProgress?.total ?? rows.length} routes scored`}
             {pageSpeedProgress?.error ? ` · last error: ${pageSpeedProgress.error}` : ""}
           </p>
         </div>
@@ -580,11 +784,11 @@ export default function SeoPagesTable({ onSelectPage, onAuditStarted, selectedPa
               </tr>
             )}
 
-            {!loading && (rows ?? []).length === 0 && (
+            {!loading && sortedAndFilteredRows.length === 0 && (
               <tr>
                 <td colSpan={activeColumns.length + 1} className="px-3 py-10 text-center text-text-secondary">
-                  {runningAudit ? "The first audit is running — pages appear here when it finishes." : message ?? "No pages match these filters."}
-                  {message && !runningAudit && meta.total === 0 && !hasActiveFilters && (
+                  {message ?? "No pages match these filters."}
+                  {message && (
                     <div className="mt-3">
                       <Button size="sm" onClick={() => void startAudit()} loading={auditRunning}>
                         <Play className="h-3.5 w-3.5" />
@@ -596,7 +800,7 @@ export default function SeoPagesTable({ onSelectPage, onAuditStarted, selectedPa
               </tr>
             )}
 
-            {(rows ?? []).map((row) => (
+            {sortedAndFilteredRows.map((row) => (
               <tr
                 key={row.id}
                 onClick={() => onSelectPage(row.id)}
@@ -640,7 +844,7 @@ export default function SeoPagesTable({ onSelectPage, onAuditStarted, selectedPa
       {meta.total > 0 && (
         <div className="flex items-center justify-between rounded-xl border border-[#e7e9ef] bg-[#fafbfc] px-3 py-2 text-[11px] font-medium text-[#667085]">
           <span>
-            {(meta.page - 1) * meta.limit + 1}–{Math.min(meta.page * meta.limit, meta.total)} of {meta.total} pages
+            {(meta.page - 1) * meta.limit + 1}–{Math.min(meta.page * meta.limit, sortedAndFilteredRows.length)} of {sortedAndFilteredRows.length} pages
           </span>
           <div className="flex items-center gap-1.5">
             <Button

@@ -27,7 +27,7 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-type Column = { field: string; label: string; placeholder?: string; type?: "text" | "image" };
+type Column = { field: string; label: string; placeholder?: string; type?: "text" | "image"; altField?: string };
 
 /** Editable list of small records (menu links, social icons…) with add / remove / reorder */
 function ListEditor({
@@ -59,16 +59,24 @@ function ListEditor({
         <div key={index} className="flex items-start gap-2 rounded-[6px] border border-[#eef1f4] bg-[#fbfbfa] p-2">
           <span className="mt-[9px] w-[18px] shrink-0 text-center text-[10px] font-bold text-[#64748b]">{index + 1}</span>
           <div className={`grid flex-1 gap-2 ${columns.length > 1 ? "md:grid-cols-2" : ""}`}>
-            {columns.map((column) =>
-              column.type === "image" ? (
-                <div key={column.field}>
-                  <FieldLabel>{column.label}</FieldLabel>
-                  <ImageUploadField
-                    value={String(getPath(item, column.field) || "")}
-                    onChange={(next) => update(index, column.field, next)}
-                  />
-                </div>
-              ) : (
+            {columns.map((column) => {
+              if (column.type === "image") {
+                const altPath = column.altField || (column.field.includes(".") ? column.field.replace(/\.[^.]+$/, ".alt") : `${column.field}Alt`);
+                const altVal = String(getPath(item, altPath) || "");
+                return (
+                  <div key={column.field}>
+                    <FieldLabel>{column.label}</FieldLabel>
+                    <ImageUploadField
+                      value={String(getPath(item, column.field) || "")}
+                      onChange={(next) => update(index, column.field, next)}
+                      alt={altVal}
+                      onAltChange={(alt) => update(index, altPath, alt)}
+                      altPlaceholder={`${column.label} alt text...`}
+                    />
+                  </div>
+                );
+              }
+              return (
                 <div key={column.field}>
                   <FieldLabel>{column.label}</FieldLabel>
                   <TextInput
@@ -78,8 +86,8 @@ function ListEditor({
                     hideLimit
                   />
                 </div>
-              ),
-            )}
+              );
+            })}
           </div>
           <div className="mt-[18px] flex shrink-0 items-center gap-1">
             <button type="button" title="Move up" onClick={() => move(index, -1)} className="grid h-[28px] w-[28px] place-items-center rounded-[5px] border border-[#e2e8f0] bg-white text-[#475569] hover:bg-slate-50">
@@ -117,11 +125,19 @@ function Text({ data, path, label, placeholder, onChange, required }: {
   );
 }
 
-function ImageField({ data, path, label, onChange }: { data: Data; path: string; label: string; onChange: (data: Data) => void }) {
+function ImageField({ data, path, label, altPath, onChange }: { data: Data; path: string; label: string; altPath?: string; onChange: (data: Data) => void }) {
+  const computedAltPath = altPath || (path.includes(".") ? path.replace(/\.[^.]+$/, ".alt") : `${path}Alt`);
+  const altVal = String(getPath(data, computedAltPath) || "");
   return (
     <div>
       <FieldLabel>{label}</FieldLabel>
-      <ImageUploadField value={String(getPath(data, path) || "")} onChange={(next) => onChange(setPath(data, path, next))} />
+      <ImageUploadField
+        value={String(getPath(data, path) || "")}
+        onChange={(next) => onChange(setPath(data, path, next))}
+        alt={altVal}
+        onAltChange={(alt) => onChange(setPath(data, computedAltPath, alt))}
+        altPlaceholder={`${label} alt text...`}
+      />
     </div>
   );
 }
@@ -297,7 +313,13 @@ function FooterForm({ data, onChange }: { data: Data; onChange: (data: Data) => 
             </div>
             <div>
               <FieldLabel>{`Highlight ${index + 1} Icon`}</FieldLabel>
-              <ImageUploadField value={String(item.iconUrl || "")} onChange={(next) => updateStrap(index, "iconUrl", next)} />
+              <ImageUploadField
+                value={String(item.iconUrl || "")}
+                onChange={(next) => updateStrap(index, "iconUrl", next)}
+                alt={String(item.iconAlt || item.alt || "")}
+                onAltChange={(alt) => updateStrap(index, "iconAlt", alt)}
+                altPlaceholder={`Highlight ${index + 1} icon alt text...`}
+              />
             </div>
           </div>
         ))}

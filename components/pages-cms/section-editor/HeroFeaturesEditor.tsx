@@ -4,7 +4,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { FieldLabel, ImageUploadField, TextInput } from "../fields";
 
 /** One icon + label under the hero text (e.g. "Ayurveda Expertise"). The website reads slide.features[{ imgUrl, title }]. */
-export type HeroFeature = { imgUrl?: string; title?: string };
+export type HeroFeature = { imgUrl?: string; title?: string; alt?: string };
 
 export function HeroFeaturesEditor({
   value,
@@ -49,7 +49,13 @@ export function HeroFeaturesEditor({
           </div>
           <div>
             <FieldLabel>Icon (Upload / URL)</FieldLabel>
-            <ImageUploadField value={feature.imgUrl || ""} onChange={(url) => update(index, { imgUrl: url })} />
+            <ImageUploadField
+              value={feature.imgUrl || ""}
+              onChange={(url) => update(index, { imgUrl: url })}
+              alt={feature.alt || ""}
+              onAltChange={(alt) => update(index, { alt })}
+              altPlaceholder="Feature icon alt text..."
+            />
           </div>
           <button
             type="button"

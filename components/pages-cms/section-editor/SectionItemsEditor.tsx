@@ -17,6 +17,28 @@ import { HeroSlideScheduleEditor, todaySlideSchedule } from "./HeroSlideSchedule
    own scalar fields generically.
 ========================================================= */
 
+const getAltKeyForItem = (imageKey: string, itm: CmsRecord): string => {
+  if (imageKey === "image" || imageKey === "img") {
+    if (itm.imageAlt !== undefined) return "imageAlt";
+    if (itm.alt !== undefined) return "alt";
+    return "imageAlt";
+  }
+  if (itm[`${imageKey}Alt`] !== undefined) return `${imageKey}Alt`;
+  if (itm[`${imageKey}AltText`] !== undefined) return `${imageKey}AltText`;
+  const base = imageKey.replace(/Image$/, "");
+  if (itm[`${base}Alt`] !== undefined) return `${base}Alt`;
+  return `${imageKey}Alt`;
+};
+
+const isAltKeyForExistingItemImage = (altKey: string, itm: CmsRecord): boolean => {
+  if (!/alt/i.test(altKey)) return false;
+  if ((altKey === "imageAlt" || altKey === "alt") && (itm.image !== undefined || itm.img !== undefined)) return true;
+  if (altKey === "iconImageAlt" && (itm.iconImage !== undefined || itm.iconImg !== undefined)) return true;
+  const base = altKey.replace(/Alt(Text)?$/i, "");
+  if (itm[base] !== undefined || itm[`${base}Image`] !== undefined || itm[`${base}Img`] !== undefined) return true;
+  return false;
+};
+
 export function SectionItemsEditor({
   items,
   onChangeItem,
@@ -83,7 +105,26 @@ export function SectionItemsEditor({
   };
 
   const getSectionAddLabel = () => {
-    if (sectionId === "hero") return "Add Hero Slide";
+    if (sectionId === "hero" || sectionId === "home.hero") return "Add Hero Slide";
+    if (sectionId === "home.wellnessSection") return "Add Equipment Card";
+    if (sectionId === "home.turnkeySolutions") return "Add Turnkey Solution";
+    if (sectionId === "home.globalPresence" || sectionId === "consultancy.features_strip") return "Add Stat Item";
+    if (sectionId === "home.fullWidthFeatures") return "Add Quality Feature";
+    if (sectionId === "home.productsGrid") return "Add Featured Product";
+    if (sectionId === "home.wellnessRoomSetups") return "Add Room Setup";
+    if (sectionId === "home.testimonials" || sectionId === "about.testimonials" || sectionId === "product.testimonials" || sectionId === "testimonials-carousel") return "Add Review / Testimonial";
+    if (sectionId === "about.ourStory") return "Add Value Point";
+    if (sectionId === "about.industriesWeServe") return "Add Industry Sector";
+    if (sectionId === "about.ourProducts") return "Add Product Line";
+    if (sectionId === "about.ourTurnkeyProcess") return "Add Process Step";
+    if (sectionId === "turnkey.completeSolutions") return "Add Solution Card";
+    if (sectionId === "turnkey.facilities") return "Add Facility Card";
+    if (sectionId === "turnkey.customized") return "Add Feature Block";
+    if (sectionId === "turnkey.whatIsTurnkey") return "Add Project Need";
+    if (sectionId === "turnkey.featuredProjects" || sectionId === "projects.ourProjects") return "Add Project Card";
+    if (sectionId === "projects.ourClients" || sectionId === "product.trustedBy") return "Add Client Logo";
+    if (sectionId === "consultancy.whatWeOffer") return "Add Consultancy Service";
+    if (sectionId === "career.whyWork") return "Add Benefit / Reason";
     if (sectionId === "exhibition-hero") return "Add Feature";
     if (sectionId === "nominate-hero") return "Add Feature";
     if (sectionId === "why-exhibit-hero") return "Add Hero Highlight Block";
@@ -98,7 +139,6 @@ export function SectionItemsEditor({
     if (sectionId === "beyond-exhibition") return "Add Excellence Award Category";
     if (sectionId === "sponsorship-categories") return "Add Sponsorship Package Tier";
     if (sectionId === "buyer-seller-meet") return "Add B2B Matchmaking Feature";
-    if (sectionId === "testimonials-carousel") return "Add Review / Testimonial";
     if (sectionId === "navbar") return "Add Header Navigation Link";
     if (sectionId === "footer") return "Add Footer Link / Information";
     return "Add New Section Block";
@@ -107,17 +147,18 @@ export function SectionItemsEditor({
   const getItemLabel = (item: CmsRecord, index: number) => {
     const mainTitle = item.name || item.title || item.label || (item.title1 ? `${item.title1} ${item.title2 || ""}`.trim() : null) || item.question || item.tagline || item.companyName1;
     if (mainTitle) return String(mainTitle);
+    if (sectionId === "hero" || sectionId === "home.hero") return `Hero Slide ${index + 1}`;
+    if (sectionId === "home.globalPresence" || sectionId === "consultancy.features_strip") return item.value ? `${item.value} ${item.label || ""}`.trim() : `Stat ${index + 1}`;
     if (sectionId === "why-exhibit-hero") return item.main ? `${item.main} ${item.sub || ""}`.trim() : `Highlight Block ${index + 1}`;
     if (sectionId === "why-visit-hero") return item.label ? `${item.val || ""} ${item.label}`.trim() : `Stat Counter ${index + 1}`;
     if (sectionId === "why-visit-matters") return item.title ? String(item.title) : `Opportunity Card ${index + 1}`;
     if (sectionId === "reasons-to-exhibit") return item.title1 ? `${item.title1} ${item.title2 || ""}`.trim() : `Reason Block ${index + 1}`;
-    if (sectionId === "hero") return `Hero Slide ${index + 1}`;
     if (sectionId === "audience-strip") return `Audience Group ${index + 1}`;
     if (sectionId === "conference-section") return `Session ${index + 1}`;
     if (sectionId === "expo-categories") return `Sector ${index + 1}`;
     if (sectionId === "beyond-exhibition") return `Award Category ${index + 1}`;
     if (sectionId === "sponsorship-categories") return `Sponsorship Tier ${index + 1}`;
-    if (sectionId === "testimonials-carousel") return `Review ${index + 1}`;
+    if (sectionId === "testimonials-carousel" || sectionId?.includes("testimonial")) return `Review ${index + 1}`;
     if (sectionId === "navbar" || sectionId === "footer") return `Link ${index + 1}`;
     return `Block ${index + 1}`;
   };
@@ -127,7 +168,29 @@ export function SectionItemsEditor({
       <div className="flex items-center justify-between border-t border-[#e2e8f0] pt-[8px]">
         <div className="flex items-center gap-[6px]">
           <span className="text-[11px] font-bold text-[#1e40af]">
-            {sectionId === "hero" ? "Hero Carousel Slides" :
+            {sectionId === "hero" || sectionId === "home.hero" ? "Hero Carousel Slides" :
+              sectionId === "home.wellnessSection" ? "Highlights & Equipment List" :
+              sectionId === "home.turnkeySolutions" ? "Turnkey Solutions List" :
+              sectionId === "home.globalPresence" || sectionId === "consultancy.features_strip" ? "Key Statistics Strip" :
+              sectionId === "home.fullWidthFeatures" ? "Quality Standards & Features" :
+              sectionId === "home.productsGrid" ? "Featured Equipment Grid" :
+              sectionId === "home.wellnessRoomSetups" ? "Room Setups" :
+              sectionId === "home.testimonials" || sectionId === "about.testimonials" || sectionId === "product.testimonials" ? "Client Reviews & Testimonials" :
+              sectionId === "about.ourStory" ? "Core Values & Highlights" :
+              sectionId === "about.industriesWeServe" ? "Industries We Serve" :
+              sectionId === "about.ourProducts" ? "Product Lineup List" :
+              sectionId === "about.ourTurnkeyProcess" ? "Turnkey Process Steps" :
+              sectionId === "turnkey.completeSolutions" ? "Complete Solutions Cards" :
+              sectionId === "turnkey.facilities" ? "Facilities We Build" :
+              sectionId === "turnkey.customized" ? "Why Choose Turnkey Cards" :
+              sectionId === "turnkey.whatIsTurnkey" ? "Project Needs & Solutions" :
+              sectionId === "turnkey.featuredProjects" || sectionId === "projects.ourProjects" ? "Featured Projects" :
+              sectionId === "turnkey.readyToBuild" ? "Call to Action Cards" :
+              sectionId === "consultancy.whatWeOffer" ? "Consultancy Services List" :
+              sectionId === "product.trustedBy" || sectionId === "projects.ourClients" ? "Client & Brand Logos" :
+              sectionId === "product.whyChoose" ? "Why Choose Reasons" :
+              sectionId === "projects.whyPartner" ? "Partnership Benefits" :
+              sectionId === "career.whyWork" ? "Benefits & Reasons" :
               sectionId === "audience-strip" ? "Target Audience List" :
                 sectionId === "introduction-section" ? "Key Feature Cards" :
                   sectionId === "global-platform" ? "Platform Highlights & Deals" :
@@ -166,7 +229,7 @@ export function SectionItemsEditor({
 
       <div className="space-y-3 pt-1">
         {items.map((item, index) => {
-          let itemToEdit = { ...item };
+          const itemToEdit = { ...item };
           if (sectionId === "expo-categories") {
             delete itemToEdit.icon;
             delete itemToEdit.desc;
@@ -307,22 +370,6 @@ export function SectionItemsEditor({
             if (!itemToEdit.image) {
               itemToEdit.image = item.image || galDefaultImgs[index % galDefaultImgs.length];
             }
-          } else {
-            let defaultIcon = "";
-            if (!item.icon) {
-              const text = (item.title || "") + " " + (item.label || "");
-              const textUpper = text.toUpperCase();
-              if (textUpper.includes("HELPLINE")) defaultIcon = "users";
-              else if (textUpper.includes("REGION")) defaultIcon = "building";
-              else if (textUpper.includes("VOLUNTEER")) defaultIcon = "heart-hands";
-              else if (textUpper.includes("SUPPORT")) defaultIcon = "heart-hands";
-              else if (text.toUpperCase().includes("GIVE")) defaultIcon = "give-icon";
-              else if (text.toUpperCase().includes("SERVE")) defaultIcon = "serve-icon";
-              else if (text.toUpperCase().includes("PARTNER")) defaultIcon = "partner-icon";
-            }
-            itemToEdit = ("label" in item || "title" in item) && (!("icon" in item) || item.icon === "")
-              ? { ...item, icon: defaultIcon }
-              : item;
           }
 
           // Hero slides: booleans (Show Lutus / Is Center) sit in one row next to the Schedule switch
@@ -332,6 +379,8 @@ export function SectionItemsEditor({
             .filter(
               ([key, value]) =>
                 key !== "_id" &&
+                key !== "id" &&
+                key !== "componentKey" &&
                 key !== "img" &&
                 key !== "status" &&
                 !(key === "schedule" && value && typeof value === "object" && !Array.isArray(value)) &&
@@ -346,6 +395,7 @@ export function SectionItemsEditor({
                 !(sectionId === "awards-process" && key === "icon") &&
                 !(sectionId === "four-pillars" && key === "subtitle") &&
                 !(sectionId === "gallery-counters" && (key === "icon" || key === "iconKey")) &&
+                !isAltKeyForExistingItemImage(key, itemToEdit) &&
                 (typeof value === "string" ||
                   typeof value === "number" ||
                   typeof value === "boolean" ||
@@ -516,53 +566,65 @@ export function SectionItemsEditor({
                             value={String(value)}
                             onChange={(next) => onChangeItem(index, key, next)}
                           />
-                        ) : isImageKey ? (
-                          <ImageUploadField
-                            value={String(value)}
-                            onChange={(next) => onChangeItem(index, key, next)}
-                            defaultValue={
-                              sectionId === "why-exhibit-hero"
-                                ? `/uploads/icons/x${(index % 4) + 1}.png`
-                                : sectionId === "reasons-to-exhibit"
-                                  ? [
-                                      "/uploads/icons/11og.webp",
-                                      "/uploads/icons/12og.webp",
-                                      "/uploads/icons/13og.webp",
-                                      "/uploads/icons/14og.webp",
-                                      "/uploads/icons/15og.webp",
-                                      "/uploads/icons/i6.png",
-                                    ][index % 6]
-                                  : sectionId === "why-visit-matters"
+                        ) : isImageKey ? (() => {
+                          const itemAltKey = getAltKeyForItem(key, itemToEdit);
+                          const itemAltVal = String(itemToEdit[itemAltKey] ?? itemToEdit.imageAlt ?? itemToEdit.alt ?? "");
+                          return (
+                            <ImageUploadField
+                              value={String(value)}
+                              onChange={(next) => onChangeItem(index, key, next)}
+                              alt={itemAltVal}
+                              onAltChange={(nextAlt) => {
+                                onChangeItem(index, itemAltKey, nextAlt);
+                                if (itemAltKey === "imageAlt" && itemToEdit.alt !== undefined) {
+                                  onChangeItem(index, "alt", nextAlt);
+                                }
+                              }}
+                              altPlaceholder="Enter image alt text..."
+                              defaultValue={
+                                sectionId === "why-exhibit-hero"
+                                  ? `/uploads/icons/x${(index % 4) + 1}.png`
+                                  : sectionId === "reasons-to-exhibit"
                                     ? [
-                                        "/uploads/icons/v1og.png",
-                                        "/uploads/icons/v2og.png",
-                                        "/uploads/icons/v3og.png",
-                                        "/uploads/icons/v4og.png",
-                                        "/uploads/icons/v5og.png",
-                                        "/uploads/icons/v6og.png",
+                                        "/uploads/icons/11og.webp",
+                                        "/uploads/icons/12og.webp",
+                                        "/uploads/icons/13og.webp",
+                                        "/uploads/icons/14og.webp",
+                                        "/uploads/icons/15og.webp",
+                                        "/uploads/icons/i6.png",
                                       ][index % 6]
-                                    : sectionId === "industry-segments"
-                                      ? key === "iconImage"
-                                        ? [
-                                            "/uploads/icons/x1og.png",
-                                            "/uploads/icons/x2og.png",
-                                            "/uploads/icons/x3og.png",
-                                            "/uploads/icons/x4og.png",
-                                            "/uploads/icons/x5og.png",
-                                            "/uploads/icons/x6og.png",
-                                          ][index % 6]
-                                        : [
-                                            "/uploads/icons/x1.webp",
-                                            "/uploads/icons/x2.webp",
-                                            "/uploads/icons/x3.webp",
-                                            "/uploads/icons/x4.webp",
-                                            "/uploads/icons/x5.webp",
-                                            "/uploads/icons/x6.webp",
-                                          ][index % 6]
-                                      : undefined
-                            }
-                          />
-                        ) : Array.isArray(value) ? (
+                                    : sectionId === "why-visit-matters"
+                                      ? [
+                                          "/uploads/icons/v1og.png",
+                                          "/uploads/icons/v2og.png",
+                                          "/uploads/icons/v3og.png",
+                                          "/uploads/icons/v4og.png",
+                                          "/uploads/icons/v5og.png",
+                                          "/uploads/icons/v6og.png",
+                                        ][index % 6]
+                                      : sectionId === "industry-segments"
+                                        ? key === "iconImage"
+                                          ? [
+                                              "/uploads/icons/x1og.png",
+                                              "/uploads/icons/x2og.png",
+                                              "/uploads/icons/x3og.png",
+                                              "/uploads/icons/x4og.png",
+                                              "/uploads/icons/x5og.png",
+                                              "/uploads/icons/x6og.png",
+                                            ][index % 6]
+                                          : [
+                                              "/uploads/icons/x1.webp",
+                                              "/uploads/icons/x2.webp",
+                                              "/uploads/icons/x3.webp",
+                                              "/uploads/icons/x4.webp",
+                                              "/uploads/icons/x5.webp",
+                                              "/uploads/icons/x6.webp",
+                                            ][index % 6]
+                                        : undefined
+                              }
+                            />
+                          );
+                        })() : Array.isArray(value) ? (
                           <TextInput
                             value={value.join(", ")}
                             onChange={(next) =>

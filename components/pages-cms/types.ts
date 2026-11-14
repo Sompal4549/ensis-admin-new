@@ -20,6 +20,7 @@ export type FormState = {
   ogTitle: string;
   ogDescription: string;
   ogImage: string;
+  ogImageAlt?: string;
   h1Tag: string;
   breadcrumbName: string;
   schemaMarkup: string;

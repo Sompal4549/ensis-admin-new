@@ -16,6 +16,7 @@ export function PageSectionsPanel({
   addSectionItem,
   removeSectionItem,
   resetToWebsiteDefaults,
+  isPolicyPage,
 }: {
   sectionsDraft: Array<CmsRecord>;
   setSectionsDraft: React.Dispatch<React.SetStateAction<Array<CmsRecord>>>;
@@ -27,6 +28,7 @@ export function PageSectionsPanel({
   addSectionItem: (sectionIndex: number) => void;
   removeSectionItem: (sectionIndex: number, itemIndex: number) => void;
   resetToWebsiteDefaults: () => void;
+  isPolicyPage?: boolean;
 }) {
   const moveSection = (fromIndex: number, delta: number) => {
     const toIndex = fromIndex + delta;
@@ -341,7 +343,11 @@ export function PageSectionsPanel({
                     />
                   )}
 
-                  {!isLayoutSection(section) && sectionIndex > 0 && (
+                  {Boolean(
+                    isPolicyPage ||
+                      String(section.componentKey || "").startsWith("policy.") ||
+                      String(section.key || "").startsWith("policy.")
+                  ) && !isLayoutSection(section) && sectionIndex > 0 && (
                     <ClauseDetailsEditor
                       section={section}
                       onChange={(updatedFields) => {

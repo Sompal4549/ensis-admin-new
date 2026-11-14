@@ -8,6 +8,29 @@ import {
 } from "./sectionFieldHelpers";
 import type { CmsRecord } from "@/lib/cmsJson";
 
+const getAltKeyForImage = (imageKey: string, sec: CmsRecord): string => {
+  if (imageKey === "image") {
+    if (sec.imageAlt !== undefined) return "imageAlt";
+    if (sec.alt !== undefined) return "alt";
+    return "imageAlt";
+  }
+  if (sec[`${imageKey}Alt`] !== undefined) return `${imageKey}Alt`;
+  if (sec[`${imageKey}AltText`] !== undefined) return `${imageKey}AltText`;
+  const base = imageKey.replace(/Image$/, "");
+  if (sec[`${base}Alt`] !== undefined) return `${base}Alt`;
+  return `${imageKey}Alt`;
+};
+
+const isAltKeyForExistingImage = (altKey: string, sec: CmsRecord): boolean => {
+  if (!/alt/i.test(altKey)) return false;
+  if ((altKey === "imageAlt" || altKey === "alt") && (sec.image !== undefined || sec.img !== undefined)) return true;
+  if (altKey === "bgImageAlt" && (sec.bgImage !== undefined || sec.bg !== undefined)) return true;
+  if (altKey === "thumbnailAlt" && sec.thumbnailImage !== undefined) return true;
+  const base = altKey.replace(/Alt(Text)?$/i, "");
+  if (sec[base] !== undefined || sec[`${base}Image`] !== undefined || sec[`${base}Img`] !== undefined) return true;
+  return false;
+};
+
 export function SectionFieldsEditor({
   section,
   onFieldChange,
@@ -34,50 +57,6 @@ export function SectionFieldsEditor({
           />
         </div>
 
-        {/* 5 Image Uploads with Previews & Reset */}
-        <div className="bg-white p-3 border border-[#e2e8f0] rounded-[6px] flex flex-col gap-3">
-          <div className="text-[11px] font-bold text-[#1e40af] border-b border-gray-100 pb-1.5 flex items-center gap-2">
-            <span>Footer Images & Decorations</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <FieldLabel>Main Logo Image</FieldLabel>
-              <ImageUploadField
-                value={String(section.logoImage || "")}
-                onChange={(next) => onFieldChange("logoImage", next)}
-              />
-            </div>
-            <div>
-              <FieldLabel>Left Leaf Decoration Image</FieldLabel>
-              <ImageUploadField
-                value={String(section.leafImage || "")}
-                onChange={(next) => onFieldChange("leafImage", next)}
-              />
-            </div>
-            <div>
-              <FieldLabel>Down / Mandala Pattern Image</FieldLabel>
-              <ImageUploadField
-                value={String(section.downImage || "")}
-                onChange={(next) => onFieldChange("downImage", next)}
-              />
-            </div>
-            <div>
-              <FieldLabel>Organised By Logo Image</FieldLabel>
-              <ImageUploadField
-                value={String(section.organisedByLogo || "")}
-                onChange={(next) => onFieldChange("organisedByLogo", next)}
-              />
-            </div>
-            <div className="md:col-span-2">
-              <FieldLabel>Bottom Nature / Event Banner Image</FieldLabel>
-              <ImageUploadField
-                value={String(section.bottomBannerImage || "")}
-                onChange={(next) => onFieldChange("bottomBannerImage", next)}
-              />
-            </div>
-          </div>
-        </div>
-
         {/* Contact Information (GET IN TOUCH) */}
         <div className="bg-white p-3 border border-[#e2e8f0] rounded-[6px] flex flex-col gap-3">
           <div className="text-[11px] font-bold text-[#1e40af] border-b border-gray-100 pb-1.5 flex items-center gap-2">
@@ -87,8 +66,11 @@ export function SectionFieldsEditor({
             <div>
               <FieldLabel required>Phone Number</FieldLabel>
               <TextInput
-                value={String(section.phoneNumber || "")}
-                onChange={(next) => onFieldChange("phoneNumber", next)}
+                value={String(section.phoneNumber || section.phone || "")}
+                onChange={(next) => {
+                  onFieldChange("phoneNumber", next);
+                  onFieldChange("phone", next);
+                }}
                 placeholder="+91 96549 00525"
                 hideLimit={true}
               />
@@ -96,9 +78,12 @@ export function SectionFieldsEditor({
             <div>
               <FieldLabel required>Contact Email</FieldLabel>
               <TextInput
-                value={String(section.contactEmail || "")}
-                onChange={(next) => onFieldChange("contactEmail", next)}
-                placeholder="info@namogangewellness.com"
+                value={String(section.contactEmail || section.email || "")}
+                onChange={(next) => {
+                  onFieldChange("contactEmail", next);
+                  onFieldChange("email", next);
+                }}
+                placeholder="info@ensis.in"
                 hideLimit={true}
               />
             </div>
@@ -112,23 +97,26 @@ export function SectionFieldsEditor({
               />
             </div>
             <div>
-              <FieldLabel>Conference Helpline (Phone)</FieldLabel>
+              <FieldLabel>WhatsApp Number</FieldLabel>
               <TextInput
-                value={String(section.conferenceHelpline || section.altPhoneNumber || "")}
+                value={String(section.whatsappPhone || section.whatsapp || "")}
                 onChange={(next) => {
-                  onFieldChange("conferenceHelpline", next);
-                  onFieldChange("altPhoneNumber", next);
+                  onFieldChange("whatsappPhone", next);
+                  onFieldChange("whatsapp", next);
                 }}
-                placeholder="+91 98183 53841"
+                placeholder="+91 96549 00525"
                 hideLimit={true}
               />
             </div>
             <div className="md:col-span-2">
               <FieldLabel required>Contact Address</FieldLabel>
               <TextInput
-                value={String(section.contactAddress || "")}
-                onChange={(next) => onFieldChange("contactAddress", next)}
-                placeholder="Hall 12, Pragati Maidan, New Delhi, India 110001"
+                value={String(section.contactAddress || section.address || "")}
+                onChange={(next) => {
+                  onFieldChange("contactAddress", next);
+                  onFieldChange("address", next);
+                }}
+                placeholder="12/29, Site-II, Loni Road, Industrial Area, Mohan Nagar - 201007, India, Uttar Pradesh, India"
                 hideLimit={true}
               />
             </div>
@@ -140,6 +128,65 @@ export function SectionFieldsEditor({
   const entries = Object.entries(section).filter(
     ([key, value]) => {
       if (SECTION_SKIP_KEYS.has(key)) return false;
+
+      const secKey = String(section.key || section.componentKey || "");
+      const secName = String(section.name || "");
+
+      // Home Hero Banner & Carousel: storefront <Hero slides={data.slides} /> only consumes slides
+      if (secKey === "home.hero" || secKey === "hero" || secName === "Hero Banner & Carousel") {
+        if (["title", "subtitle", "description", "buttonLabel", "buttonHref", "secondaryButtonLabel", "secondaryButtonHref", "image", "imageAlt"].includes(key)) {
+          return false;
+        }
+      }
+
+      // Home Full Width Features: storefront <FullWidthFeatures /> only consumes features list + button
+      if (secKey === "home.fullWidthFeatures" || secName === "Engineering & Quality Showcase") {
+        if (["heading", "subtitle", "description"].includes(key)) {
+          return false;
+        }
+      }
+
+      // Home Turnkey Solutions: storefront doesn't have subtitle
+      if (secKey === "home.turnkeySolutions" || secName === "Turnkey Clinic & Spa Setups") {
+        if (key === "subtitle") return false;
+      }
+
+      // Home Global Presence: storefront doesn't have subtitle
+      if (secKey === "home.globalPresence" || secName === "Global Presence & Statistics") {
+        if (key === "subtitle") return false;
+      }
+
+      // Testimonials sections: storefront only has title / heading and reviews
+      if (
+        secKey.endsWith(".testimonials") ||
+        secName.toLowerCase().includes("testimonial") ||
+        secKey === "home.testimonials" ||
+        secKey === "about.testimonials" ||
+        secKey === "product.testimonials"
+      ) {
+        if (["subtitle", "description", "shortDescription"].includes(key)) return false;
+      }
+
+      // Products Hero: storefront <HeroSlider /> only consumes slides
+      if (secKey === "product.hero" || secName === "Products Hero Banner") {
+        if (["title", "subtitle", "description"].includes(key)) return false;
+      }
+
+      // About Our Products: storefront only consumes title and products list
+      if (secKey === "about.ourProducts" || secName === "Our Product Lineup") {
+        if (["heading", "subtitle", "buttonLabel", "buttonHref"].includes(key)) return false;
+      }
+
+      // About Turnkey Process: storefront only consumes title, image, and steps list
+      if (secKey === "about.ourTurnkeyProcess" || secName === "Turnkey Process") {
+        if (["heading", "subtitle"].includes(key)) return false;
+      }
+
+      // About Core Values & Standards: storefront has static content
+      if (secKey === "about.aboutEnsis" || secName === "Core Values & Standards") {
+        if (key === "subtitle") return false;
+      }
+
       if ((section.key === "audience-strip" || section.name === "AudienceStrip") && key === "title") return false;
       if (
         (section.key === "global-platform" || section.name === "GlobalPlatform") &&
@@ -273,6 +320,9 @@ export function SectionFieldsEditor({
       ) {
         return false;
       }
+      if (isAltKeyForExistingImage(key, section)) {
+        return false;
+      }
       return typeof value === "string" || typeof value === "boolean";
     },
   );
@@ -303,7 +353,6 @@ export function SectionFieldsEditor({
           key !== "timerTitle" &&
           /date|time/i.test(key) &&
           typeof value === "string";
-        const fieldLimit = isLong ? 450 : 140;
         const label =
           (section.key === "about-hero" || section.name === "AboutHero") && key === "image"
             ? "Background Image (Upload)"
@@ -433,12 +482,19 @@ export function SectionFieldsEditor({
                 value={String(value)}
                 onChange={(next: string) => onFieldChange(key, next)}
               />
-            ) : isImage ? (
-              <ImageUploadField
-                value={String(value)}
-                onChange={(next: string) => onFieldChange(key, next)}
-              />
-            ) : isPdf ? (
+            ) : isImage ? (() => {
+              const altKey = getAltKeyForImage(key, section);
+              const altValue = String(section[altKey] ?? "");
+              return (
+                <ImageUploadField
+                  value={String(value)}
+                  onChange={(next: string) => onFieldChange(key, next)}
+                  alt={altValue}
+                  onAltChange={(nextAlt: string) => onFieldChange(altKey, nextAlt)}
+                  altPlaceholder={`Enter ${label.replace(/\s*\(.*\)/, "")} alt text...`}
+                />
+              );
+            })() : isPdf ? (
               <PdfUploadField
                 value={String(value)}
                 onChange={(next: string) => onFieldChange(key, next)}

@@ -37,10 +37,10 @@ import {
   theadRowClass,
 } from "@/components/organic/OrganicUI";
 
-type Category = { _id: string; name: string; slug: string; image?: string; isActive: boolean; productCount?: number };
-type Draft = { _id?: string; name: string; slug: string; image: string; isActive: boolean };
+type Category = { _id: string; name: string; slug: string; image?: string; imageAlt?: string; isActive: boolean; productCount?: number };
+type Draft = { _id?: string; name: string; slug: string; image: string; imageAlt?: string; isActive: boolean };
 
-const EMPTY: Draft = { name: "", slug: "", image: "", isActive: true };
+const EMPTY: Draft = { name: "", slug: "", image: "", imageAlt: "", isActive: true };
 const toSlug = (value: string) =>
   value.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 const BAR_COLORS = ["#29A15D", "#2784E1", "#8851DA", "#F39B16", "#7C9DB7", "#E4463E"];
@@ -75,7 +75,7 @@ export default function CategoriesPage() {
 
   const openNew = () => { setDraft({ ...EMPTY }); setSlugTouched(false); };
   const openEdit = (c: Category) => {
-    setDraft({ _id: c._id, name: c.name, slug: c.slug, image: c.image || "", isActive: c.isActive !== false });
+    setDraft({ _id: c._id, name: c.name, slug: c.slug, image: c.image || "", imageAlt: c.imageAlt || "", isActive: c.isActive !== false });
     setSlugTouched(true);
   };
 
@@ -87,7 +87,13 @@ export default function CategoriesPage() {
     }
     setSaving(true);
     try {
-      const payload = { name: draft.name.trim(), slug: draft.slug || toSlug(draft.name), image: draft.image, isActive: draft.isActive };
+      const payload = {
+        name: draft.name.trim(),
+        slug: draft.slug || toSlug(draft.name),
+        image: draft.image,
+        imageAlt: draft.imageAlt || "",
+        isActive: draft.isActive,
+      };
       if (draft._id) await api.put(`/categories/${draft._id}`, payload);
       else await api.post("/categories", payload);
       setDraft(null);
@@ -275,7 +281,13 @@ export default function CategoriesPage() {
               </div>
               <div>
                 <label className={labelClass}>Category Image</label>
-                <ImageUploadField value={draft.image} onChange={(url) => setDraft({ ...draft, image: url })} />
+                <ImageUploadField
+                  value={draft.image}
+                  onChange={(url) => setDraft({ ...draft, image: url })}
+                  alt={draft.imageAlt || ""}
+                  onAltChange={(alt) => setDraft({ ...draft, imageAlt: alt })}
+                  altPlaceholder="Category image description (alt text)..."
+                />
               </div>
             </div>
             <div className="flex justify-end gap-[10px] border-t border-[#EDF0F4] px-[14px] py-[12px]">

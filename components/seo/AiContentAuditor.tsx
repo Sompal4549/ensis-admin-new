@@ -79,7 +79,7 @@ export default function AiContentAuditor({ currentRoute }: { currentRoute?: stri
             </label>
             <input
               type="text"
-              placeholder="e.g. Organic Food Exhibition Delhi 2027"
+              placeholder="e.g. Panchkarma Droni Bed Manufacturer India"
               value={targetKeyword}
               onChange={(e) => setTargetKeyword(e.target.value)}
               className="h-9 w-full rounded-lg border border-slate-300 px-3 text-xs outline-none focus:border-emerald-600 font-medium"

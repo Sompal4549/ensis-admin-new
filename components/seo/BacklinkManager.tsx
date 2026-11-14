@@ -134,10 +134,10 @@ export default function BacklinkManager() {
             <Link2 className="h-4 w-4" /> Off-Page SEO Intelligence
           </div>
           <h2 className="text-lg font-extrabold text-slate-900 mt-0.5">
-            Backlinks of Bharat Organic Website
+            Backlinks of Ensis Panchkarma Website
           </h2>
           <p className="text-xs font-medium text-slate-500">
-            See how many backlinks point to bharatorganicexpo.com, from where, and which ones are active, lost, or broken.
+            See how many backlinks point to ensis.in, from where, and which ones are active, lost, or broken.
           </p>
         </div>
 
@@ -364,7 +364,7 @@ export default function BacklinkManager() {
           <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-lg w-full p-6 animate-in fade-in zoom-in-95 duration-150">
             <h3 className="text-base font-extrabold text-[#23471d] mb-1">Add Single Backlink Record</h3>
             <p className="text-xs text-slate-500 mb-4">
-              Enter details for a single acquired backlink to store in the Bharat Organic SEO database.
+              Enter details for a single acquired backlink to store in the Ensis SEO database.
             </p>
 
             <form onSubmit={handleAddSubmit} className="space-y-3.5 text-xs font-semibold">
@@ -373,7 +373,7 @@ export default function BacklinkManager() {
                 <input
                   type="text"
                   required
-                  placeholder="https://bharatorganicexpo.com/exhibitors"
+                  placeholder="https://ensis.in/prodcuts/panchkarma-droni-bed"
                   value={newLink.targetUrl}
                   onChange={(e) => setNewLink({ ...newLink, targetUrl: e.target.value })}
                   className="h-9 w-full rounded-lg border border-slate-300 px-3 outline-none focus:border-emerald-600 font-normal"
@@ -385,7 +385,7 @@ export default function BacklinkManager() {
                 <input
                   type="text"
                   required
-                  placeholder="https://partner-portal.com/blog/organic-future"
+                  placeholder="https://ayurveda-journal.com/top-equipment"
                   value={newLink.sourceUrl}
                   onChange={(e) => setNewLink({ ...newLink, sourceUrl: e.target.value })}
                   className="h-9 w-full rounded-lg border border-slate-300 px-3 outline-none focus:border-emerald-600 font-normal"
@@ -397,7 +397,7 @@ export default function BacklinkManager() {
                   <label className="block text-slate-700 mb-1">Anchor Text</label>
                   <input
                     type="text"
-                    placeholder="e.g. Bharat Organic Expo"
+                    placeholder="e.g. Ensis Panchkarma"
                     value={newLink.anchorText}
                     onChange={(e) => setNewLink({ ...newLink, anchorText: e.target.value })}
                     className="h-9 w-full rounded-lg border border-slate-300 px-3 outline-none focus:border-emerald-600 font-normal"

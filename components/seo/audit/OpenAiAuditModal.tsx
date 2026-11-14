@@ -20,7 +20,7 @@ export function OpenAiAuditModal({
   pageDetail: SeoPageDetail | null;
   aiState: SeoRecommendationResponse | null;
   aiLoading: boolean;
-  onReGenerate: () => void;
+  onReGenerate: (provider?: "openai" | "gemini") => void;
 }) {
   const [fixedItems, setFixedItems] = React.useState<Record<number, boolean>>({});
   const [applyingFixIdx, setApplyingFixIdx] = React.useState<number | null>(null);
@@ -33,6 +33,7 @@ export function OpenAiAuditModal({
 
   const page = pageDetail?.page;
   const rec = aiState?.recommendation;
+  const activeProvider: "openai" | "gemini" = rec?.provider === "gemini" ? "gemini" : "openai";
 
   const num = (value: unknown, suffix = "") =>
     value === undefined || value === null || value === "" ? "—" : `${value}${suffix}`;
@@ -143,6 +144,9 @@ export function OpenAiAuditModal({
                 <span className="text-[9px] font-black uppercase tracking-[0.25em] text-emerald-400">
                   Technical Audit Report
                 </span>
+                <span className="rounded bg-slate-800 border border-slate-700 px-1.5 py-0.5 text-[9px] font-bold text-slate-300 uppercase tracking-wider">
+                  {rec?.provider === "gemini" ? "Google Gemini" : "OpenAI"}
+                </span>
               </div>
               <h3 className="text-[14.5px] font-black tracking-tight text-white mt-0.5">
                 SEO Audit: {page?.title || page?.path || "Route Analysis"}
@@ -157,7 +161,18 @@ export function OpenAiAuditModal({
             <button
               type="button"
               disabled={aiLoading}
-              onClick={() => onReGenerate()}
+              onClick={() => onReGenerate(activeProvider === "openai" ? "gemini" : "openai")}
+              className="inline-flex items-center gap-1.5 rounded-lg border bg-slate-800 hover:bg-slate-700 border-slate-600 px-2.5 py-1 text-[11px] font-bold text-slate-200 transition-all cursor-pointer disabled:opacity-50"
+              title={`Switch audit provider to ${activeProvider === "openai" ? "Gemini" : "OpenAI"}`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Check with {activeProvider === "openai" ? "Gemini" : "OpenAI"}</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={aiLoading}
+              onClick={() => onReGenerate(activeProvider)}
               className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-950/80 hover:bg-emerald-900/80 border border-emerald-500/40 px-2.5 py-1 text-[11px] font-bold text-emerald-300 transition-all cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${aiLoading ? "animate-spin text-emerald-400" : ""}`} />

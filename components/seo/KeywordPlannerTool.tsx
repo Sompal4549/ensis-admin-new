@@ -118,7 +118,7 @@ export default function KeywordPlannerTool() {
               required
               value={seed}
               onChange={(e) => setSeed(e.target.value)}
-              placeholder="Enter seed topic (e.g. Organic Millet Exhibition, Ayurveda Exporter)..."
+              placeholder="Enter seed topic (e.g. Panchkarma Droni Bed, Spa Massage Equipment, Shirodhara Table)..."
               className="h-10 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 text-xs font-medium text-slate-800 outline-none focus:border-emerald-600 shadow-xs"
             />
           </div>
@@ -147,7 +147,7 @@ export default function KeywordPlannerTool() {
             <KeyRound className="h-10 w-10 text-slate-300 mx-auto mb-2" />
             <p className="text-xs font-bold text-slate-600">No Keyword Search Performed</p>
             <p className="text-[11px] text-slate-400 max-w-xs mx-auto mt-1">
-              Enter any organic farming, exhibitor, or product phrase above to plan your content strategy.
+              Enter any Panchkarma equipment, spa furniture, or therapy product phrase above to plan your content strategy.
             </p>
           </div>
         ) : (

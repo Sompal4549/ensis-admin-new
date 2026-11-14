@@ -10,11 +10,21 @@ import { TextInput } from "./TextInput";
 export function ImageUploadField({
   value,
   onChange,
+  alt,
+  onAltChange,
   defaultValue,
+  altPlaceholder,
+  altLabel = "Image Alt Text",
+  hideAlt = false,
 }: {
   value: string;
   onChange: (url: string) => void;
+  alt?: string;
+  onAltChange?: (alt: string) => void;
   defaultValue?: string;
+  altPlaceholder?: string;
+  altLabel?: string;
+  hideAlt?: boolean;
 }) {
   const [uploading, setUploading] = useState(false);
 
@@ -184,6 +194,30 @@ export function ImageUploadField({
               Restore Default Image
             </button>
           )}
+        </div>
+      )}
+
+      {onAltChange && !hideAlt && (
+        <div className="flex flex-col gap-1 pt-1.5 border-t border-[#e2e8f0]/80">
+          <div className="flex items-center justify-between">
+            <span className="text-[9.5px] font-bold text-[#334155] flex items-center gap-1.5">
+              <span>{altLabel}</span>
+              <span className="text-[8.5px] font-normal text-[#64748b]">
+                (SEO description for search engines &amp; screen readers)
+              </span>
+            </span>
+            {alt && (
+              <span className="text-[8.5px] text-[#0f766e] font-semibold flex items-center gap-0.5">
+                ✓ Alt text saved
+              </span>
+            )}
+          </div>
+          <TextInput
+            value={alt || ""}
+            onChange={onAltChange}
+            placeholder={altPlaceholder || "Describe what is shown in this image (alt text)..."}
+            hideLimit={true}
+          />
         </div>
       )}
     </div>

@@ -5,14 +5,6 @@ export const defaultEnsisLandingSections: CmsRecord[] = [
     key: "home.hero",
     name: "Hero Banner & Carousel",
     enabled: true,
-    title: "Handcrafted Luxury Panchkarma & Ayurvedic Spa Equipment",
-    subtitle: "Precision Engineering Meets Ancient Wisdom",
-    description: "Ensis manufactures NABH-compliant teakwood massage tables, shirodhara units, and bespoke wellness equipment for premier resorts and clinics worldwide.",
-    buttonLabel: "Explore Equipment",
-    buttonHref: "/products",
-    secondaryButtonLabel: "Turnkey Consultation",
-    secondaryButtonHref: "/turnkey",
-    image: "/ensis-logo.webp",
     slides: [
       {
         id: "slide-1",
@@ -57,7 +49,6 @@ export const defaultEnsisLandingSections: CmsRecord[] = [
     name: "Turnkey Clinic & Spa Setups",
     enabled: true,
     heading: "Turnkey Architecture & Installation",
-    subtitle: "Complete Setup for Spas & Hospitals",
     description: "We design, manufacture, and install complete wellness wings with zero vendor coordination headaches.",
     buttonLabel: "Explore Turnkey Services",
     buttonHref: "/turnkey",
@@ -72,7 +63,6 @@ export const defaultEnsisLandingSections: CmsRecord[] = [
     name: "Global Presence & Statistics",
     enabled: true,
     heading: "Trusted Across 18+ Countries",
-    subtitle: "Supplying excellence to world-renowned hospitality brands",
     stats: [
       { value: "500+", label: "Completed Installations" },
       { value: "18+", label: "Countries Exported To" },
@@ -84,9 +74,6 @@ export const defaultEnsisLandingSections: CmsRecord[] = [
     key: "home.fullWidthFeatures",
     name: "Engineering & Quality Showcase",
     enabled: true,
-    heading: "Uncompromising Medical Grade Standards",
-    subtitle: "Why India's top Ayurvedic practitioners choose Ensis",
-    description: "Engineered for daily heavy clinical use with oil-proof sealants, anti-slip fittings, and certified load capacity.",
     buttonLabel: "Download Brochure",
     buttonHref: "/enquiry",
     features: [
@@ -130,7 +117,6 @@ export const defaultEnsisLandingSections: CmsRecord[] = [
     name: "Client Testimonials & Endorsements",
     enabled: true,
     heading: "What Practitioners & Hoteliers Say",
-    subtitle: "Endorsed by leading Vaidyas, Resort Directors, and Spa Owners",
     items: [
       { name: "Dr. Arvind Nambiar", role: "Chief Medical Officer, Soukya Retreat", review: "Ensis tables have maintained their pristine polish and structural integrity across thousands of continuous therapeutic sessions.", rating: 5, avatar: "/avatars/doctor-1.webp" },
       { name: "Siddharth Verma", role: "VP Hospitality, Ananda in the Himalayas", review: "The craftsmanship and attention to authentic Ayurvedic geometry is unmatched in the industry.", rating: 5, avatar: "/avatars/hotelier-1.webp" },
@@ -187,17 +173,13 @@ export const defaultEnsisAboutSections: CmsRecord[] = [
     key: "about.ourProducts",
     name: "Our Product Lineup",
     enabled: true,
-    heading: "Engineered for Life",
-    subtitle: "Explore our diverse catalog of wellness equipment",
-    buttonLabel: "View Catalog",
-    buttonHref: "/products",
+    title: "Our Products",
   },
   {
     key: "about.ourTurnkeyProcess",
     name: "Turnkey Process",
     enabled: true,
-    heading: "Our 4-Stage Execution Process",
-    subtitle: "From concept sketch to operational clinic",
+    title: "Our Turnkey Process",
     items: [
       { step: "01", title: "Site Assessment & 3D Layout", description: "Architectural spatial planning, plumbing & drainage alignment." },
       { step: "02", title: "Custom Manufacturing", description: "Bespoke crafting of droni tables, steam units, and fixtures." },
@@ -355,9 +337,13 @@ export const defaultEnsisProductsSections: CmsRecord[] = [
     key: "product.hero",
     name: "Products Hero Banner",
     enabled: true,
-    title: "Ayurvedic & Panchkarma Equipment Catalog",
-    subtitle: "Artisan Crafted for Clinical Performance",
-    description: "Explore our handcrafted collection of teakwood Droni tables, brass Shirodhara stands, herbal steam boxes, and brass accessories.",
+    slides: [
+      {
+        title: "Ayurvedic & Panchkarma Equipment Catalog",
+        description: "Explore our handcrafted collection of teakwood Droni tables, brass Shirodhara stands, herbal steam boxes, and brass accessories.",
+        image: "/banner/products.webp",
+      },
+    ],
   },
   {
     key: "product.trustedBy",
@@ -567,15 +553,6 @@ export const defaultEnsisEnquirySections: CmsRecord[] = [
     subtitle: "Wellness Vision",
     description: "Share your requirements with our technical team for custom Panchkarma equipment and wellness layouts.",
     backgroundImage: "/assets/privacy_and_enquiry.png",
-  },
-  {
-    key: "enquiry.getInTouch",
-    name: "Direct Contact Information",
-    enabled: true,
-    heading: "Need Quick Advice?",
-    phone: "+91 9654900525",
-    email: "info@ensis.in",
-    address: "Plot No. 12/29, Site-II Industrial Area, Mohan Nagar, Ghaziabad, UP – 201007",
   },
 ];
 

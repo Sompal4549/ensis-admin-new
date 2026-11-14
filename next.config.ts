@@ -64,6 +64,16 @@ const nextConfig: NextConfig = {
         destination: "/testimonial-videos",
         permanent: false,
       },
+      {
+        source: "/submissions",
+        destination: "/contact-us",
+        permanent: false,
+      },
+      {
+        source: "/analytics",
+        destination: "/seo",
+        permanent: false,
+      },
     ];
   },
   async headers() {

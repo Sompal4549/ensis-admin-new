@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import Card from "@/components/ui/Card";
 import { Input, Textarea } from "@/components/ui/Input";
 import { settingsApi } from "@/lib/settingsApi";
@@ -65,6 +66,17 @@ export default function SettingsPage() {
             <p className="mt-0.5 text-[9px] font-medium text-[#6c7587]">
               Site-wide configuration and 80G registration details.
             </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="rounded bg-[#23471d] px-3 py-1.5 text-xs font-semibold text-white">
+              General Settings
+            </span>
+            <Link
+              href="/settings/integrations"
+              className="rounded border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-[#23471d]"
+            >
+              Google Integrations
+            </Link>
           </div>
         </div>
 

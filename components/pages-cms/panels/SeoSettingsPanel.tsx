@@ -285,6 +285,18 @@ export function SeoSettingsPanel({
               </div>
             )}
           </div>
+          <div className="mt-2">
+            <label className="block text-[11px] font-medium text-gray-700 mb-1">
+              OG Image Alt Text
+            </label>
+            <input
+              type="text"
+              value={form.ogImageAlt || ""}
+              onChange={(e) => updateField("ogImageAlt", e.target.value)}
+              placeholder="Describe the Open Graph preview image (alt text)..."
+              className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:border-[#134698] bg-white"
+            />
+          </div>
         </div>
 
         {/* Status */}

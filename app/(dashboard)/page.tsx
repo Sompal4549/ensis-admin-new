@@ -11,7 +11,6 @@ import {
 
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import typography from "./DashboardTypography.module.css";
 
@@ -113,7 +112,7 @@ const defaultTopStats = [
     numColor: "#15803d",
     footer:
       "View full SEO report",
-    href: "/seo",
+    href: "/pages",
   },
 
   {
@@ -175,7 +174,7 @@ const defaultTopStats = [
     numColor: "#be123c",
     footer:
       "View all submissions",
-    href: "/contact-us",
+    href: "/submissions",
   },
 
   {
@@ -191,7 +190,7 @@ const defaultTopStats = [
     numColor: "#0f766e",
     footer:
       "View analytics",
-    href: "/chatbot/reports",
+    href: "/analytics",
   },
 ];
 
@@ -728,7 +727,6 @@ function RangeDropdown({
 ========================================================= */
 
 export default function DashboardPage() {
-  const router = useRouter();
   const { admin } = useAppSelector((state) => state.auth);
   const [cachedPageSpeed, setCachedPageSpeed] = useState<LiveDashboardOverview["sources"]["pageSpeed"]["data"]>(null);
   const [
@@ -1993,7 +1991,7 @@ export default function DashboardPage() {
                       </div>
 
                       <div
-                        onClick={() => router.push(item.href || "/pages")}
+                        onClick={() => window.open(item.href || "/pages", "_blank")}
                         className="absolute bottom-1 left-2 right-2 flex cursor-pointer items-center justify-center gap-1 text-[8px] font-semibold text-[#293957] transition hover:text-blue-600"
                       >
                         {
@@ -2030,7 +2028,7 @@ export default function DashboardPage() {
                   right={
                     <button
                       type="button"
-                      onClick={() => router.push("/seo")}
+                      onClick={() => window.open("/seo", "_blank")}
                       className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-700"
                     >
                       View Data
@@ -2188,7 +2186,7 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => router.push("/seo")}
+                        onClick={() => window.open("/seo", "_blank")}
                         className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-700"
                       >
                         View Console
@@ -2546,7 +2544,7 @@ export default function DashboardPage() {
                       </select>
                       <button
                         type="button"
-                        onClick={() => router.push("/contact-us")}
+                        onClick={() => window.open("/submissions", "_blank")}
                         className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-700"
                       >
                         View All
@@ -2689,7 +2687,7 @@ export default function DashboardPage() {
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
-                          onClick={() => router.push("/chatbot/reports")}
+                          onClick={() => window.open("/analytics", "_blank")}
                           className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-700"
                         >
                           View Report
@@ -3050,7 +3048,7 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => router.push("/chatbot/reports")}
+                        onClick={() => window.open("/analytics", "_blank")}
                         className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-700"
                       >
                         View Performance
@@ -3633,51 +3631,57 @@ export default function DashboardPage() {
                 </PanelTitle>
 
                 <div className="px-3 text-[9px]">
-                  {liveTopPages.map(
-                    (
-                      row,
-                      index,
-                    ) => (
-                      <div
-                        key={
-                          row[0]
-                        }
-                        className="
-                          grid
-                          grid-cols-[16px_1fr_76px_42px_14px]
-                          items-center
-                          gap-2
-                          py-1.5
-                          font-bold
-                        "
-                      >
-                        <span>
-                          {index +
-                            1}
-                          .
-                        </span>
-
-                        <span>
-                          {
+                  {liveTopPages.length === 0 ? (
+                    <div className="py-4 text-center text-[10px] text-gray-400">
+                      No traffic data available yet.
+                    </div>
+                  ) : (
+                    liveTopPages.map(
+                      (
+                        row,
+                        index,
+                      ) => (
+                        <div
+                          key={
                             row[0]
                           }
-                        </span>
+                          className="
+                            grid
+                            grid-cols-[16px_1fr_76px_42px_14px]
+                            items-center
+                            gap-2
+                            py-1.5
+                            font-bold
+                          "
+                        >
+                          <span>
+                            {index +
+                              1}
+                            .
+                          </span>
 
-                        <span className="truncate text-[#4B1426]">
-                          {
-                            row[1]
-                          }
-                        </span>
+                          <span>
+                            {
+                              row[0]
+                            }
+                          </span>
 
-                        <span className="text-right">
-                          {
-                            row[2]
-                          }
-                        </span>
+                          <span className="truncate text-[#4B1426]">
+                            {
+                              row[1]
+                            }
+                          </span>
 
-                        <Search className="h-3 w-3 text-[#9aa5b4]" />
-                      </div>
-                    ),
+                          <span className="text-right">
+                            {
+                              row[2]
+                            }
+                          </span>
+
+                          <Search className="h-3 w-3 text-[#9aa5b4]" />
+                        </div>
+                      ),
+                    )
                   )}
                 </div>
               </Panel>
@@ -3765,7 +3769,7 @@ export default function DashboardPage() {
                 <PanelTitle
                   right={
                     <a
-                      href="/chatbot/reports"
+                      href="/analytics"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[9px] font-bold text-blue-600 hover:underline"

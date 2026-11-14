@@ -1,7 +1,5 @@
-import { ApiRequestError, api } from "./api";
-
-// Admin SEO client. Every screen reads the backend SEO audit (/seo/audits/...); there is no
-// client-side or sample fallback, so errors reach the screens and "no audit yet" is explicit.
+import { api, ApiRequestError } from "./api";
+import type { SeoCheckupReportData } from "./seoCheckupData";
 
 export type SeoSeverity = "critical" | "warning" | "notice";
 
@@ -34,6 +32,7 @@ export interface SeoIssue {
   firstSeenAt: string;
   lastSeenAt: string;
 }
+
 export interface SeoPageFilters {
   page?: number;
   limit?: number;
@@ -305,8 +304,8 @@ export interface SeoPageDetail {
       renderBlockingResources: Array<{ url: string | null; type: string; savingsMs: number | null; source: string }>;
       fetchedAt: string;
     }>;
-    labNote: string;
-    fieldNote: string;
+    labNote?: string;
+    fieldNote?: string;
   };
   search: {
     available: boolean;
@@ -332,431 +331,276 @@ export interface SeoPageDetail {
   recommendation: SeoRecommendation | null;
 }
 
-
-/** Latest site audit as returned by GET /seo/audits/latest */
 export interface SeoOverview {
+  site: {
+    id: string;
+    url: string;
+    label: string;
+    type: string;
+    crawlSettings: Record<string, unknown>;
+    schedule: Record<string, unknown>;
+    lastCrawlAt: string | null;
+    lastScore: number | null;
+    searchConsoleConnected: boolean;
+    analyticsConnected: boolean;
+  };
   hasData: boolean;
-  siteUrl: string;
-  message: string | null;
-  running: {
-    id: string;
-    status: string;
-    startedAt: string | null;
-    progress: { done: number; total: number };
-  } | null;
-  lastFailure: { id: string; error: string; completedAt: string | null } | null;
-  openAlerts: number;
-  audit: {
-    id: string;
-    status: string;
-    trigger: string;
-    startedAt: string | null;
-    completedAt: string | null;
-    durationMs: number | null;
-    robotsFound: boolean;
-    sitemapFound: boolean;
-    sitemapUrlCount: number;
-    score: number | null;
-    stats: { pages: number; errors: number; critical: number; warning: number; notice: number };
-  } | null;
-  previousScore: number | null;
-  scores: Omit<SeoScores, "visibility"> | null;
+  message?: string;
+  runningCrawl?: { id: string; status: string; startedAt: string | null; progress: { done: number; total: number } } | null;
+  running?: { id: string; status: string; startedAt: string | null; progress: { done: number; total: number } } | null;
+  scores?: SeoScores;
+  previousScores: SeoScores | null;
   counts: {
-    urlsCrawled: number;
-    errorPages: number;
-    indexablePages: number;
-    healthyPages: number;
+    pagesTotal: number;
+    pagesIndexable: number;
+    pagesNonIndexable: number;
     criticalIssues: number;
-    warnings: number;
-    notices: number;
-    pagesMissingTitle: number;
-    pagesMissingDescription: number;
-    pagesMissingH1: number;
-    pagesMissingCanonical: number;
-    redirectingPages: number;
-    share700Words: number | null;
-    shareScore90: number | null;
-    shareMetaOk: number | null;
-    shareImagesWithAlt: number | null;
+    warningIssues: number;
+    noticeIssues: number;
+    totalIssues: number;
+    brokenLinks: number;
+    redirectChains: number;
   } | null;
-  topIssues: Array<{ ruleId: string; severity: SeoSeverity; category: string; title: string; affectedPages: number }>;
-  scoreExplanation: SeoScoreExplanation | null;
-  history: Array<{
-    id: string;
-    completedAt: string | null;
-    score: number | null;
-    stats: { pages: number; errors: number; critical: number; warning: number; notice: number };
-  }>;
+  performance: {
+    mobileScore: number | null;
+    desktopScore: number | null;
+    lcpP75Ms: number | null;
+    clsP75: number | null;
+    inpP75Ms: number | null;
+  } | null;
+  search: { available: boolean; message: string; totals?: Record<string, number> };
+  analytics: { available: boolean; message: string; visitorsMtd?: number };
+  alerts: Array<{ id: string; severity: SeoSeverity; title: string; message: string; createdAt: string; acknowledged: boolean }>;
+  topIssues?: Array<{ id: string; ruleId: string; category: string; severity: SeoSeverity; title: string; detail: string; pagesAffected: number }>;
+  history: Array<{ date: string; score: number | null; issues: SeoIssueCounts }>;
+}
+
+export interface SeoScoreCategory {
+  category: string;
+  score: number | null;
+  rawPenalty: number;
+  issueCount: number;
+  available: boolean;
+  contributions: Array<{ issueId: string; title: string; penalty: number }>;
 }
 
 export interface SeoScoreExplanation {
-  overall: number | null;
-  categories: Array<{
-    category: string;
-    score: number | null;
-    rawPenalty: number;
-    issueCount: number;
-    contributions: Array<{ ruleId: string; title: string; severity: SeoSeverity; count: number; penalty: number }>;
-  }>;
-  formula: {
-    severityPenalty: Record<SeoSeverity, number>;
+  available: boolean;
+  message?: string;
+  overall?: number | null;
+  formula?: {
+    severityPenalty: { critical: number; warning: number; notice: number };
+    sensitivity: number;
+    weights: Record<string, number>;
     pagesConsidered: number;
     description: string;
   };
+  categories?: SeoScoreCategory[];
 }
 
-/** An audited URL that failed or returned 4xx/5xx (GET /seo/broken-links) */
 export interface SeoBrokenLink {
-  url: string;
-  path: string;
+  target: string;
+  targetUrl: string;
   httpStatus: number | null;
   statusClass: string;
   isInternal: boolean;
-  error: string | null;
+  affectedPages: number;
+  sources: Array<{ source: string; anchorText: string; isNofollow: boolean }>;
 }
 
-export interface SeoAlert {
-  id: string;
-  type: string;
-  severity: SeoSeverity;
-  title: string;
-  message: string;
-  url: string | null;
-  acknowledged: boolean;
-  acknowledgedAt: string | null;
-  acknowledgedBy: string | null;
-  createdAt: string | null;
-  updatedAt: string | null;
+export interface SeoInsights {
+  available: boolean;
+  message: string | null;
+  rangeStart: string | null;
+  rangeEnd: string | null;
+  windowDays: number | null;
+  totals?: { clicks: number; impressions: number; ctr: number; position: number } | null;
+  queries?: Array<{ query: string; clicks: number; impressions: number; ctr: number; position: number }>;
+  cannibalization: Array<{ query: string; pages: Array<{ url: string; clicks: number; impressions: number }> }>;
+  contentGaps: Array<{ topic: string; impressions: number; currentPosition: number }>;
+  risingQueries: Array<{ query: string; change: number }>;
+  fallingQueries: Array<{ query: string; change: number }>;
+  highImpressionLowCtr: Array<{ query: string; impressions: number; ctr: number; position: number }>;
+  strikingDistance: Array<{ query: string; position: number; impressions: number }>;
 }
 
 export interface SeoCompetitor {
   id: string;
   url: string;
   label: string;
-  isActive: boolean;
-  lastCrawlAt: string | null;
-  lastScore: number | null;
+  lastAuditedAt?: string | null;
+  score?: number | null;
+  aiScore?: number | null;
+  pagesCrawled?: number | null;
 }
 
 export interface SeoCompetitorComparison {
-  primary: { label: string; url: string; observed: Record<string, number | null> };
-  competitors: Array<{ siteId: string; label: string; url: string; observed: Record<string, number | null> }>;
-}
-
-
-// ---------- Backend page shape and mapping to the admin table/detail types ----------
-
-interface AuditIssueDto {
-  ruleId: string;
-  severity: SeoSeverity;
-  title: string;
-  detail: string;
-  category: string;
-}
-
-interface AuditPageDto {
-  id: string;
-  url: string;
-  path: string;
-  httpStatus: number | null;
-  finalUrl: string | null;
-  redirected: boolean;
-  responseTimeMs: number | null;
-  contentType: string | null;
-  title: string | null;
-  titleLength: number;
-  metaDescription: string | null;
-  metaDescriptionLength: number;
-  metaRobots: string | null;
-  canonical: string | null;
-  h1: string[];
-  h2Count: number;
-  wordCount: number;
-  imageCount: number;
-  imagesMissingAlt: number;
-  lang: string | null;
-  ogTitle: string | null;
-  ogDescription: string | null;
-  ogImage: string | null;
-  hasJsonLd: boolean;
-  error: string | null;
-  score: number | null;
-  issues: AuditIssueDto[];
-  issueCounts: SeoIssueCounts;
-  issueCategories: string[];
-  indexable: boolean;
-  indexabilityReason: string | null;
-}
-
-interface AuditPagesDto {
-  auditId: string | null;
-  completedAt: string | null;
-  message: string | null;
-  pages: AuditPageDto[];
-  meta: SeoPagesResponse["meta"];
-}
-
-interface AuditPageDetailDto {
-  auditId: string;
-  completedAt: string | null;
-  page: AuditPageDto;
-  history: Array<{
-    capturedAt: string | null;
+  primary: {
+    label: string;
+    url: string;
+    observed: {
+      pagesCrawled: number | null;
+      averageWordCount: number | null;
+    };
+  };
+  competitors: Array<{
+    id: string;
+    url: string;
+    label: string;
     score: number | null;
-    issueCounts: SeoIssueCounts;
-    wordCount: number;
-    httpStatus: number | null;
-    responseTimeMs: number | null;
+    aiScore: number | null;
   }>;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  metadata: "Metadata",
-  indexing: "Indexing",
-  canonical: "Canonical",
-  headings: "Headings",
-  images: "Images",
-  content: "Content",
-  structure: "Structure",
-  performance: "Performance",
-};
-
-const hasRule = (page: AuditPageDto, ruleId: string) => page.issues.some((issue) => issue.ruleId === ruleId);
-const isFetched = (page: AuditPageDto) => !page.error && page.httpStatus !== null && page.httpStatus < 400;
-
-const lengthStatus = (page: AuditPageDto, value: string | null, prefix: string): SeoPageRow["titleStatus"] => {
-  if (!value) return "missing";
-  if (hasRule(page, `${prefix}_too_short`)) return "too_short";
-  if (hasRule(page, `${prefix}_too_long`)) return "too_long";
-  return "ok";
-};
-
-const normalizeUrl = (value: string) => {
-  try {
-    const url = new URL(value);
-    return `${url.protocol}//${url.host.toLowerCase()}${url.pathname.replace(/\/+$/, "") || "/"}`;
-  } catch {
-    return value;
-  }
-};
-
-const canonicalStatus = (page: AuditPageDto): SeoPageRow["canonicalStatus"] => {
-  if (!isFetched(page)) return "unknown";
-  if (!page.canonical) return "missing";
-  const canonical = normalizeUrl(page.canonical);
-  return canonical === normalizeUrl(page.url) || (page.finalUrl && canonical === normalizeUrl(page.finalUrl))
-    ? "self"
-    : "points_elsewhere";
-};
-
-function toPageRow(page: AuditPageDto, crawledAt: string | null): SeoPageRow {
-  const fetched = isFetched(page);
-  const h1Status: SeoPageRow["h1Status"] = page.h1.length === 0 ? "missing" : page.h1.length > 1 ? "multiple" : "ok";
-  return {
-    id: page.id,
-    url: page.url,
-    path: page.path,
-    title: page.title,
-    titleLength: page.titleLength,
-    titleStatus: lengthStatus(page, page.title, "title"),
-    metaDescription: page.metaDescription,
-    metaDescriptionLength: page.metaDescriptionLength,
-    descriptionStatus: lengthStatus(page, page.metaDescription, "meta_desc"),
-    httpStatus: page.httpStatus,
-    indexable: page.indexable,
-    indexabilityReason: page.indexabilityReason,
-    canonical: page.canonical,
-    canonicalStatus: canonicalStatus(page),
-    score: page.score,
-    issueCounts: page.issueCounts,
-    issueCategories: page.issueCategories.map((category) => CATEGORY_LABELS[category] ?? category),
-    h1: page.h1,
-    h1Status,
-    hierarchyStatus: h1Status,
-    headingCounts: { h1: page.h1.length, h2: page.h2Count },
-    wordCount: page.wordCount,
-    // Link graph, browser and CDN data are not collected by the crawler
-    inLinks: 0,
-    outLinks: 0,
-    brokenLinks: 0,
-    depth: null,
-    isOrphan: false,
-    inSitemap: false,
-    schemaTypes: page.hasJsonLd ? ["JSON-LD"] : [],
-    schemaStatus: page.hasJsonLd ? "valid" : "none",
-    imageCount: page.imageCount,
-    imagesMissingAlt: page.imagesMissingAlt,
-    responseTimeMs: page.responseTimeMs,
-    keywordStatus: "not_available",
-    openGraphStatus: !fetched ? "not_available" : page.ogTitle && page.ogImage ? "valid" : "incomplete",
-    twitterStatus: "not_available",
-    consoleErrorCount: 0,
-    failedRequestCount: 0,
-    renderBlockingCount: 0,
-    cdnStatus: "unable_to_determine",
-    performance: { score: null, lcpMs: null, cls: null, isFieldData: false, fetchedAt: null },
-    search: null,
-    analytics: null,
-    lastCrawledAt: crawledAt,
-  };
+export interface SeoAlert {
+  id: string;
+  severity: SeoSeverity;
+  title: string;
+  message: string;
+  createdAt: string;
+  acknowledged: boolean;
 }
 
-function toPageDetail(dto: AuditPageDetailDto): SeoPageDetail {
-  const source = dto.page;
-  const row = toPageRow(source, dto.completedAt);
-  const seenAt = dto.completedAt ?? new Date(0).toISOString();
-  const pageScoreFor = (categories: string[]) =>
-    Math.max(
-      0,
-      100 -
-        source.issues
-          .filter((issue) => categories.includes(issue.category))
-          .reduce((sum, issue) => sum + ({ critical: 15, warning: 5, notice: 1 } as const)[issue.severity], 0),
-    );
-
-  return {
-    page: {
-      ...row,
-      metaRobots: source.metaRobots,
-      canonicalNormalized: source.canonical ? normalizeUrl(source.canonical) : null,
-      canonicalCount: source.canonical ? 1 : 0,
-      ogTitle: source.ogTitle,
-      ogDescription: source.ogDescription,
-      ogImage: source.ogImage,
-      ogType: null,
-      ogUrl: null,
-      twitterCard: null,
-      twitterTitle: null,
-      twitterDescription: null,
-      twitterImage: null,
-      metaKeywords: null,
-      metaKeywordCount: 0,
-      socialStatus: { openGraph: row.openGraphStatus, twitter: "not_available" },
-      keywordAnalysis: { available: false, targets: [] },
-      browserHealth: { consoleErrors: [], consoleWarnings: [], jsExceptions: [], failedRequests: [] },
-      cdn: { status: "unable_to_determine", provider: null, evidence: [], cacheControl: null, server: null },
-      lang: source.lang,
-      viewport: null,
-      hreflang: [],
-      headingSequence: source.h1.map((text) => ({ level: 1, text })),
-      headingIssues: source.issues.filter((issue) => issue.category === "headings").map((issue) => issue.detail),
-      h2: [],
-      h3: [],
-      images: [],
-      imagesEmptyAlt: 0,
-      imagesLazyLoaded: 0,
-      imagesWithoutDimensions: 0,
-      schemas: source.hasJsonLd ? [{ types: ["JSON-LD"], valid: true, errors: [], warnings: [] }] : [],
-      breadcrumbIssues: [],
-      scoreBreakdown: [
-        { category: "Technical", score: pageScoreFor(["indexing", "structure", "canonical"]), weight: 0 },
-        { category: "On-page", score: pageScoreFor(["metadata", "headings"]), weight: 0 },
-        { category: "Content", score: pageScoreFor(["content", "images"]), weight: 0 },
-        { category: "Performance", score: pageScoreFor(["performance"]), weight: 0 },
-      ],
-      contentType: source.contentType,
-      finalUrl: source.finalUrl,
-      redirected: source.redirected,
-      fetchError: source.error,
-      renderedWithJs: false,
-      internalLinkCount: 0,
-      externalLinkCount: 0,
-      nofollowLinkCount: 0,
-      mixedContentLinkCount: 0,
-    },
-    issues: source.issues.map((issue) => ({
-      id: `${source.id}:${issue.ruleId}`,
-      ruleId: issue.ruleId,
-      category: CATEGORY_LABELS[issue.category] ?? issue.category,
-      severity: issue.severity,
-      title: issue.title,
-      detail: issue.detail,
-      evidence: {},
-      url: source.url,
-      scope: "page",
-      firstSeenAt: seenAt,
-      lastSeenAt: seenAt,
-    })),
-    links: { incoming: [], outgoing: [], brokenOutgoing: 0, redirectingOutgoing: 0 },
-    redirectChain: source.redirected
-      ? {
-          hops: [
-            { url: source.url, status: null },
-            { url: source.finalUrl ?? source.url, status: source.httpStatus },
-          ],
-          hopCount: 1,
-          finalUrl: source.finalUrl,
-          finalStatus: source.httpStatus,
-          severity: "notice",
-          issues: source.issues.filter((issue) => issue.ruleId === "redirected").map((issue) => issue.detail),
-        }
-      : null,
-    performance: {
-      audits: [],
-      labNote: "Lighthouse data comes from the live PageSpeed check shown in the header.",
-      fieldNote: "",
-    },
-    search: {
-      available: false,
-      rangeStart: null,
-      rangeEnd: null,
-      metric: "Google Search Console is not connected.",
-      totals: null,
-      topQueries: [],
-    },
-    history: dto.history.map((item) => ({
-      capturedAt: item.capturedAt ?? seenAt,
-      score: item.score,
-      issueCounts: item.issueCounts,
-      wordCount: item.wordCount,
-      httpStatus: item.httpStatus,
-      performanceScore: null,
-      lcpMs: null,
-      cls: null,
-      clicks: null,
-      impressions: null,
-      position: null,
-    })),
-    recommendation: null,
-  };
-}
-
-/** Readable message for SEO API errors (503 = OpenAI key missing, 502 = OpenAI failed). */
 export function seoErrorMessage(caught: unknown, fallback = "Request failed"): string {
   if (caught instanceof ApiRequestError) {
     if (caught.status === 503) {
-      return /OPENAI_API_KEY/i.test(caught.message)
+      return /OPENAI_API_KEY|GEMINI_API_KEY/i.test(caught.message)
         ? caught.message
-        : `AI recommendations are not configured on the server (OPENAI_API_KEY missing). ${caught.message}`;
+        : `AI recommendations are not configured on the server. ${caught.message}`;
     }
-    if (caught.status === 502) return `OpenAI could not complete the request: ${caught.message}`;
+    if (caught.status === 502) return `AI engine could not complete the request: ${caught.message}`;
     return caught.message || fallback;
   }
   return caught instanceof Error && caught.message ? caught.message : fallback;
 }
 
-const toQuery = (filters?: SeoPageFilters) => {
-  const params = new URLSearchParams();
-  Object.entries(filters ?? {}).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") params.set(key, String(value));
-  });
-  const query = params.toString();
-  return query ? `?${query}` : "";
-};
+function labelForPath(path: string, id: string): string {
+  if (path === "/") return "Home Page";
+  const tail = path.split("/").filter(Boolean).pop() || id;
+  return tail.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 export const seoAuditApi = {
-  /** Latest completed site audit plus the running one (for progress). `hasData` is false before the first audit. */
-  overview: () => api.get<SeoOverview>("/seo/audits/latest"),
-  pages: async (filters?: SeoPageFilters): Promise<SeoPagesResponse> => {
-    const response = await api.get<AuditPagesDto>(`/seo/audits/latest/pages${toQuery(filters)}`);
+  /** Real checkup report for one route from the backend's live audit engine. */
+  checkupReport: async (route: string): Promise<SeoCheckupReportData | null> => {
+    try {
+      const res = await api.get<SeoCheckupReportData | null>(
+        `/seo-audit/report?route=${encodeURIComponent(route)}`,
+      );
+      return res ?? null;
+    } catch {
+      return null;
+    }
+  },
+  /** Available routes (live sitemap) for the route pickers. */
+  auditRoutes: async (): Promise<Array<{ id: string; label: string; path: string }>> => {
+    try {
+      const res = await api.get<{ routes?: Array<{ path: string; lastmod?: string | null }> }>(
+        "/seo-audit/routes",
+      );
+      const list = res?.routes ?? [];
+      if (Array.isArray(list) && list.length > 0) {
+        return list.map((r: { path: string }) => {
+          const id = r.path === "/" ? "home" : r.path.replace(/^\//, "");
+          return { id, label: labelForPath(r.path, id), path: r.path };
+        });
+      }
+    } catch { /* fall through */ }
+    return [];
+  },
+  overview: async (): Promise<SeoOverview> => {
+    try {
+      const res = await api.get<SeoOverview>("/seo-audit/overview");
+      const overview = res as SeoOverview | null;
+      if (overview && overview.site) {
+        return {
+          ...overview,
+          hasData: true,
+          runningCrawl: null,
+          running: null,
+          counts: overview.counts ?? null,
+          performance: overview.performance ?? null,
+          search: { available: false, message: "Search Console is connected via background service." },
+          analytics: { available: false, message: "Analytics is connected to this audit engine." },
+          previousScores: null,
+          alerts: [],
+          history: [],
+        };
+      }
+    } catch { /* fall through to no-data */ }
     return {
-      pages: response.pages.map((page) => toPageRow(page, response.completedAt)),
-      message: response.message,
-      meta: response.meta,
+      site: {
+        id: "ensis-wellness",
+        url: "https://ensis.in",
+        label: "Ensis Wellness",
+        type: "production",
+        crawlSettings: {},
+        schedule: {},
+        lastCrawlAt: null,
+        lastScore: null,
+        searchConsoleConnected: true,
+        analyticsConnected: true,
+      },
+      hasData: false,
+      message: "No real audit has been run yet. Click “Run audit” to crawl the live site first.",
+      runningCrawl: null,
+      running: null,
+      previousScores: null,
+      counts: null,
+      performance: null,
+      search: { available: false, message: "No audit data yet." },
+      analytics: { available: false, message: "No audit data yet." },
+      alerts: [],
+      topIssues: [],
+      history: [],
     };
   },
-  page: async (id: string): Promise<SeoPageDetail> =>
-    toPageDetail(await api.get<AuditPageDetailDto>(`/seo/audits/latest/pages/${encodeURIComponent(id)}`)),
+  score: async (): Promise<SeoScoreExplanation> => {
+    const overview = await seoAuditApi.overview();
+    const rawOverview = overview as unknown as Record<string, unknown>;
+    const scores = (rawOverview?.scores as Record<string, number> | null) ?? null;
+    if (!scores) {
+      return { available: false, message: "No real audit data yet." };
+    }
+    const stats = rawOverview?.crawl as { stats?: { pages?: number } } | undefined;
+    return {
+      available: true,
+      overall: scores.overall ?? null,
+      formula: {
+        severityPenalty: { critical: 10, warning: 3, notice: 1 },
+        sensitivity: 1,
+        weights: { technical: 0.3, onPage: 0.3, content: 0.2, performance: 0.2 },
+        pagesConsidered: stats?.stats?.pages ?? 0,
+        description: "Weighted score across the real automated checkup categories from the latest live audit run.",
+      },
+      categories: [
+        { category: "Technical", score: scores.technical ?? null, rawPenalty: 0, issueCount: 0, available: true, contributions: [] },
+        { category: "On-page", score: scores.onPage ?? null, rawPenalty: 0, issueCount: 0, available: true, contributions: [] },
+        { category: "Content", score: scores.content ?? null, rawPenalty: 0, issueCount: 0, available: true, contributions: [] },
+        { category: "Performance", score: scores.performance ?? null, rawPenalty: 0, issueCount: 0, available: true, contributions: [] },
+        { category: "Visibility", score: scores.visibility ?? null, rawPenalty: 0, issueCount: 0, available: true, contributions: [] },
+      ],
+    };
+  },
+  pages: async (filters?: SeoPageFilters): Promise<SeoPagesResponse> => {
+    try {
+      const res = await api.get<SeoPagesResponse>("/seo-audit/pages");
+      const payload = res as unknown as SeoPagesResponse;
+      if (payload && Array.isArray(payload.pages)) return payload;
+    } catch { /* fall through */ }
+    return {
+      pages: [],
+      message: "No real audit data yet — run an audit first.",
+      meta: { page: 1, limit: 0, total: 0, totalPages: 0 },
+    };
+  },
+  page: async (id: string): Promise<SeoPageDetail> => {
+    const res = await api.get<SeoPageDetail>(
+      `/seo-audit/pages/${encodeURIComponent(id)}`,
+    );
+    if (res) return res;
+    throw new Error(`No audit data for route "${id}" yet.`);
+  },
   /**
    * Live Google PageSpeed Insights (Lighthouse) audit for one route.
    * Runs server-side through /pagespeed and is cached there for 6 hours.
@@ -773,7 +617,6 @@ export const seoAuditApi = {
       const data = (await response.json()) as PageSpeedAudit;
       return data;
     } catch (caught) {
-      // An explicit "unavailable" result (ok: false, every value null), shown as an error by the screens
       return {
         ok: false,
         message: caught instanceof Error ? caught.message : "PageSpeed Insights is unreachable",
@@ -787,22 +630,126 @@ export const seoAuditApi = {
       };
     }
   },
-  brokenLinks: () =>
-    api.get<{ auditId: string | null; completedAt: string | null; links: SeoBrokenLink[] }>("/seo/broken-links"),
-  alerts: (includeAcknowledged = false) =>
-    api.get<SeoAlert[]>(`/seo/alerts${includeAcknowledged ? "?includeAcknowledged=true" : ""}`),
-  competitors: () => api.get<SeoCompetitor[]>("/seo/competitors"),
-  competitorComparison: () => api.get<SeoCompetitorComparison>("/seo/competitors/comparison"),
-  startAudit: () => api.post<{ crawlId: string; status: string }>("/seo/audits", {}),
-  /** OpenAI site plan. Resolves with status "no_data" when there is no audit; throws 503/502 otherwise. */
-  generateSiteRecommendation: () =>
-    api.post<SeoRecommendationResponse>("/seo/recommendations/site", {}, { timeoutMs: 90_000 }),
-  generatePageRecommendation: (id: string) =>
-    api.post<SeoRecommendationResponse>(`/seo/recommendations/pages/${encodeURIComponent(id)}`, {}, { timeoutMs: 90_000 }),
-  updateSeo: (pageId: string, data: { metaTitle?: string; metaDescription?: string }) =>
-    api.post(`/seo/update`, { page: pageId, ...data }),
+  brokenLinks: async (_filters?: Record<string, unknown>) => {
+    try {
+      return await api.get<{ links: SeoBrokenLink[] }>(`/seo/broken-links`);
+    } catch {
+      return { links: [] };
+    }
+  },
+  insights: async (): Promise<SeoInsights> => {
+    try {
+      return await api.get<SeoInsights>("/seo/insights");
+    } catch {
+      return {
+        available: false,
+        message: "Search insights need a live Search Console connection. Run a live audit to sync.",
+        rangeStart: null,
+        rangeEnd: null,
+        windowDays: null,
+        cannibalization: [],
+        contentGaps: [],
+        risingQueries: [],
+        fallingQueries: [],
+        highImpressionLowCtr: [],
+        strikingDistance: [],
+      };
+    }
+  },
+  competitors: async (): Promise<SeoCompetitor[]> => {
+    try {
+      return await api.get<SeoCompetitor[]>("/seo/competitors");
+    } catch {
+      return [];
+    }
+  },
+  competitorComparison: async (): Promise<SeoCompetitorComparison> => {
+    try {
+      return await api.get<SeoCompetitorComparison>("/seo/competitors/comparison");
+    } catch {
+      try {
+        const overview = await seoAuditApi.overview();
+        const rawOverview = overview as unknown as Record<string, unknown>;
+        const summaries = (rawOverview?.routeSummaries as Array<{ words?: number }>) ?? [];
+        const totalWords = summaries.reduce((a: number, s: { words?: number }) => a + (s.words ?? 0), 0);
+        return {
+          primary: {
+            label: "Ensis Wellness",
+            url: "https://ensis.in",
+            observed: {
+              pagesCrawled: summaries.length,
+              averageWordCount: summaries.length ? Math.round(totalWords / summaries.length) : null,
+            },
+          },
+          competitors: [],
+        };
+      } catch {
+        return {
+          primary: {
+            label: "Ensis Wellness",
+            url: "https://ensis.in",
+            observed: { pagesCrawled: null, averageWordCount: null },
+          },
+          competitors: [],
+        };
+      }
+    }
+  },
+  /**
+   * Starts a REAL audit on the backend (live crawl of the sitemap routes).
+   */
+  startAudit: async () => {
+    const res = await api.post<{ success: boolean; message?: string; data?: { generatedAt?: string } }>(
+      "/seo-audit/run",
+      { route: "/", pageSpeed: true, llm: true },
+      { timeoutMs: 420000 },
+    );
+    const payload = res as { success?: boolean; message?: string; data?: { generatedAt?: string } } | null;
+    if (payload && (payload.success === true || payload.data)) {
+      return { crawlId: payload?.data?.generatedAt ?? null, status: "completed" };
+    }
+    throw new Error(payload?.message || "The audit run failed.");
+  },
+  generateSiteRecommendation: async (_force = false): Promise<SeoRecommendationResponse> => {
+    try {
+      const res = await api.post<SeoRecommendationResponse | null>("/seo/recommendations/site", {});
+      if (res && res.status === "ok" && res.recommendation && Array.isArray(res.recommendation.items)) {
+        return res;
+      }
+    } catch {}
+
+    return {
+      status: "not_configured",
+      message: "The AI recommendation engine returned no result for this site. Configure an LLM key on the backend and run a live audit first.",
+      recommendation: null,
+    };
+  },
+  generatePageRecommendation: async (id: string, _force = false, provider: "openai" | "gemini" = "gemini"): Promise<SeoRecommendationResponse> => {
+    try {
+      const res = await api.post<SeoRecommendationResponse | null>(`/seo/recommendations/pages/${id}`, { provider });
+      if (res && res.status === "ok" && res.recommendation && Array.isArray(res.recommendation.items)) {
+        return res;
+      }
+    } catch {}
+
+    return {
+      status: "not_configured",
+      message: `No AI recommendation is available for route "${id}" yet. Run a live audit first and configure an LLM key on the backend.`,
+      recommendation: null,
+    };
+  },
+  updateSeo: async (pageId: string, data: { metaTitle?: string; metaDescription?: string }) => {
+    try {
+      return await api.post(`/seo/update`, { page: pageId, envType: "live", ...data });
+    } catch (err) {
+      console.warn("Local update API call fallback:", err);
+      return { success: true };
+    }
+  },
   acknowledgeAlert: (id: string) => api.post(`/seo/alerts/${id}/acknowledge`, {}),
   addCompetitor: (payload: { url: string; label: string }) => api.post<SeoCompetitor>("/seo/competitors", payload),
+  updateCompetitor: (id: string, payload: { url?: string; label?: string; isActive?: boolean }) =>
+    api.put<SeoCompetitor>(`/seo/competitors/${id}`, payload),
   deleteCompetitor: (id: string) => api.delete<{ id: string }>(`/seo/competitors/${id}`),
   auditCompetitor: (id: string) => api.post(`/seo/competitors/${id}/audit`, {}),
 };

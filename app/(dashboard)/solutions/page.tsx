@@ -436,11 +436,13 @@ export default function SolutionsAdminPage() {
                   <Field label="Secondary button link">
                     <TextInput value={d.hero.secondaryCta.url} onChange={(url) => edit((x) => ({ ...x, hero: { ...x.hero, secondaryCta: { ...x.hero.secondaryCta, url } } }))} placeholder="#approach" />
                   </Field>
-                  <Field label="Hero image (empty = current website image)">
-                    <ImageUploadField value={d.hero.image} onChange={(image) => edit((x) => ({ ...x, hero: { ...x.hero, image } }))} />
-                  </Field>
-                  <Field label="Hero image alt text">
-                    <TextInput value={d.hero.imageAlt} onChange={(imageAlt) => edit((x) => ({ ...x, hero: { ...x.hero, imageAlt } }))} />
+                  <Field label="Hero image (empty = current website image)" wide>
+                    <ImageUploadField
+                      value={d.hero.image}
+                      onChange={(image) => edit((x) => ({ ...x, hero: { ...x.hero, image } }))}
+                      alt={d.hero.imageAlt}
+                      onAltChange={(imageAlt) => edit((x) => ({ ...x, hero: { ...x.hero, imageAlt } }))}
+                    />
                   </Field>
                 </Section>
 
@@ -469,11 +471,13 @@ export default function SolutionsAdminPage() {
                       maxLength={2000}
                     />
                   </Field>
-                  <Field label="Image (empty = current website image)">
-                    <ImageUploadField value={d.approach.image} onChange={(image) => edit((x) => ({ ...x, approach: { ...x.approach, image } }))} />
-                  </Field>
-                  <Field label="Image alt text">
-                    <TextInput value={d.approach.imageAlt} onChange={(imageAlt) => edit((x) => ({ ...x, approach: { ...x.approach, imageAlt } }))} />
+                  <Field label="Image (empty = current website image)" wide>
+                    <ImageUploadField
+                      value={d.approach.image}
+                      onChange={(image) => edit((x) => ({ ...x, approach: { ...x.approach, image } }))}
+                      alt={d.approach.imageAlt}
+                      onAltChange={(imageAlt) => edit((x) => ({ ...x, approach: { ...x.approach, imageAlt } }))}
+                    />
                   </Field>
                 </Section>
 
@@ -529,11 +533,13 @@ export default function SolutionsAdminPage() {
                   <Field label="Button text">
                     <TextInput value={d.cta.buttonText} onChange={(buttonText) => edit((x) => ({ ...x, cta: { ...x.cta, buttonText } }))} />
                   </Field>
-                  <Field label="Image alt text">
-                    <TextInput value={d.cta.imageAlt} onChange={(imageAlt) => edit((x) => ({ ...x, cta: { ...x.cta, imageAlt } }))} />
-                  </Field>
                   <Field label="Background image (empty = current website image)" wide>
-                    <ImageUploadField value={d.cta.image} onChange={(image) => edit((x) => ({ ...x, cta: { ...x.cta, image } }))} />
+                    <ImageUploadField
+                      value={d.cta.image}
+                      onChange={(image) => edit((x) => ({ ...x, cta: { ...x.cta, image } }))}
+                      alt={d.cta.imageAlt}
+                      onAltChange={(imageAlt) => edit((x) => ({ ...x, cta: { ...x.cta, imageAlt } }))}
+                    />
                   </Field>
                 </Section>
               </>

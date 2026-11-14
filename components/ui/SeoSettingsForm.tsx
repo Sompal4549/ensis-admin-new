@@ -15,6 +15,7 @@ export interface SeoOptions {
   ogTitle?: string;
   ogDescription?: string;
   ogImage?: string;
+  ogImageAlt?: string;
   openGraphTags?: string;
   schemaMarkup?: string;
   h1Tag?: string;
@@ -269,6 +270,13 @@ export default function SeoSettingsForm({
                   <img src={seo.ogImage} alt="OG Preview" className="h-10 w-16 rounded border border-surface-border object-cover" />
                 )}
               </div>
+              <Input
+                label="OG Image Alt Text"
+                value={seo.ogImageAlt || ""}
+                onChange={(e) => updateField("ogImageAlt", e.target.value)}
+                placeholder="Alt description for OG image..."
+                hint="Accessible description for the social share image."
+              />
             </div>
           </div>
         </div>

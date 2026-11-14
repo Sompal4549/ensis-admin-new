@@ -86,7 +86,7 @@ function ImageObjectFields({
   const others = Object.entries(value).filter(([key]) => key !== urlKey && !HIDDEN_KEYS.has(key));
   const altEntries: Array<[string, unknown]> = others.filter(([key]) => ALT_KEYS.includes(key));
   const rest = others.filter(([key]) => !ALT_KEYS.includes(key));
-  if (!altEntries.length) altEntries.push(["alt", value.alt ?? ""]);
+  const currentAlt = String(value.alt ?? value.imageAlt ?? value.altText ?? "");
 
   return (
     <div className="flex flex-col gap-2 rounded-[6px] border border-[#e2e8f0] bg-white p-[10px]">
@@ -95,31 +95,31 @@ function ImageObjectFields({
         <ImageUploadField
           value={String(value[urlKey] ?? "")}
           onChange={(next) => onChange({ ...value, [urlKey]: next })}
+          alt={currentAlt}
+          onAltChange={(nextAlt) => {
+            const patch: CmsRecord = { ...value, alt: nextAlt, imageAlt: nextAlt };
+            altEntries.forEach(([k]) => {
+              patch[k] = nextAlt;
+            });
+            onChange(patch);
+          }}
+          altPlaceholder="Describe the image for SEO & accessibility"
         />
       </div>
-      <div className="grid grid-cols-2 gap-x-[16px] gap-y-[10px]">
-        {altEntries.map(([key, entry]) => (
-          <div key={key} className={rest.length ? "" : "col-span-2"}>
-            <FieldLabel>Alt Text</FieldLabel>
-            <TextInput
-              value={String(entry ?? "")}
-              onChange={(next) => onChange({ ...value, [key]: next })}
-              hideLimit
-              placeholder="Describe the image for accessibility"
-            />
-          </div>
-        ))}
-        {rest.map(([key, entry]) => (
-          <div key={key}>
-            <FieldLabel>{humanizeKey(key)}</FieldLabel>
-            <TextInput
-              value={String(entry ?? "")}
-              onChange={(next) => onChange({ ...value, [key]: next })}
-              hideLimit
-            />
-          </div>
-        ))}
-      </div>
+      {rest.length > 0 && (
+        <div className="grid grid-cols-2 gap-x-[16px] gap-y-[10px]">
+          {rest.map(([key, entry]) => (
+            <div key={key}>
+              <FieldLabel>{humanizeKey(key)}</FieldLabel>
+              <TextInput
+                value={String(entry ?? "")}
+                onChange={(next) => onChange({ ...value, [key]: next })}
+                hideLimit
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -136,7 +136,12 @@ function NestedObjectFields({
   onChange: (next: CmsRecord) => void;
   depth: number;
 }) {
-  const entries = Object.entries(value).filter(([key]) => !HIDDEN_KEYS.has(key));
+  const hasImage = Object.keys(value).some((k) => isImageKey(k));
+  const entries = Object.entries(value).filter(([key]) => {
+    if (HIDDEN_KEYS.has(key)) return false;
+    if (hasImage && ALT_KEYS.includes(key)) return false;
+    return true;
+  });
   if (!entries.length) return null;
 
   return (
@@ -146,6 +151,14 @@ function NestedObjectFields({
           isRecord(entry) ||
           Array.isArray(entry) ||
           (typeof entry === "string" && (isLongKey(key) || isImageKey(key)));
+        const altKey = isImageKey(key)
+          ? ALT_KEYS.find((k) => value[k] !== undefined) || "alt"
+          : undefined;
+        const altVal = altKey ? String(value[altKey] ?? "") : undefined;
+        const onAltChange = altKey
+          ? (nextAlt: string) => onChange({ ...value, [altKey]: nextAlt, alt: nextAlt, imageAlt: nextAlt })
+          : undefined;
+
         return (
           <div key={key} className={wide ? "col-span-2" : ""}>
             <FieldLabel>{humanizeKey(key)}</FieldLabel>
@@ -154,6 +167,8 @@ function NestedObjectFields({
               value={entry}
               depth={depth + 1}
               onChange={(next) => onChange({ ...value, [key]: next })}
+              alt={altVal}
+              onAltChange={onAltChange}
             />
           </div>
         );
@@ -295,12 +310,16 @@ export function NestedValueEditor({
   fieldKey,
   value,
   onChange,
+  alt,
+  onAltChange,
   depth = 0,
   addLabel,
 }: {
   fieldKey: string;
   value: unknown;
   onChange: (next: unknown) => void;
+  alt?: string;
+  onAltChange?: (alt: string) => void;
   depth?: number;
   addLabel?: string;
 }) {
@@ -322,7 +341,15 @@ export function NestedValueEditor({
 
   if (typeof value === "string") {
     if (isImageKey(fieldKey)) {
-      return <ImageUploadField value={value} onChange={onChange} />;
+      return (
+        <ImageUploadField
+          value={value}
+          onChange={onChange}
+          alt={alt}
+          onAltChange={onAltChange}
+          altPlaceholder={`Enter ${humanizeKey(fieldKey)} alt text...`}
+        />
+      );
     }
     if (isLongKey(fieldKey)) {
       return <Textarea value={value} onChange={onChange} rows={3} noLimit={fieldKey === "mapEmbedUrl"} />;

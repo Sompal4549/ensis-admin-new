@@ -7,7 +7,15 @@
 
 export const SECTION_SKIP_KEYS = new Set([
   "_id",
+  "id",
   "key",
+  "componentKey",
+  "layoutId",
+  "index",
+  "__v",
+  "status",
+  "createdAt",
+  "updatedAt",
   "slides",
   "items",
   "cards",
@@ -18,6 +26,7 @@ export const SECTION_SKIP_KEYS = new Set([
   "extra2",
   "enabled",
   "name",
+  "data",
 ]);
 export const LONG_TEXT_KEY_PATTERN = /description|shortDescription|subtitle|quote|message|statement|notice|bullets|extra|text/i;
 export const IMAGE_KEY_PATTERN = /image|img|logo|photo|banner|picture|bg|avatar|thumbnail/i;

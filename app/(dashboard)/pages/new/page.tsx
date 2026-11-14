@@ -353,6 +353,8 @@ export default function AddNewPage() {
 
   const [featuredImage, setFeaturedImage] =
     useState<string | null>(null);
+  const [featuredImageAlt, setFeaturedImageAlt] =
+    useState<string>("");
 
   const [activeFormats, setActiveFormats] =
     useState<string[]>([]);
@@ -912,6 +914,19 @@ export default function AddNewPage() {
                       </>
                     )}
                   </button>
+
+                  <div className="mt-2">
+                    <FieldLabel>
+                      Featured Image Alt Text
+                    </FieldLabel>
+                    <input
+                      type="text"
+                      value={featuredImageAlt}
+                      onChange={(e) => setFeaturedImageAlt(e.target.value)}
+                      placeholder="Describe featured image for SEO..."
+                      className="h-[30px] w-full rounded-[4px] border border-[#cbd5e1] px-2 text-[10px] text-slate-700 placeholder:text-slate-400 outline-none focus:border-[#218DAE] bg-white"
+                    />
+                  </div>
                 </div>
 
                 <div className="mt-[10px]">

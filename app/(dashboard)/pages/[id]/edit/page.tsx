@@ -232,6 +232,7 @@ export default function CmsEditPage() {
         ogTitle: page.seo?.ogTitle ?? "",
         ogDescription: page.seo?.ogDescription ?? "",
         ogImage: page.seo?.ogImage ?? "",
+        ogImageAlt: (page.seo as { ogImageAlt?: string })?.ogImageAlt ?? "",
         h1Tag: page.seo?.h1Tag ?? "",
         breadcrumbName: page.seo?.breadcrumbName ?? "",
         schemaMarkup: page.seo?.schemaMarkup ?? "",
@@ -578,74 +579,27 @@ export default function CmsEditPage() {
       previous.map((section, index) => {
         if (index !== sectionIndex) return section;
         const items = [...(section.items ?? [])];
-        if (section.key === "why-exhibit-hero") {
-          const blankHighlight = {
-            main: "New Highlight",
-            sub: "Feature",
-            image: `/uploads/icons/x${(items.length % 4) + 1}.png`,
-          };
-          return { ...section, items: [...items, blankHighlight] };
+
+        // If items already exist in this section, mirror their exact shape with clean blank values
+        if (items.length > 0) {
+          const template = items[items.length - 1] || items[0];
+          const blank: CmsRecord = {};
+          for (const [k, v] of Object.entries(template)) {
+            if (k === "_id" || k === "id" || k === "schedule") continue;
+            blank[k] = Array.isArray(v) ? [] : typeof v === "boolean" ? false : typeof v === "number" ? 0 : "";
+          }
+          if (!blank.title && !blank.name && !blank.label && !blank.heading && !blank.value) {
+            blank.title = `New Item ${items.length + 1}`;
+          }
+          return { ...section, items: [...items, blank] };
         }
-        if (section.key === "audience-strip") {
-          const blankAudience = {
-            title: "NEW AUDIENCE",
-            subtitle: "TARGET GROUP",
-            icon: "GraduationCap",
-            color: "#facc15",
-            label: "NEW AUDIENCE TARGET GROUP",
-          };
-          return { ...section, items: [...items, blankAudience] };
-        }
-        if (section.key === "expo-categories") {
-          const blankCategory = {
-            title: "New Exhibition Sector",
-            description: "Enter sector description...",
-            image: "",
-            href: "/exhibition-categories",
-            exploreText: "Explore",
-          };
-          return { ...section, items: [...items, blankCategory] };
-        }
-        if (section.key === "beyond-exhibition") {
-          const blankItem = {
-            title: "NEW HIGHLIGHT / AWARD",
-            description: "Enter description...",
-            icon: "Award",
-          };
-          return { ...section, items: [...items, blankItem] };
-        }
-        if (section.key === "footer") {
-          const blankLink = {
-            label: "New Link",
-            href: "/",
-          };
-          return { ...section, items: [...items, blankLink] };
-        }
-        const defaultItemTemplate: CmsRecord = {
-          title: "",
-          subtitle: "",
+
+        // Clean minimal fallback for empty list
+        const blank: CmsRecord = {
+          title: "New Item",
           description: "",
-          label: "",
-          value: "",
-          icon: "",
-          image: "",
-          buttonLabel: "",
-          buttonHref: "",
-          question: "",
-          answer: "",
-          href: "",
-          category: "",
-          year: "",
         };
-        if (items[0]) {
-          Object.entries(items[0]).forEach(([k, v]) => {
-            if (k === "_id" || k === "schedule" || k in defaultItemTemplate) return;
-            // Keep the type of the copied field: booleans stay booleans (toggles),
-            // arrays stay arrays, only text fields become "".
-            defaultItemTemplate[k] = Array.isArray(v) ? [] : typeof v === "boolean" ? false : "";
-          });
-        }
-        return { ...section, items: [...items, defaultItemTemplate] };
+        return { ...section, items: [...items, blank] };
       }),
     );
   };
@@ -870,6 +824,7 @@ export default function CmsEditPage() {
               addSectionItem={addSectionItem}
               removeSectionItem={removeSectionItem}
               resetToWebsiteDefaults={resetToWebsiteDefaults}
+              isPolicyPage={Boolean(page.configKey && isPolicyConfigKey(page.configKey))}
             />
 
             <SeoSettingsPanel
