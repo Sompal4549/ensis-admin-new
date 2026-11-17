@@ -2,7 +2,7 @@
 // exist on the backend. The PRD's Case/Volunteer domain (M2/M3) replaces them.
 
 export type PaymentGatewayStatus = "created" | "paid" | "failed" | "refunded";
-export type EnquiryStatus = "new" | "contacted" | "closed";
+export type EnquiryStatus = "new" | "pending" | "contacted" | "qualified" | "resolved" | "closed" | "cancelled";
 export type DonationCause = "general" | "cremation" | "ambulance" | "annadan";
 export type DonationFrequency = "once" | "monthly";
 

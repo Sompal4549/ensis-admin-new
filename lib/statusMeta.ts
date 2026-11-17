@@ -92,8 +92,12 @@ export const CAMPAIGN_STATUS_META: Record<CampaignStatus, { label: string; tone:
 
 export const ENQUIRY_STATUS_META: Record<EnquiryStatus, { label: string; tone: Tone }> = {
   new: { label: "New", tone: "pending" },
+  pending: { label: "Pending", tone: "pending" },
   contacted: { label: "Contacted", tone: "confirmed" },
+  qualified: { label: "Qualified", tone: "confirmed" },
+  resolved: { label: "Resolved", tone: "success" },
   closed: { label: "Closed", tone: "neutral" },
+  cancelled: { label: "Cancelled", tone: "danger" },
 };
 
 export function formatCurrency(amount: number): string {

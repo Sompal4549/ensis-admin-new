@@ -280,10 +280,11 @@ function sourceStyle(
 }
 
 function statusStyle(
-  status: EnquiryStatus
+  status: EnquiryStatus | string
 ) {
   switch (status) {
     case "new":
+    case "pending":
       return {
         background: "#E8F2FE",
         color: "#2875CD",
@@ -291,17 +292,32 @@ function statusStyle(
       };
 
     case "contacted":
+    case "qualified":
       return {
         background: "#FFF0D9",
         color: "#D98E16",
         border: "#F8DFB5",
       };
 
-    case "closed":
+    case "resolved":
       return {
         background: "#E4F4E7",
         color: "#247943",
         border: "#CFE9D5",
+      };
+
+    case "cancelled":
+      return {
+        background: "#FEE4E2",
+        color: "#D92D20",
+        border: "#FECDCA",
+      };
+
+    case "closed":
+      return {
+        background: "#F3F4F6",
+        color: "#475467",
+        border: "#E4E7EC",
       };
 
     default:
@@ -844,7 +860,7 @@ function EnquiriesPageContent() {
     () =>
       enquiries.filter(
         (item) =>
-          item.status === "new"
+          item.status === "new" || item.status === "pending"
       ).length,
     [enquiries]
   );
@@ -854,8 +870,7 @@ function EnquiriesPageContent() {
       () =>
         enquiries.filter(
           (item) =>
-            item.status ===
-            "contacted"
+            item.status === "contacted" || item.status === "qualified"
         ).length,
       [enquiries]
     );
@@ -864,7 +879,7 @@ function EnquiriesPageContent() {
     () =>
       enquiries.filter(
         (item) =>
-          item.status === "closed"
+          item.status === "closed" || item.status === "resolved" || item.status === "cancelled"
       ).length,
     [enquiries]
   );
@@ -884,6 +899,16 @@ function EnquiriesPageContent() {
         .filter((item) => {
           if (!tab) {
             return true;
+          }
+
+          if (tab === "new") {
+            return item.status === "new" || item.status === "pending";
+          }
+          if (tab === "contacted") {
+            return item.status === "contacted" || item.status === "qualified";
+          }
+          if (tab === "closed") {
+            return item.status === "closed" || item.status === "resolved" || item.status === "cancelled";
           }
 
           return (
@@ -1979,9 +2004,12 @@ function EnquiriesPageContent() {
                             >
                               {
                                 ENQUIRY_STATUS_META[
-                                  enquiry
-                                    .status
-                                ].label
+                                  enquiry.status
+                                ]?.label ??
+                                  (typeof enquiry.status === "string"
+                                    ? enquiry.status.charAt(0).toUpperCase() +
+                                      enquiry.status.slice(1)
+                                    : "New")
                               }
                             </span>
                           </td>
@@ -3271,17 +3299,13 @@ function EnquiriesPageContent() {
                 )
               }
             >
-              <option value="new">
-                New
-              </option>
-
-              <option value="contacted">
-                Contacted
-              </option>
-
-              <option value="closed">
-                Closed
-              </option>
+              <option value="new">New</option>
+              <option value="pending">Pending</option>
+              <option value="contacted">Contacted</option>
+              <option value="qualified">Qualified</option>
+              <option value="resolved">Resolved</option>
+              <option value="closed">Closed</option>
+              <option value="cancelled">Cancelled</option>
             </Select>
           </div>
         )}
