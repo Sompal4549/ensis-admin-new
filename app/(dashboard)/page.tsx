@@ -1035,7 +1035,7 @@ export default function DashboardPage() {
   useEffect(() => {
     let active = true;
     contactEnquiryApi
-      .list()
+      .list("")
       .then((res) => {
         if (active && res && Array.isArray(res.enquiries)) {
           setEnquiriesList(res.enquiries);

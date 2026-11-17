@@ -1,9 +1,13 @@
 import { adminPageHeaders } from "./adminPage";
 
 export const getApiBaseUrl = (): string => {
-  // If running in browser on production domain
+  // If running in browser on production domain or Vercel
   if (typeof window !== "undefined") {
-    if (window.location.hostname.includes("ensis.in")) {
+    if (
+      window.location.hostname.includes("ensis.in") ||
+      window.location.hostname.includes("vercel.app") ||
+      window.location.protocol === "https:"
+    ) {
       return "https://api.ensis.in/api";
     }
   }
@@ -12,7 +16,7 @@ export const getApiBaseUrl = (): string => {
   if (process.env.NEXT_PUBLIC_API_URL) {
     if (
       typeof window !== "undefined" &&
-      window.location.hostname.includes("ensis.in") &&
+      (window.location.hostname.includes("ensis.in") || window.location.hostname.includes("vercel.app")) &&
       process.env.NEXT_PUBLIC_API_URL.includes("localhost")
     ) {
       return "https://api.ensis.in/api";
@@ -20,7 +24,7 @@ export const getApiBaseUrl = (): string => {
     return process.env.NEXT_PUBLIC_API_URL;
   }
 
-  // If running on local network / custom IP in browser
+  // If running on local network / custom IP in browser over plain HTTP
   if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
     return `http://${window.location.hostname}:5000/api`;
   }
@@ -29,13 +33,19 @@ export const getApiBaseUrl = (): string => {
 };
 
 export const getBackendUrl = (): string => {
-  if (typeof window !== "undefined" && window.location.hostname.includes("ensis.in")) {
-    return "https://api.ensis.in";
+  if (typeof window !== "undefined") {
+    if (
+      window.location.hostname.includes("ensis.in") ||
+      window.location.hostname.includes("vercel.app") ||
+      window.location.protocol === "https:"
+    ) {
+      return "https://api.ensis.in";
+    }
   }
   if (process.env.NEXT_PUBLIC_BACKEND_URL) {
     if (
       typeof window !== "undefined" &&
-      window.location.hostname.includes("ensis.in") &&
+      (window.location.hostname.includes("ensis.in") || window.location.hostname.includes("vercel.app")) &&
       process.env.NEXT_PUBLIC_BACKEND_URL.includes("localhost")
     ) {
       return "https://api.ensis.in";
