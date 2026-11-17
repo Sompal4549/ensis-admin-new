@@ -857,13 +857,13 @@ export default function GeneralEnquiriesPage() {
   // loading starts true
   useEffect(() => {
     enquiriesApi
-      .list()
-      .then((data) =>
-        setEnquiries(
-          (data ??
-            []) as RuntimeEnquiry[]
-        )
-      )
+      .list("enquiry")
+      .then((data) => {
+        const generalEnquiries = (data ?? []).filter(
+          (item: any) => item.source !== "contact" && item.category !== "contact"
+        );
+        setEnquiries(generalEnquiries as RuntimeEnquiry[]);
+      })
       .catch((err) => {
         setError(
           err instanceof ApiRequestError

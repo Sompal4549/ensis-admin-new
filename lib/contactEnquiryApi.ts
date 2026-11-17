@@ -48,7 +48,10 @@ export const contactEnquiryApi = {
   // A large limit keeps this in line with how the rest of the admin (e.g.
   // Job Postings) fetches once and filters/paginates client-side, instead of
   // round-tripping to the server on every keystroke.
-  list: () => api.get<ContactEnquiryListResponse>(`/contact-enquiry?limit=1000&t=${Date.now()}`),
+  list: (source: string = "contact") =>
+    api.get<ContactEnquiryListResponse>(
+      `/contact-enquiry?${source ? `source=${encodeURIComponent(source)}&` : ""}limit=1000&t=${Date.now()}`
+    ),
   update: (id: string, update: { status?: ContactEnquiryStatus; isRead?: boolean; notes?: string }) =>
     api.put<ContactEnquiry>(`/contact-enquiry/${id}`, update),
   updateStatus: (id: string, status: ContactEnquiryStatus) =>

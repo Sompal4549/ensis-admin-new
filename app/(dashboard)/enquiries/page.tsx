@@ -81,16 +81,16 @@ const SOURCE_OPTIONS = [
     label: "All Sources",
   },
   {
+    key: "enquiry",
+    label: "General Enquiries",
+  },
+  {
     key: "contact",
-    label: "General Contact",
+    label: "Contact Us Messages",
   },
   {
-    key: "csr",
-    label: "Sponsor & Partner",
-  },
-  {
-    key: "partnership",
-    label: "Institutional Partner",
+    key: "products",
+    label: "Product Enquiries",
   },
 ] as const;
 
@@ -921,10 +921,8 @@ function EnquiriesPageContent() {
             return true;
           }
 
-          return (
-            (item.category ??
-              "contact") === source
-          );
+          const itemSource = item.source || (item.category === "contact" ? "contact" : "enquiry");
+          return itemSource === source;
         })
 
         .filter((item) =>

@@ -163,14 +163,14 @@ const fromEnquiry = (e: ContactEnquiry): CommRow => ({
   channel: e.source === "chatbot" ? "Call" : channelOf(e.preferredContact),
   subject: e.projectType || "Website enquiry",
   description: short(e.message),
-  enquiry: e.source === "products" ? "Products" : enquiryTypeOf(e.projectType, e.message),
+  enquiry: e.source === "contact" ? "Contact Us" : e.source === "products" ? "Product Enquiry" : enquiryTypeOf(e.projectType, e.message),
   status: ["resolved", "closed", "cancelled"].includes(e.status) ? "Completed" : ["contacted", "qualified"].includes(e.status) ? "Replied" : "Pending",
   lastDate: dateLabel(e.updatedAt || e.createdAt),
   lastTime: timeLabel(e.updatedAt || e.createdAt),
   nextDate: "—",
   nextTime: "",
   lastAt: new Date(e.updatedAt || e.createdAt).getTime(),
-  href: "/contact-us",
+  href: e.source === "contact" ? "/contact-us" : "/general-enquiries",
 });
 
 const fromChat = (c: ChatSummary): CommRow => {
@@ -636,7 +636,7 @@ export default function CommunicationsFollowUps() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.allSettled([contactEnquiryApi.list(), chatbotApi.list({ source: "all", limit: 1000 })]).then(([enq, chats]) => {
+    Promise.allSettled([contactEnquiryApi.list(""), chatbotApi.list({ source: "all", limit: 1000 })]).then(([enq, chats]) => {
       if (cancelled) return;
       const rows: CommRow[] = [];
       if (enq.status === "fulfilled") rows.push(...(enq.value?.enquiries || []).map(fromEnquiry));

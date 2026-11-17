@@ -57,7 +57,8 @@ export interface Enquiry {
   phone: string;
   email?: string;
   message: string;
-  category: "contact" | "csr" | "partnership" | "unclaimed_body";
+  category: "contact" | "csr" | "partnership" | "unclaimed_body" | "enquiry" | "products" | string;
+  source?: string;
   organization?: string;
   designation?: string;
   interest?: string;

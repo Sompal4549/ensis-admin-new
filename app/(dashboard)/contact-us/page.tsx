@@ -142,8 +142,13 @@ export default function ContactUsPage() {
 
   const fetchItems = () =>
     contactEnquiryApi
-      .list()
-      .then((data) => setEnquiries(data.enquiries || []))
+      .list("contact")
+      .then((data) => {
+        const contactOnly = (data.enquiries || []).filter(
+          (e) => e.source === "contact" || (e as any).category === "contact"
+        );
+        setEnquiries(contactOnly);
+      })
       .catch((err) => setLoadError(err instanceof ApiRequestError ? err.message : "Failed to load contact messages."))
       .finally(() => setLoading(false));
   const load = () => {
