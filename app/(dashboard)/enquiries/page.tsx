@@ -94,11 +94,10 @@ const SOURCE_OPTIONS = [
   },
 ] as const;
 
-const SOURCE_LABELS: Record<
-  Enquiry["category"],
-  string
-> = {
-  contact: "General Contact",
+const SOURCE_LABELS: Record<string, string> = {
+  enquiry: "Enquiry Page",
+  contact: "Contact Us",
+  products: "Product Enquiry",
   csr: "Sponsor & Partner",
   partnership: "Institutional Partner",
   unclaimed_body: "Expo Delegate",
@@ -224,6 +223,7 @@ function getPurpose(enquiry: Enquiry) {
 
 function getOrganization(enquiry: Enquiry) {
   return (
+    enquiry.companyOrganization?.trim() ||
     enquiry.organization?.trim() ||
     enquiry.name ||
     "—"
@@ -231,10 +231,10 @@ function getOrganization(enquiry: Enquiry) {
 }
 
 function getContactName(enquiry: Enquiry) {
-  if (
-    enquiry.organization?.trim() &&
-    enquiry.name
-  ) {
+  const org =
+    enquiry.companyOrganization?.trim() ||
+    enquiry.organization?.trim();
+  if (org && enquiry.name) {
     return enquiry.name;
   }
 
@@ -248,7 +248,21 @@ function getContactName(enquiry: Enquiry) {
 function sourceStyle(
   category?: Enquiry["category"]
 ) {
-  switch (category ?? "contact") {
+  switch (category ?? "enquiry") {
+    case "enquiry":
+      return {
+        background: "#E5F5E8",
+        color: "#257A44",
+        border: "#CEE9D4",
+      };
+
+    case "products":
+      return {
+        background: "#FFF0D9",
+        color: "#D98E16",
+        border: "#F8DFB5",
+      };
+
     case "csr":
       return {
         background: "#E7F2FE",
@@ -774,10 +788,14 @@ function EnquiriesPageContent() {
   ========================================================== */
 
   const fetchItems = () => {
-
     enquiriesApi
-      .list()
-      .then(setEnquiries)
+      .list("enquiry")
+      .then((data) => {
+        const enquiryPageList = (data || []).filter(
+          (item) => item.source !== "contact" && (item as any).category !== "contact"
+        );
+        setEnquiries(enquiryPageList);
+      })
       .catch(() => {
         setEnquiries([]);
       })
@@ -1145,15 +1163,11 @@ function EnquiriesPageContent() {
               text-[#005E2E]
             "
           >
-            {source === "contact"
-              ? "General Enquiries"
-              : source === "csr"
-                ? "Sponsor & Partner Enquiries"
-                : source === "partnership"
-                  ? "Partnership Enquiries"
-                  : source === "unclaimed_body"
-                    ? "Expo Delegate Enquiries"
-                    : "All Enquiries"}
+            {source === "products"
+              ? "Product Enquiries"
+              : source === "contact"
+                ? "Contact Us Messages"
+                : "Enquiry Page Submissions"}
           </h1>
 
           <p
@@ -1165,15 +1179,11 @@ function EnquiriesPageContent() {
               text-[#344574]
             "
           >
-            {source === "contact"
-              ? "Manage general queries, contact submissions and helpline requests."
-              : source === "csr"
-                ? "Manage corporate sponsor queries and Expo partnership opportunities in one place."
-                : source === "partnership"
-                  ? "Manage institutional and trade association partnership proposals."
-                  : source === "unclaimed_body"
-                    ? "Manage delegate and VIP guest enquiries."
-                    : "Manage all general, contact, sponsor and partnership enquiries in one place."}
+            {source === "products"
+              ? "Manage enquiries and quotation requests submitted from product catalog pages."
+              : source === "contact"
+                ? "Manage messages submitted from the contact us page."
+                : "Manage all enquiries submitted through the website Enquiry Page (/enquiry)."}
           </p>
         </div>
 
@@ -3223,6 +3233,33 @@ function EnquiriesPageContent() {
                     </div>
                   )}
 
+                  {selected.projectSize && (
+                    <div>
+                      <p className="font-semibold uppercase tracking-wide text-text-muted">
+                        Project Size
+                      </p>
+                      <p>{selected.projectSize}</p>
+                    </div>
+                  )}
+
+                  {selected.budgetRange && (
+                    <div>
+                      <p className="font-semibold uppercase tracking-wide text-text-muted">
+                        Budget Range
+                      </p>
+                      <p>{selected.budgetRange}</p>
+                    </div>
+                  )}
+
+                  {selected.timeline && (
+                    <div>
+                      <p className="font-semibold uppercase tracking-wide text-text-muted">
+                        Timeline
+                      </p>
+                      <p>{selected.timeline}</p>
+                    </div>
+                  )}
+
                   {selected.reference && (
                     <div>
                       <p
@@ -3265,10 +3302,10 @@ function EnquiriesPageContent() {
               </p>
             </div>
 
-            {selected.documentUrl && (
+            {(selected.documentUrl || selected.attachmentUrl) && (
               <a
                 href={
-                  selected.documentUrl
+                  selected.documentUrl || selected.attachmentUrl
                 }
                 target="_blank"
                 rel="noreferrer"
@@ -3281,7 +3318,7 @@ function EnquiriesPageContent() {
                 "
               >
                 View supporting
-                document
+                document / attachment
               </a>
             )}
 

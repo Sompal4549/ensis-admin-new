@@ -60,12 +60,20 @@ export interface Enquiry {
   category: "contact" | "csr" | "partnership" | "unclaimed_body" | "enquiry" | "products" | string;
   source?: string;
   organization?: string;
+  companyOrganization?: string;
   designation?: string;
   interest?: string;
+  projectType?: string;
+  projectSize?: string;
+  budgetRange?: string;
+  servicesRequired?: string[];
+  timeline?: string;
   city?: string;
+  state?: string;
   authority?: string;
   reference?: string;
   documentUrl?: string;
+  attachmentUrl?: string;
   status: EnquiryStatus;
   createdAt: string;
 }
