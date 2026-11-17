@@ -77,8 +77,8 @@ const STATUS_OPTIONS: {
 
 const SOURCE_OPTIONS = [
   {
-    key: "",
-    label: "All Sources",
+    key: "products",
+    label: "Product & Quotation Enquiries",
   },
   {
     key: "enquiry",
@@ -89,15 +89,15 @@ const SOURCE_OPTIONS = [
     label: "Contact Us Messages",
   },
   {
-    key: "products",
-    label: "Product Enquiries",
+    key: "",
+    label: "All Sources",
   },
 ] as const;
 
 const SOURCE_LABELS: Record<string, string> = {
+  products: "Product Quotation",
   enquiry: "Enquiry Page",
   contact: "Contact Us",
-  products: "Product Enquiry",
   csr: "Sponsor & Partner",
   partnership: "Institutional Partner",
   unclaimed_body: "Expo Delegate",
@@ -750,7 +750,7 @@ function EnquiriesPageContent() {
 
   const [source, setSource] =
     useState<Enquiry["category"] | "">(
-      categoryParam || ""
+      categoryParam || "products"
     );
 
   // ?category= changed while the page is open
@@ -787,14 +787,33 @@ function EnquiriesPageContent() {
      API LOAD
   ========================================================== */
 
-  const fetchItems = () => {
+  const fetchItems = (targetSource?: string) => {
+    const activeSource = targetSource !== undefined ? targetSource : (source || "products");
     enquiriesApi
-      .list("enquiry")
+      .list(activeSource || "products")
       .then((data) => {
-        const enquiryPageList = (data || []).filter(
-          (item) => item.source !== "contact" && (item as any).category !== "contact"
-        );
-        setEnquiries(enquiryPageList);
+        const productList = (data || []).filter((item) => {
+          if (!activeSource || activeSource === "products") {
+            return (
+              item.source === "products" ||
+              (item as any).category === "products" ||
+              /product/i.test(item.projectType || "")
+            );
+          }
+          if (activeSource === "enquiry") {
+            return (
+              item.source !== "contact" &&
+              (item as any).category !== "contact" &&
+              item.source !== "products" &&
+              (item as any).category !== "products"
+            );
+          }
+          if (activeSource === "contact") {
+            return item.source === "contact" || (item as any).category === "contact";
+          }
+          return true;
+        });
+        setEnquiries(productList);
       })
       .catch(() => {
         setEnquiries([]);
@@ -810,8 +829,8 @@ function EnquiriesPageContent() {
 
   useEffect(() => {
     // First load: the state already starts as loading
-    fetchItems();
-  }, []);
+    fetchItems(categoryParam || "products");
+  }, [categoryParam]);
 
   /* ==========================================================
      STATUS UPDATE
@@ -1121,9 +1140,10 @@ function EnquiriesPageContent() {
   function resetFilters() {
     setSearch("");
     setTab("");
-    setSource("");
+    setSource("products");
     setDateRangeFilter("ALL");
     setPage(1);
+    fetchItems("products");
   }
 
   /* ==========================================================
@@ -1163,11 +1183,11 @@ function EnquiriesPageContent() {
               text-[#005E2E]
             "
           >
-            {source === "products"
-              ? "Product Enquiries"
+            {source === "enquiry"
+              ? "General Enquiries"
               : source === "contact"
                 ? "Contact Us Messages"
-                : "Enquiry Page Submissions"}
+                : "Product & Quotation Enquiries"}
           </h1>
 
           <p
@@ -1179,11 +1199,11 @@ function EnquiriesPageContent() {
               text-[#344574]
             "
           >
-            {source === "products"
-              ? "Manage enquiries and quotation requests submitted from product catalog pages."
+            {source === "enquiry"
+              ? "Manage all enquiries submitted through the website Enquiry Page (/enquiry)."
               : source === "contact"
                 ? "Manage messages submitted from the contact us page."
-                : "Manage all enquiries submitted through the website Enquiry Page (/enquiry)."}
+                : "Manage all product enquiries and quotation requests submitted from the Products catalog page (/products)."}
           </p>
         </div>
 
@@ -1508,13 +1528,12 @@ function EnquiriesPageContent() {
             <FilterSelect
               value={source}
               onChange={(value) => {
-                setSource(
-                  value as
+                const next = value as
                   | Enquiry["category"]
-                  | ""
-                );
-
+                  | "";
+                setSource(next);
                 setPage(1);
+                fetchItems(next);
               }}
             >
               {SOURCE_OPTIONS.map(
@@ -3171,7 +3190,7 @@ function EnquiriesPageContent() {
                     </div>
                   )}
 
-                  {selected.interest && (
+                  {(selected.interest || selected.projectType) && (
                     <div>
                       <p
                         className="
@@ -3181,13 +3200,13 @@ function EnquiriesPageContent() {
                         text-text-muted
                       "
                       >
-                        Interest
+                        {selected.source === "products" || (selected as any).category === "products"
+                          ? "Product / Category"
+                          : "Interest / Requirement"}
                       </p>
 
                       <p>
-                        {
-                          selected.interest
-                        }
+                        {selected.interest || selected.projectType}
                       </p>
                     </div>
                   )}

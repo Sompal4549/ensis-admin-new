@@ -860,7 +860,11 @@ export default function GeneralEnquiriesPage() {
       .list("enquiry")
       .then((data) => {
         const generalEnquiries = (data ?? []).filter(
-          (item: any) => item.source !== "contact" && item.category !== "contact"
+          (item: any) =>
+            item.source !== "contact" &&
+            item.category !== "contact" &&
+            item.source !== "products" &&
+            item.category !== "products"
         );
         setEnquiries(generalEnquiries as RuntimeEnquiry[]);
       })

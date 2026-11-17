@@ -170,7 +170,12 @@ const fromEnquiry = (e: ContactEnquiry): CommRow => ({
   nextDate: "—",
   nextTime: "",
   lastAt: new Date(e.updatedAt || e.createdAt).getTime(),
-  href: e.source === "contact" ? "/contact-us" : "/general-enquiries",
+  href:
+    e.source === "contact"
+      ? "/contact-us"
+      : e.source === "products"
+        ? "/enquiries"
+        : "/general-enquiries",
 });
 
 const fromChat = (c: ChatSummary): CommRow => {
@@ -314,10 +319,19 @@ function enquiryStyle(type: string) {
       };
 
     case "Products":
+    case "Product Enquiry":
+    case "Product Quotation":
       return {
-        background: "#FCE8ED",
-        color: "#DB5771",
-        border: "#F6D5DC",
+        background: "#FFF0D9",
+        color: "#D98E16",
+        border: "#F8DFB5",
+      };
+
+    case "Contact Us":
+      return {
+        background: "#E7F2FE",
+        color: "#2874CC",
+        border: "#D3E6FA",
       };
 
     case "Support":
