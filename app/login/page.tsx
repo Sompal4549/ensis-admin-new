@@ -60,6 +60,14 @@ function LoginPageInner() {
 
   const [step, setStep] = useState<Step>("credentials");
 
+  const getRedirectDestination = () => {
+    const from = searchParams.get("from");
+    if (from && from.startsWith("/") && !from.startsWith("//") && from !== "/login") {
+      return from;
+    }
+    return "/";
+  };
+
   // Read resetToken from email link (e.g. /login?resetToken=xxx&email=yyy)
   useEffect(() => {
     const token = searchParams.get("resetToken");
@@ -159,7 +167,7 @@ function LoginPageInner() {
       .getMe()
       .then(async (me) => {
         if (!me.twoFactorPending) {
-          router.replace("/");
+          router.replace(getRedirectDestination());
           return;
         }
 
@@ -243,7 +251,7 @@ function LoginPageInner() {
           }),
         );
         if (typeof document !== "undefined") {
-          document.cookie = `ms_admin_token=${encodeURIComponent(result.accessToken)}; path=/; max-age=604800; SameSite=Lax`;
+          document.cookie = `ms_admin_token=${encodeURIComponent(result.accessToken)}; path=/; max-age=604800; SameSite=Lax${typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : ""}`;
         }
 
         if (result.twoFactorSetupRequired) {
@@ -263,7 +271,7 @@ function LoginPageInner() {
         }
 
         showToast("success", `Welcome back, ${result.user.name}!`);
-        router.push("/");
+        router.push(getRedirectDestination());
         return;
       }
 
@@ -301,10 +309,10 @@ function LoginPageInner() {
             }),
           );
           if (typeof document !== "undefined") {
-            document.cookie = `ms_admin_token=${encodeURIComponent(data.accessToken)}; path=/; max-age=604800; SameSite=Lax`;
+            document.cookie = `ms_admin_token=${encodeURIComponent(data.accessToken)}; path=/; max-age=604800; SameSite=Lax${typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : ""}`;
           }
           showToast("success", "2FA Verified! Logging in...");
-          router.push("/");
+          router.push(getRedirectDestination());
           return;
         }
 

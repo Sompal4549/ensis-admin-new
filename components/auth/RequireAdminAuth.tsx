@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { logout } from "@/store/slices/authSlice";
 import { authApi } from "@/lib/authApi";
@@ -32,6 +32,7 @@ const noSubscription = () => () => {};
  */
 export default function RequireAdminAuth({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const dispatch = useAppDispatch();
   const { admin, hydrated } = useAppSelector((state) => state.auth);
 
@@ -41,12 +42,15 @@ export default function RequireAdminAuth({ children }: { children: React.ReactNo
   const [revoked, setRevoked] = useState(false);
   const hasAuth = !revoked && (hasLocal || (hydrated && Boolean(admin)));
 
+  const loginPath = pathname && pathname !== "/" && pathname !== "/login" ? `/login?from=${encodeURIComponent(pathname)}` : "/login";
+  const secureCookieDel = typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : "";
+
   useEffect(() => {
     if (hydrated && !admin && !hasLocal) {
       if (typeof document !== "undefined") {
-        document.cookie = "ms_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+        document.cookie = `ms_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax${secureCookieDel}`;
       }
-      router.replace("/login");
+      router.replace(loginPath);
       return;
     }
 
@@ -56,20 +60,20 @@ export default function RequireAdminAuth({ children }: { children: React.ReactNo
         .getMe()
         .then((me) => {
           if (me.twoFactorPending) {
-            router.replace("/login");
+            router.replace(loginPath);
           }
         })
         .catch(() => {
           dispatch(logout());
           if (typeof window !== "undefined") {
             localStorage.removeItem(AUTH_STORAGE_KEY);
-            document.cookie = "ms_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+            document.cookie = `ms_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax${secureCookieDel}`;
           }
           setRevoked(true);
-          router.replace("/login");
+          router.replace(loginPath);
         });
     }
-  }, [hydrated, admin, hasLocal, router, dispatch]);
+  }, [hydrated, admin, hasLocal, router, dispatch, loginPath, secureCookieDel]);
 
   // If genuinely not authenticated, render null while redirecting (no slow preloader)
   if (!hasAuth && hydrated && !admin) {

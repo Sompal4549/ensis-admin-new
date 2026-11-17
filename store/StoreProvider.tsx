@@ -15,7 +15,8 @@ export default function StoreProvider({ children }: { children: React.ReactNode 
         if (parsed?.accessToken && parsed?.admin) {
           setTokens({ accessToken: parsed.accessToken, refreshToken: parsed.refreshToken });
           if (typeof document !== "undefined") {
-            document.cookie = `ms_admin_token=${encodeURIComponent(parsed.accessToken)}; path=/; max-age=604800; SameSite=Lax`;
+            const secureFlag = window.location.protocol === "https:" ? "; Secure" : "";
+            document.cookie = `ms_admin_token=${encodeURIComponent(parsed.accessToken)}; path=/; max-age=604800; SameSite=Lax${secureFlag}`;
           }
           store.dispatch(hydrate(parsed));
           return;
@@ -25,7 +26,8 @@ export default function StoreProvider({ children }: { children: React.ReactNode 
       }
     }
     if (typeof document !== "undefined") {
-      document.cookie = "ms_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+      const secureFlag = window.location.protocol === "https:" ? "; Secure" : "";
+      document.cookie = `ms_admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax${secureFlag}`;
     }
     store.dispatch(hydrate(null));
      

@@ -79,8 +79,10 @@ interface ApiEnvelope<T> {
   data: T;
 }
 
-interface ApiRequestOptions extends RequestInit {
+export interface ApiRequestOptions extends RequestInit {
   timeoutMs?: number;
+  skipAuthRefresh?: boolean;
+  forceFresh?: boolean;
 }
 let accessToken: string | null = null;
 let refreshToken: string | null = null;
@@ -214,7 +216,12 @@ async function request<T>(path: string, options?: ApiRequestOptions, isRetry = f
     path.startsWith("/auth/reset-password") ||
     path === "/auth/refresh-token";
 
+  const ignoreAuthFailure = Boolean(options?.skipAuthRefresh || headers["X-Ignore-Auth-Failure"]);
+
   if (res.status === 401 && !isRetry && !isPublicAuthPath) {
+    if (ignoreAuthFailure) {
+      throw new ApiRequestError(401, "Unauthorized");
+    }
     const refreshed = await refreshAccessToken();
     if (refreshed) return request<T>(path, options, true);
     onRefreshFailed?.();
@@ -275,7 +282,10 @@ async function requestBlob(path: string): Promise<Blob> {
 }
 
 export const api = {
-  get: <T>(path: string): Promise<T> => {
+  get: <T>(path: string, options?: ApiRequestOptions): Promise<T> => {
+    if (options) {
+      return request<T>(path, { method: "GET", ...options });
+    }
     const cached = getCache.get(path);
     if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.value as T);
     if (cached) getCache.delete(path);

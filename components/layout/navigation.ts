@@ -40,6 +40,8 @@ import {
   UserCheck,
   UserCog,
   Users,
+  UsersRound,
+  BrainCircuit,
   Video,
   type LucideIcon,
 } from "lucide-react";
@@ -85,11 +87,13 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "AI Chatbot",
     items: [
       { label: "Chatbot Overview", href: "/chatbot/overview", icon: Bot, badge: "NEW" },
+      { label: "Chat Visitors", href: "/chatbot/visitors", icon: UsersRound },
+      { label: "Chat Conversations", href: "/chatbot/conversations", icon: MessagesSquare },
       { label: "Inbox & Leads", href: "/chatbot/inbox", icon: Inbox },
+      { label: "Chatbot Leads", href: "/chatbot/leads", icon: UserCheck },
+      { label: "AI Training", href: "/chatbot/training", icon: BrainCircuit },
       { label: "Chatbot Manager", href: "/chatbot/manager", icon: UserCog },
       { label: "Reports", href: "/chatbot/reports", icon: BarChart3 },
-      { label: "Chat Conversations", href: "/chatbot/conversations", icon: MessagesSquare },
-      { label: "Chatbot Leads", href: "/chatbot/leads", icon: UserCheck },
     ],
   },
   {

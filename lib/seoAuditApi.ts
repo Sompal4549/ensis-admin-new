@@ -632,14 +632,14 @@ export const seoAuditApi = {
   },
   brokenLinks: async (_filters?: Record<string, unknown>) => {
     try {
-      return await api.get<{ links: SeoBrokenLink[] }>(`/seo/broken-links`);
+      return await api.get<{ links: SeoBrokenLink[] }>(`/seo/broken-links`, { skipAuthRefresh: true });
     } catch {
       return { links: [] };
     }
   },
   insights: async (): Promise<SeoInsights> => {
     try {
-      return await api.get<SeoInsights>("/seo/insights");
+      return await api.get<SeoInsights>("/seo/insights", { skipAuthRefresh: true });
     } catch {
       return {
         available: false,
@@ -658,14 +658,14 @@ export const seoAuditApi = {
   },
   competitors: async (): Promise<SeoCompetitor[]> => {
     try {
-      return await api.get<SeoCompetitor[]>("/seo/competitors");
+      return await api.get<SeoCompetitor[]>("/seo/competitors", { skipAuthRefresh: true });
     } catch {
       return [];
     }
   },
   competitorComparison: async (): Promise<SeoCompetitorComparison> => {
     try {
-      return await api.get<SeoCompetitorComparison>("/seo/competitors/comparison");
+      return await api.get<SeoCompetitorComparison>("/seo/competitors/comparison", { skipAuthRefresh: true });
     } catch {
       try {
         const overview = await seoAuditApi.overview();
