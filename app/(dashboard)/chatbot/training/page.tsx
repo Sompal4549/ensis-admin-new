@@ -1302,7 +1302,9 @@ function InstructionsPanel({ items, data, know, run }: { items: TrainingItem[]; 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [busy, setBusy] = useState(false);
-  const used = Math.min(100, Math.round((data.rulesChars / data.maxRulesChars) * 100));
+  const rulesChars = Number(data?.rulesChars) || 0;
+  const maxRulesChars = Number(data?.maxRulesChars) || 8000;
+  const used = Math.min(100, Math.round((rulesChars / (maxRulesChars || 1)) * 100));
 
   const add = async () => {
     if (!content.trim()) return;
@@ -1346,7 +1348,7 @@ function InstructionsPanel({ items, data, know, run }: { items: TrainingItem[]; 
             <div className="flex items-center justify-between text-[9px] font-semibold text-[#475569]">
               <span>Space used by your instructions, “always remember” notes and contact details</span>
               <span className={used > 90 ? "text-red-600" : "text-[#263016]"}>
-                {data.rulesChars.toLocaleString()} / {data.maxRulesChars.toLocaleString()}
+                {rulesChars.toLocaleString()} / {maxRulesChars.toLocaleString()}
               </span>
             </div>
             <div className="mt-[5px] h-[5px] overflow-hidden rounded-full bg-[#e2e8f0]">
@@ -1495,9 +1497,9 @@ function WebsitePanel({ data, know, run }: { data: TrainingOverview; know: Knowl
     <div className="flex flex-col gap-[14px]">
       <Card icon={<Globe className="h-[14px] w-[14px]" />} title="Website knowledge" hint="Ensis Assist reads the website by itself once a day: every page, the FAQs, job openings, downloads and contact details.">
         <div className="grid gap-[8px] sm:grid-cols-4">
-          <Stat label="Pages read" value={know.pages.length.toLocaleString()} />
-          <Stat label="Website passages" value={data.counts.website.toLocaleString()} />
-          <Stat label="From your notes & files" value={data.counts.taught.toLocaleString()} />
+          <Stat label="Pages read" value={(know?.pages?.length ?? 0).toLocaleString()} />
+          <Stat label="Website passages" value={(data?.counts?.website ?? 0).toLocaleString()} />
+          <Stat label="From your notes & files" value={(data?.counts?.taught ?? 0).toLocaleString()} />
           <Stat label="Re-read" value="Every 24 hours" />
         </div>
         <div className="mt-[10px] flex flex-wrap items-center gap-[10px]">
@@ -1547,9 +1549,9 @@ function ModelPanel({ data }: { data: TrainingOverview }) {
   return (
     <Card icon={<Cpu className="h-[14px] w-[14px]" />} title="Chat model" hint="The OpenAI models behind Ensis Assist. They are set on the server (.env), not here.">
       <div className="grid gap-[8px] sm:grid-cols-3">
-        <Stat label="Typed chat" value={data.model} />
-        <Stat label="Voice calls" value={data.voiceModel} />
-        <Stat label="Status" value={data.aiReady ? "Connected" : "No OpenAI key"} />
+        <Stat label="Typed chat" value={data?.model || "gpt-4o-mini"} />
+        <Stat label="Voice calls" value={data?.voiceModel || "gpt-realtime-2.1-mini"} />
+        <Stat label="Status" value={data?.aiReady ? "Connected" : "No OpenAI key"} />
       </div>
       <p className="mt-[10px] text-[9.5px] leading-[1.5] text-[#475569]">
         Nothing here retrains the model itself. What you set on this page is given to Ensis Assist with every message, so a change works from the next message on, and can be turned off or deleted any time.
