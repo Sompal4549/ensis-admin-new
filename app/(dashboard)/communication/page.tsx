@@ -1145,21 +1145,21 @@ export default function CommunicationsFollowUps() {
             <table
               className="
                 w-full
-                min-w-[1100px]
+                min-w-[1240px]
                 table-fixed
                 border-collapse
               "
             >
               <colgroup>
-                <col style={{ width: "6%" }} />
+                <col style={{ width: "10%" }} />
                 <col style={{ width: "18%" }} />
-                <col style={{ width: "6%" }} />
+                <col style={{ width: "5%" }} />
                 <col style={{ width: "19%" }} />
-                <col style={{ width: "12%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "8%" }} />
+                <col style={{ width: "11%" }} />
+                <col style={{ width: "10%" }} />
                 <col style={{ width: "9%" }} />
-                <col style={{ width: "12%" }} />
-                <col style={{ width: "12%" }} />
-                <col style={{ width: "6%" }} />
               </colgroup>
 
               <thead>
@@ -1171,11 +1171,11 @@ export default function CommunicationsFollowUps() {
                     text-white
                   "
                 >
-                  <th className="px-[6px] text-[9px] font-bold uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 text-[9px] font-bold uppercase tracking-wider whitespace-nowrap">
                     ID
                   </th>
 
-                  <th className="px-[6px] text-[9px] font-bold uppercase tracking-wider whitespace-nowrap">
+                  <th className="px-3 text-[9px] font-bold uppercase tracking-wider whitespace-nowrap">
                     CONTACT / ORGANIZATION
                   </th>
 
@@ -1244,13 +1244,22 @@ export default function CommunicationsFollowUps() {
                       >
                         {/* ID */}
 
-                        <td className="px-[6px] align-middle">
+                        <td className="px-3 align-middle">
                           <span
                             className="
+                              inline-flex
+                              items-center
                               whitespace-nowrap
-                              text-[9px]
-                              font-semibold
-                              text-[#13763E]
+                              rounded-[4px]
+                              bg-[#EBF7EE]
+                              px-2
+                              py-0.5
+                              text-[9.5px]
+                              font-bold
+                              tracking-tight
+                              text-[#0B6830]
+                              border
+                              border-[#C3E8CA]
                             "
                           >
                             {row.id}
@@ -1259,7 +1268,7 @@ export default function CommunicationsFollowUps() {
 
                         {/* CONTACT */}
 
-                        <td className="min-w-0 px-[6px] align-middle">
+                        <td className="min-w-0 px-3 align-middle">
                           <div className="min-w-0 overflow-hidden">
                             <p
                               className="
