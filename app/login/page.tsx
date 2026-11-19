@@ -165,22 +165,8 @@ function LoginPageInner() {
 
     authApi
       .getMe()
-      .then(async (me) => {
-        if (!me.twoFactorPending) {
-          router.replace(getRedirectDestination());
-          return;
-        }
-
-        const setup =
-          await authApi.setupTwoFactor();
-
-        setSecret(setup.secret);
-
-        setProvisioningUri(
-          setup.provisioningUri,
-        );
-
-        setStep("2fa-setup");
+      .then((me) => {
+        router.replace(getRedirectDestination());
       })
       .catch(() => {
         /* stale/invalid session - reset */
@@ -252,22 +238,6 @@ function LoginPageInner() {
         );
         if (typeof document !== "undefined") {
           document.cookie = `ms_admin_token=${encodeURIComponent(result.accessToken)}; path=/; max-age=604800; SameSite=Lax${typeof window !== "undefined" && window.location.protocol === "https:" ? "; Secure" : ""}`;
-        }
-
-        if (result.twoFactorSetupRequired) {
-          const setup = await authApi.setupTwoFactor();
-          setSecret(setup.secret);
-          setProvisioningUri(setup.provisioningUri);
-          setStep("2fa-setup");
-
-          Swal.fire({
-            title: "Setup Two-Factor Authentication",
-            text: "Scan the QR code with Microsoft Authenticator to secure your account.",
-            icon: "info",
-            confirmButtonColor: "#4B1426",
-            confirmButtonText: "I'm Ready to Scan",
-          });
-          return;
         }
 
         showToast("success", `Welcome back, ${result.user.name}!`);

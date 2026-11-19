@@ -143,7 +143,7 @@ export const authApi = {
         userType: "INTERNAL",
         roleSlug: res.user.roleName || (res.user.role === "superadmin" ? "SUPER_ADMIN" : "EXPO_ADMIN"),
         permissions: ["*"],
-        twoFactorPending: !res.user.isTwoFactorEnabled,
+        twoFactorPending: false,
       };
     }
     throw new Error("No active session");

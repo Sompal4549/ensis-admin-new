@@ -32,8 +32,12 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // If already authenticated and visiting /login, send directly to /
+  // If already authenticated and visiting /login, send to intended target if 'from' exists, else /
   if (authToken && pathname === "/login") {
+    const from = request.nextUrl.searchParams.get("from");
+    if (from && from.startsWith("/") && !from.startsWith("//") && from !== "/login") {
+      return NextResponse.redirect(new URL(from, request.url));
+    }
     return NextResponse.redirect(new URL("/", request.url));
   }
 
