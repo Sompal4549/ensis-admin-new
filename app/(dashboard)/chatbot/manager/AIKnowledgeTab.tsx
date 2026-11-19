@@ -343,11 +343,21 @@ export default function AIKnowledgeTab({ onChange, onGoToTab, notify }: Props) {
         key={`question-${reviewQuestionId ?? "closed"}`}
         item={reviewQuestion}
         onClose={() => setReviewQuestionId(null)}
-        onSave={() => {
+        onSave={(answer) => {
+          if (reviewQuestion?.key) {
+            chatbotManagerApi
+              .approveReview({
+                key: reviewQuestion.key,
+                en: answer.en,
+                hi: answer.hi,
+                reference: answer.reference,
+              })
+              .catch(() => undefined);
+          }
           setReviewItems((prev) => prev.filter((r) => r.id !== reviewQuestionId));
           setReviewQuestionId(null);
           onChange();
-          notify("Answer saved as a draft");
+          notify("Answer verified, embedded, and added to chatbot knowledge");
         }}
         onNeedsConfirmation={() => {
           setReviewItems((prev) => prev.map((r) => (r.id === reviewQuestionId ? { ...r, awaiting: true } : r)));

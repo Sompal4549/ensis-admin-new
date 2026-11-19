@@ -100,4 +100,6 @@ export const chatbotManagerApi = {
 
   review: () => api.get<ReviewQueueItem[]>("/admin/chatbot/review"),
   dismissReview: (key: string, undo = false) => api.post<null>("/admin/chatbot/review/dismiss", { key, undo }),
+  approveReview: (body: { key: string; en: string; hi?: string; reference?: string; topic?: string }) =>
+    api.post<null>("/admin/chatbot/review/approve", body),
 };
