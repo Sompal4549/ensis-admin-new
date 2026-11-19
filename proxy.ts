@@ -32,11 +32,11 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // If already authenticated and visiting /login, send to intended target if 'from' exists, else /
+  // If already authenticated and visiting /login:
   if (authToken && pathname === "/login") {
-    const from = request.nextUrl.searchParams.get("from");
-    if (from && from.startsWith("/") && !from.startsWith("//") && from !== "/login") {
-      return NextResponse.redirect(new URL(from, request.url));
+    // If arriving specifically for 2FA setup, allow login page to render the 2FA setup
+    if (request.nextUrl.searchParams.get("setup2fa") === "true") {
+      return NextResponse.next();
     }
     return NextResponse.redirect(new URL("/", request.url));
   }

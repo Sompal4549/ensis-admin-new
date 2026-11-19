@@ -58,6 +58,11 @@ export default function RequireAdminAuth({ children }: { children: React.ReactNo
     if (hasLocal || admin) {
       authApi
         .getMe()
+        .then((me) => {
+          if (me.twoFactorPending) {
+            router.replace("/login?setup2fa=true");
+          }
+        })
         .catch(() => {
           dispatch(logout());
           if (typeof window !== "undefined") {
