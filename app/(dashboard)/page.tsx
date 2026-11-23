@@ -3642,9 +3642,7 @@ export default function DashboardPage() {
                         index,
                       ) => (
                         <div
-                          key={
-                            row[0]
-                          }
+                          key={`${row[0]}-${index}`}
                           className="
                             grid
                             grid-cols-[16px_1fr_76px_42px_14px]
@@ -3724,12 +3722,10 @@ export default function DashboardPage() {
                   </span>
 
                   {liveKeywordRows.map(
-                    (row) => (
+                    (row, index) => (
                       <div
                         className="contents"
-                        key={
-                          row[0]
-                        }
+                        key={`${row[0]}-${index}`}
                       >
                         <span className="py-[3px]">
                           {
@@ -3794,9 +3790,7 @@ export default function DashboardPage() {
                       index,
                     ) => (
                       <div
-                        key={String(
-                          name,
-                        )}
+                        key={`${String(name)}-${index}`}
                         className="
                           grid
                           grid-cols-[62px_1fr_28px_42px]
