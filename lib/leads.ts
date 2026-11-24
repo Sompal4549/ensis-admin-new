@@ -42,9 +42,9 @@ export type Lead = {
   createdAt?: string;
 };
 
-export const LEAD_STATUSES = ["New", "Contacted", "Qualified", "Negotiation", "Converted", "Lost"] as const;
+export const LEAD_STATUSES = ["New", "Contacted", "Qualified", "Quotation Sent", "Negotiation", "Converted", "Lost"] as const;
 export const PRIORITIES = ["High", "Medium", "Low"] as const;
-export const LEAD_SOURCES = ["Website", "WhatsApp", "Instagram", "Facebook", "Google", "LinkedIn", "Referral", "Cold Call", "Event", "Other"] as const;
+export const LEAD_SOURCES = ["Instagram", "Facebook", "Website", "WhatsApp", "Google", "LinkedIn", "Referral", "Cold Call", "Event", "Meta Ads", "Excel Import", "Social Media", "Other"] as const;
 export const FOLLOW_UP_METHODS = ["Phone", "WhatsApp", "Email", "Meeting", "Other"] as const;
 
 export const leadStatusTone: Record<string, string> = {

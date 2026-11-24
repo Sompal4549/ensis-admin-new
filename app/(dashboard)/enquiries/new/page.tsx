@@ -114,6 +114,8 @@ type EnquiryCreatePayload = {
 
   communicationLanguage?: string;
 
+  relatedToServices?: string;
+
   interestedService?: string;
 
   contactedBefore?: string;
@@ -528,6 +530,10 @@ function AddNewEnquiryContent() {
 
       communicationLanguage:
         form.communicationLanguage ||
+        undefined,
+
+      relatedToServices:
+        form.relatedToServices ||
         undefined,
 
       interestedService:

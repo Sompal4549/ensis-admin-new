@@ -18,7 +18,7 @@ import { ApiRequestError } from "@/lib/api";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { updateAdmin } from "@/store/slices/authSlice";
 
-const EMPTY_FORM: InviteStaffInput = { name: "", email: "", phone: "", employeeId: "", roleId: "" };
+const EMPTY_FORM: InviteStaffInput = { name: "", email: "", phone: "", employeeId: "", roleId: "", crmAccess: false };
 
 const STATUS_TONE: Record<StaffStatus, "success" | "neutral" | "danger"> = {
   ACTIVE: "success",
@@ -130,10 +130,30 @@ export default function StaffPage() {
 
   const openEdit = (member: StaffMember) => {
     setEditingId(member._id);
-    setForm({ name: member.name, email: member.email ?? "", phone: member.phone, employeeId: member.employeeId ?? "", roleId: member.roleId ?? "" });
+    setForm({
+      name: member.name,
+      email: member.email ?? "",
+      phone: member.phone,
+      employeeId: member.employeeId ?? "",
+      roleId: member.roleId ?? "",
+      crmAccess: Boolean(member.crmAccess),
+    });
     setError("");
     setCreatedCredential(null);
     setModalOpen(true);
+  };
+
+  const handleToggleCrmAccess = async (member: StaffMember, nextAccess: boolean) => {
+    try {
+      await staffApi.toggleCrmAccess(member._id, nextAccess);
+      setStaff((prev) =>
+        prev.map((s) => (s._id === member._id ? { ...s, crmAccess: nextAccess } : s))
+      );
+      showSuccess(nextAccess ? `CRM access granted to ${member.name}` : `CRM access revoked for ${member.name}`);
+    } catch (err) {
+      const msg = err instanceof ApiRequestError ? err.message : "Failed to update CRM access.";
+      showError(msg);
+    }
   };
 
   const handleInvite = async () => {
@@ -380,6 +400,9 @@ export default function StaffPage() {
                     Role
                   </th>
                   <th className="px-[12px] py-[6px] text-[8.5px] font-bold text-white uppercase tracking-wider">
+                    CRM Access
+                  </th>
+                  <th className="px-[12px] py-[6px] text-[8.5px] font-bold text-white uppercase tracking-wider">
                     Status
                   </th>
                   <th className="px-[12px] py-[6px] text-[8.5px] font-bold text-white uppercase tracking-wider">
@@ -393,7 +416,7 @@ export default function StaffPage() {
               <tbody className="divide-y divide-[#f0f0ec]">
                 {loading ? (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center">
+                    <td colSpan={10} className="py-12 text-center">
                       <div className="flex items-center justify-center gap-2 text-[11px] text-[#6c7587]">
                         <Loader2 className="h-4 w-4 animate-spin text-[#293681]" />
                         <span>Loading staff members...</span>
@@ -402,7 +425,7 @@ export default function StaffPage() {
                   </tr>
                 ) : staff.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-[10px] text-[#6c7587]">
+                    <td colSpan={10} className="py-12 text-center text-[10px] text-[#6c7587]">
                       No staff accounts found.
                     </td>
                   </tr>
@@ -477,6 +500,23 @@ export default function StaffPage() {
                           <span className="text-[8px] font-semibold text-[#293681]">
                             {s.roleName ?? "—"}
                           </span>
+                        </td>
+
+                        {/* CRM ACCESS */}
+                        <td className="px-[12px] py-[8px]">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleCrmAccess(s, !s.crmAccess)}
+                            title={s.crmAccess ? "Click to revoke Ensis CRM access" : "Click to grant Ensis CRM access"}
+                            className={`inline-flex items-center gap-1 rounded-[4px] px-[8px] py-[3px] text-[8px] font-bold shadow-xs transition hover:scale-105 active:scale-95 ${
+                              s.crmAccess
+                                ? "bg-[#e8f5e9] text-[#23714a] border border-[#a5d6a7] hover:bg-[#c8e6c9]"
+                                : "bg-[#f1f5f9] text-[#64748b] border border-[#cbd5e1] hover:bg-[#e2e8f0]"
+                            }`}
+                          >
+                            <span className={`inline-block h-1.5 w-1.5 rounded-full ${s.crmAccess ? "bg-[#23714a]" : "bg-[#94a3b8]"}`} />
+                            {s.crmAccess ? "CRM Allowed" : "No Access"}
+                          </button>
                         </td>
 
                         {/* STATUS DROPDOWN — Styled Native Select identical to Pages CMS Edit */}
@@ -736,6 +776,20 @@ export default function StaffPage() {
                 </option>
               ))}
             </Select>
+            <div className="flex items-center justify-between rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-2.5">
+              <div>
+                <p className="text-[11px] font-bold text-[#1e293b]">Ensis CRM Access</p>
+                <p className="text-[9.5px] text-[#64748b]">
+                  Allow this user to log in and work in Ensis CRM (Superadmin can grant or deny access)
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={Boolean(form.crmAccess)}
+                onChange={(e) => setForm({ ...form, crmAccess: e.target.checked })}
+                className="h-4 w-4 rounded accent-[#16a34a] cursor-pointer"
+              />
+            </div>
             {error && <p className="text-xs font-medium text-red-500">{error}</p>}
           </div>
         )}
