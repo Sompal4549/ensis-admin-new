@@ -9,6 +9,7 @@ export interface InviteStaffInput {
   roleId: string;
   avatarUrl?: string;
   crmAccess?: boolean;
+  productAccess?: 'crm' | 'admin' | 'both';
 }
 
 export interface InviteStaffResult {
@@ -24,6 +25,8 @@ export const staffApi = {
   updateRole: (id: string, roleId: string) => api.patch<StaffMember>(`/users/admin/staff/${id}/role`, { roleId }),
   toggleCrmAccess: (id: string, crmAccess: boolean) =>
     api.patch<{ _id: string; crmAccess: boolean }>(`/users/admin/staff/${id}/crm-access`, { crmAccess }),
+  toggleProductAccess: (id: string, productAccess: 'crm' | 'admin' | 'both') =>
+    api.patch<{ _id: string; productAccess: string }>(`/users/admin/staff/${id}/product-access`, { productAccess }),
   resetPassword: (id: string, newPassword?: string) =>
     api.patch<{ password: string; temporaryPassword: string }>(`/users/admin/staff/${id}/reset-password`, {
       newPassword,

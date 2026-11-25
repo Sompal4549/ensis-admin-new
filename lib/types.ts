@@ -579,6 +579,7 @@ export interface StaffMember {
   roleName?: string;
   status: StaffStatus;
   crmAccess?: boolean;
+  productAccess?: "crm" | "admin" | "both";
   lockUntil?: string | null;
   isEmailVerified: boolean;
   hasPassword?: boolean;

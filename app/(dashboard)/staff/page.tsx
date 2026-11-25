@@ -18,7 +18,7 @@ import { ApiRequestError } from "@/lib/api";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { updateAdmin } from "@/store/slices/authSlice";
 
-const EMPTY_FORM: InviteStaffInput = { name: "", email: "", phone: "", employeeId: "", roleId: "", crmAccess: false };
+const EMPTY_FORM: InviteStaffInput = { name: "", email: "", phone: "", employeeId: "", roleId: "", crmAccess: false, productAccess: "crm" };
 
 const STATUS_TONE: Record<StaffStatus, "success" | "neutral" | "danger"> = {
   ACTIVE: "success",
@@ -137,6 +137,7 @@ export default function StaffPage() {
       employeeId: member.employeeId ?? "",
       roleId: member.roleId ?? "",
       crmAccess: Boolean(member.crmAccess),
+      productAccess: member.productAccess || 'crm',
     });
     setError("");
     setCreatedCredential(null);
@@ -152,6 +153,20 @@ export default function StaffPage() {
       showSuccess(nextAccess ? `CRM access granted to ${member.name}` : `CRM access revoked for ${member.name}`);
     } catch (err) {
       const msg = err instanceof ApiRequestError ? err.message : "Failed to update CRM access.";
+      showError(msg);
+    }
+  };
+
+  const handleToggleProductAccess = async (member: StaffMember, nextAccess: 'crm' | 'admin' | 'both') => {
+    try {
+      await staffApi.toggleProductAccess(member._id, nextAccess);
+      setStaff((prev) =>
+        prev.map((s) => (s._id === member._id ? { ...s, productAccess: nextAccess } : s))
+      );
+      const accessNames: Record<'crm' | 'admin' | 'both', string> = { crm: 'Ensis CRM', admin: 'Ensis Admin', both: 'Both' };
+      showSuccess(`Product access set to ${accessNames[nextAccess]} for ${member.name}`);
+    } catch (err) {
+      const msg = err instanceof ApiRequestError ? err.message : "Failed to update product access.";
       showError(msg);
     }
   };
@@ -502,21 +517,30 @@ export default function StaffPage() {
                           </span>
                         </td>
 
-                        {/* CRM ACCESS */}
+                        {/* PRODUCT ACCESS */}
                         <td className="px-[12px] py-[8px]">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleCrmAccess(s, !s.crmAccess)}
-                            title={s.crmAccess ? "Click to revoke Ensis CRM access" : "Click to grant Ensis CRM access"}
-                            className={`inline-flex items-center gap-1 rounded-[4px] px-[8px] py-[3px] text-[8px] font-bold shadow-xs transition hover:scale-105 active:scale-95 ${
-                              s.crmAccess
-                                ? "bg-[#e8f5e9] text-[#23714a] border border-[#a5d6a7] hover:bg-[#c8e6c9]"
-                                : "bg-[#f1f5f9] text-[#64748b] border border-[#cbd5e1] hover:bg-[#e2e8f0]"
-                            }`}
-                          >
-                            <span className={`inline-block h-1.5 w-1.5 rounded-full ${s.crmAccess ? "bg-[#23714a]" : "bg-[#94a3b8]"}`} />
-                            {s.crmAccess ? "CRM Allowed" : "No Access"}
-                          </button>
+                          {currentAdmin?.roleSlug === 'SUPER_ADMIN' ? (
+                            <select
+                              key={`${s._id}-productAccess`}
+                              value={s.productAccess || 'crm'}
+                              onChange={(e) => handleToggleProductAccess(s, e.target.value as 'crm' | 'admin' | 'both')}
+                              className={`inline-flex items-center gap-1 rounded-[4px] px-[8px] py-[3px] text-[8px] font-bold shadow-xs transition hover:scale-105 active:scale-95 ${
+                                s.productAccess === 'crm'
+                                  ? "bg-[#e8f5e9] text-[#23714a] border border-[#a5d6a7] hover:bg-[#c8e6c9]"
+                                  : s.productAccess === 'admin'
+                                  ? "bg-[#f3e8ff] text-[#6366f1] border border-[#a5f3fc] hover:bg-[#e9d8fd]"
+                                  : "bg-[#e2e8f0] text-[#64748b] border border-[#cbd5e1] hover:bg-[#e2e8f0]"
+                              }`}
+                            >
+                              <option value="crm">Ensis CRM</option>
+                              <option value="admin">Ensis Admin</option>
+                              <option value="both">Both</option>
+                            </select>
+                          ) : (
+                            <span className="text-[8px] font-medium text-[#64748b]">
+                              {s.productAccess || 'crm'}
+                            </span>
+                          )}
                         </td>
 
                         {/* STATUS DROPDOWN — Styled Native Select identical to Pages CMS Edit */}
@@ -778,17 +802,22 @@ export default function StaffPage() {
             </Select>
             <div className="flex items-center justify-between rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-2.5">
               <div>
-                <p className="text-[11px] font-bold text-[#1e293b]">Ensis CRM Access</p>
+                <p className="text-[11px] font-bold text-[#1e293b]">Product Access</p>
                 <p className="text-[9.5px] text-[#64748b]">
-                  Allow this user to log in and work in Ensis CRM (Superadmin can grant or deny access)
+                  {currentAdmin?.roleSlug === 'SUPER_ADMIN'
+                    ? 'Ensis CRM / Ensis Admin / Both'
+                    : 'Super Admin only'}
                 </p>
               </div>
-              <input
-                type="checkbox"
-                checked={Boolean(form.crmAccess)}
-                onChange={(e) => setForm({ ...form, crmAccess: e.target.checked })}
-                className="h-4 w-4 rounded accent-[#16a34a] cursor-pointer"
-              />
+              {currentAdmin?.roleSlug === 'SUPER_ADMIN' ? (
+                <Select label="Product Access" required value={form.productAccess || 'crm'} onChange={(e) => setForm({ ...form, productAccess: e.target.value as 'crm' | 'admin' | 'both' })}>
+                  <option value="crm">Ensis CRM</option>
+                  <option value="admin">Ensis Admin</option>
+                  <option value="both">Both</option>
+                </Select>
+              ) : (
+                <p className="text-[9.5px] text-[#64748b] font-medium">{form.productAccess || 'crm'}</p>
+              )}
             </div>
             {error && <p className="text-xs font-medium text-red-500">{error}</p>}
           </div>
